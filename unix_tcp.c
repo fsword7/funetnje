@@ -474,7 +474,8 @@ read_passive_tcp_connection()
 	  if (strcmp(IoLines[Index].HostName, HostName) == 0) {
 	    /* Found - now do some checks */
 	    struct LINE *Line = &IoLines[Index];
-logger(2,"UNIX_TCP: Line %s/%d passive channel read\n",Line->HostName,Index);
+	    logger(2,"UNIX_TCP: Line %s/%d passive channel read\n",
+		   Line->HostName,Index);
 	    if (Line->type != UNIX_TCP) { /* Illegal */
 	      logger(1, "UNIX_TCP, host %s, line %d, is not a UNIX_TCP type but type %d\n",
 		     Line->HostName,Index,Line->type);
@@ -486,32 +487,18 @@ logger(2,"UNIX_TCP: Line %s/%d passive channel read\n",Line->HostName,Index);
 	      if (Line->state == ACTIVE)
 		ReasonCode = 2; /* Link is active.. */
 	      else if (Line->state == TCP_SYNC) {
-#if 1
 		close(Line->socket);
 		Line->socket = -1;
 		Line->socketpending = -1;
 		logger(1,"UNIX_TCP: read_passive_tcp_connection(%s/%d) -- the other end called us, we quit the active open attempt!, link state was %d\n",
 		       Line->HostName,Index,Line->state);
 		Line->state = LISTEN;
-#else
-		ReasonCode = 3; /* Link is attempting active open, or is it ? */
-	      /* Let pending connect do its deed.. */
-#if 1
-	 /*   if (Line->socketpending < 0) { */
-	        logger(1,"UNIX_TCP: read_passive_tcp_connection(), line %s, state=%d\n",
-		       Line->HostName, Line->state);
-		Line->state = INACTIVE;
-		restart_channel(Index);
-	/*      } */
-#endif
-	      /* Will close line and put it into correct state */
-	      goto RetryConnection;
-#endif
 	      } else {
 		/* ??? */
 	      }
 	    }
-logger(2,"UNIX_TCP: Acking passive open on line %s/%d\n",Line->HostName,Index);
+	    logger(2,"UNIX_TCP: Acking passive open on line %s/%d\n",
+		   Line->HostName,Index);
 	    
 
 	    /* Copy the parameters from the Accept block,
@@ -580,22 +567,19 @@ RetryConnection:
  | routine that handles the input data.
  */
 void
-unix_tcp_receive(indx, line)
-int	indx;
+unix_tcp_receive(Index, line)
+int	Index;
 struct	LINE *line;
 {
 	struct LINE *Line = line;
-	int	Index = indx;
 	int	i, size = 0, rsize = 0;
 	int	lerrno, buff_full = 0;
 	char	Type[10];	/* Control block type */
 	unsigned char	*p, *q;
 
-if (indx != Index) abort();
 	/* Line = &(IoLines[Index]); */
 	dequeue_timer(Line->TimerIndex);	/* Dequeue the timeout */
 
-if (indx != Index) abort();
 	/* Append the data to our buffer */
 
 	/* Buffer max size */
@@ -611,26 +595,24 @@ if (indx != Index) abort();
 	} else {
 	  /* Not yet full, read something in */
 	  errno = 0;
-if (indx != Index) abort();
 	  if ((rsize = read(Line->socket,
 			    Line->InBuffer + Line->RecvSize, size)) == -1) {
 	    if (errno == EINTR) {
-if (indx != Index) abort();
 	      queue_receive(Index); /* Requeue the read request */
 	      return;		/* Well, come back later.. */
-if (indx != Index) abort();
 	    }
+#ifdef NBSTREAM
+	    if (errno == EWOULDBLOCK || errno == EAGAIN)
+	      return;
+#endif
 
 	    logger(1, "UNIX_TCP: Error reading, line %s, error: %s\n",
 		   Line->HostName, PRINT_ERRNO);
 	    Line->state = INACTIVE;
 	    /* Will close line and put it into correct state */
-if (indx != Index) abort();
 	    restart_channel(Index);
-if (indx != Index) abort();
 	    return;
 	  }
-if (indx != Index) abort();
 
 	  GETTIME(&Line->InAge);
 
@@ -649,20 +631,16 @@ if (indx != Index) abort();
 	    logger(1,"UNIX_TCP: Zero characters read. Disabling line %s, errno = %d\n",
 		   Line->HostName,lerrno);
 	    Line->state = INACTIVE;
-if (indx != Index) abort();
 	    restart_channel(Index); /* Will close line and put
 				       it into correct state */
-if (indx != Index) abort();
 	    return;
 	  }
 
-if (indx != Index) abort();
 	  /* Register the current size */
 	  Line->RecvSize += size;
 
 	} /* .. not buffer full, we could read */
 
-if (indx != Index) abort();
 
 	/* If we are in the TCP_SYNC stage, then this is the reply
 	   from other side */
@@ -670,21 +648,16 @@ if (indx != Index) abort();
 	if (Line->state == TCP_SYNC) {
 	  struct VMctl	*ControlBlock;
 
-if (indx != Index) abort();
 	  if (Line->RecvSize < 10) {	/* Too short block */
 	    logger(1, "UNIX_TCP, Too small Open record received on line %s\n",
 		   Line->HostName);
 	    Line->state = INACTIVE;
-if (indx != Index) abort();
 	    restart_channel(Index); /* Will close line and put
 				       it into correct state */
-if (indx != Index) abort();
 	    return;
 	  }
 	  ControlBlock = (struct VMctl*)Line->InBuffer;
-if (indx != Index) abort();
 	  EBCDIC_TO_ASCII(ControlBlock->type, Type, 8); Type[8] = '\0';
-if (indx != Index) abort();
 	  if (strcmp(Type, "ACK     ") != 0) { /* Something wrong */
 	    if (strcmp(Type,"NAK     ")==0)
 	      logger(1, "UNIX_TCP: Got a NAK on OPEN attempt of the line %s\n",
@@ -693,7 +666,6 @@ if (indx != Index) abort();
 	      logger(1, "UNIX_TCP: Illegal control record '%s', line %s\n",
 		     Type, Line->HostName);
 	    /* Print error code */
-if (indx != Index) abort();
 	    switch (ControlBlock->R) {
 	      case 0x01:
 		  logger(1,"     Link could not be found\n");
@@ -708,31 +680,24 @@ if (indx != Index) abort();
 		  logger(1,"     Illegal error code %d\n", ControlBlock->R);
 		  break;
 	    }
-if (indx != Index) abort();
 	    Line->state = INACTIVE;
 	    restart_channel(Index); /* Will close line and put
 				       it into correct state */
-if (indx != Index) abort();
 	    return;
 	  }
-if (indx != Index) abort();
 	  Line->RetryIndex = 0;	/* That was successfull, use short period! */
 
 	  /* It's ok - set channel into DRAIN and send the first Enquire */
 	  Line->state = DRAIN;
 
 	  /* Send an enquiry there */
-if (indx != Index) abort();
 	  send_data(Index, &Enquire, sizeof(struct ENQUIRE), SEND_AS_IS);
-if (indx != Index) abort();
 
 	  queue_receive(Index);
-if (indx != Index) abort();
 	  Line->TcpState = 0;
 	  Line->RecvSize = 0;
 	  return;
 	}
-if (indx != Index) abort();
 
 	/* Loop over the received InBuffer, and append characters as needed */
 
@@ -751,23 +716,17 @@ if (indx != Index) abort();
 	    if (NewSize <= Line->RecvSize)
 	      Line->TcpState = NewSize; /* Got enough! */
 	    else {
-if (indx != Index) abort();
 	      queue_receive(Index); /* Requeue the read request */
-if (indx != Index) abort();
 	      if (buff_full) {
 		logger(1,
 		       "UNIX_TCP: VMNET TTB read size failure;  TTBsize=%d\n",
 		       NewSize);
-if (indx != Index) abort();
 		restart_channel(Index);
-if (indx != Index) abort();
 	      }
 	      return;
 	    }
 	  } else {		/* We need at least 4 bytes */
-if (indx != Index) abort();
 	    queue_receive(Index); /* Requeue the read request */
-if (indx != Index) abort();
 	    if (buff_full)
 	      bug_check("UNIX_TCP: VMNET TTB READ SIZE FAILURE (impossible variant)!\n");
 	    return;
@@ -777,10 +736,8 @@ if (indx != Index) abort();
 	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) RecvSize=%d, first TTBsize=%d\n",
 	   Line->HostName,Line->RecvSize,Line->TcpState); */
 
-if (indx != Index) abort();
 	while (Line->RecvSize >= 4) { /* Loop over the InBuffer */
 
-if (indx != Index) abort();
 	  Line->TcpState =  ((((unsigned char)(Line->InBuffer[2])) << 8) +
 			     (unsigned char)(Line->InBuffer[3]));
 
@@ -793,15 +750,12 @@ if (indx != Index) abort();
 	  i = Line->TcpState;	/* Size of TTB contents */
 	  p += TTB_SIZE;
 	  i -= TTB_SIZE;
-if (indx != Index) abort();
 	  for (;i >= TTR_SIZE;) {
 
 	    int	 TTRlen;
 	    struct TTR ttr;
 
-if (indx != Index) abort();
 	    memcpy(&ttr, p, TTR_SIZE); /* Copy to our struct */
-if (indx != Index) abort();
 	    if (ttr.LN == 0) break; /* End of InBuffer */
 
 	    p += TTR_SIZE;
@@ -834,7 +788,6 @@ if (indx != Index) abort();
 	    i -= (TTRlen + TTR_SIZE);
 	  }
 
-if (indx != Index) abort();
 	  /* Place pointer to the NEXT thing in buffer.. */
 	  p = Line->InBuffer + Line->TcpState;
 	  i = Line->RecvSize - Line->TcpState; /* that much left.. */
@@ -863,14 +816,11 @@ if (indx != Index) abort();
 	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) left over RecvSize=%d\n",
 	   Line->HostName,Line->RecvSize); */
 
-if (indx != Index) abort();
 	Line->flags &= ~F_WAIT_V_A_BIT;
 	if (Line->state == ACTIVE)
 	  handle_ack(Index, IMPLICIT_ACK);
-if (indx != Index) abort();
 
 	queue_receive(Index);	/* Requeue the read request */
-if (indx != Index) abort();
 }
 
 

@@ -495,6 +495,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	if (Line->state != ACTIVE)
 	  return;	/* If the LINK is not active, quit now.. */
 
+#ifdef NBSTREAM
+	if (Line->WritePending != NULL)
+	  return;	/* There is write pending, quit now... */
+#endif
+
 	if (Line->MaxStreams > 1) {
 	  /* No need to do it if only one stream */
 	  for (i = (Line->CurrentStream + 1) % Line->MaxStreams;
@@ -658,6 +663,10 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	  case S_SENDING_FILE:	/* We are in the middle of the file */
 	  SendAgain:
 	      /* logger(3, "PROTOCOL: Sending next file's buffer\n"); */
+#ifdef NBSTREAM
+	      if (Line->WritePending != NULL)
+		return; /* Brp.. It is full.. */
+#endif
 	      Line->flags |= F_XMIT_CAN_WAIT;
 	      send_file_buffer(Index);	/* pick next record */
 	      /* If it is VMNET protocol, and more room in transmit

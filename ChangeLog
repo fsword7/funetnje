@@ -1,5 +1,9 @@
 Tue Jun  6 12:28:31 1995  Matti Aarnio  <mea@nic.funet.fi>
 
+	* unix_tcp.c, protocol.c:
+	    Couple more NBSTREAM tests so that we won't run over ourselves
+	    when transmiting on a stream.
+
 	* file_queue.c, io.c:
 	    Revised slightly the queue handling - when restarting a link,
 	    ALWAYS tear apart the current state.

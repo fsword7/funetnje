@@ -14,10 +14,6 @@
 
 - An "IUCVTRAP" mechanism is needed
 
-- SOMETIMES there is memory leakage/refree on message-queue chains.
-  ( -> sigsegv.. )  (well, SOMEWHERE is (buffer-)memory overwrite -> various
-  pointers et.al. turn into mush...)
-
 - A cluster mode ?  (Esp. messages)
 	Thinking as binding multiple machines into single NJE-node
 	by allowing transparent NMR relaying.  File-spool is simple
