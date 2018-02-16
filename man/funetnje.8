@@ -64,10 +64,11 @@ Sample \fBconfiguration file\fR:
 \f4* Directory for in & outbound traffics
 \f4* Protection 2775 (or 2770), group "huji"
 \f4QUEUE           /usr/spool/bitnet
-\f4* AF_UNIX "command mailbox" -channel.
-\f4CMDMAILBOX      /usr/spool/bitnet/.cmdpipe
-\f4* AF_INET "command mailbox" -host (IP address!)
-\f4*CMDMAILBOX     123.45.67.89
+\f4*  What kind of communication channel we have ?
+\f4*  Choices: two named files, and UDP socket
+\f4*CMDMAILBOX  FIFO /usr/spool/bitnet/.cmdfifo
+\f4*CMDMAILBOX  SOCK /usr/spool/bitnet/.cmdsocket
+\f4CMDMAILBOX   UDP  127.0.0.1 175
 \f4* Logging file
 \f4LOG             /usr/adm/bitnet.log
 \f4* Optional RSCSv1 style accounting log.  Needed only on
@@ -332,13 +333,18 @@ hand, nobody is supposed to need to share them...
 .IP "\fB/usr/spool/bitnet/.cmdpipe\fR" 1.0i 0
 Configured
 .SM `CMDMAILBOX'
-of FUNET-NJE intermodule communication channel FIFO.
-Protected 660, and in principle those who need to
-communicate via it must to so either by being superusers,
+of FUNET-NJE intermodule communication channel.
+If it is a FIFO ("F"), it is protected as 660,
+and in principle those who need to communicate
+via it must to so either by being superusers,
 using setgid programs, or having the groupid that
 the
 .SM `QUEUE'
 has.
+Alternate modes for this are SOCKET ("S"), and
+UDP ("U"), FIFO and SOCKET define path to named
+file, and UDP defines server host address (0.0.0.0, or
+perhaps preferrably 127.0.0.1) and port (174).
 .IP "\fB/usr/spool/bitnet/.spoolid\fR" 1.0i 0
 A special file saving last used outbound spoolid in
 binary format.  Transporter internal usage.

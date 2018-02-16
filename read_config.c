@@ -364,6 +364,7 @@ read_configuration()
 	      printf("CMDMAILBOX missing mandatory argument: %s\n", line);
 	      return 0;
 	    }
+	    strcat(COMMAND_MAILBOX, " ");
 	    strcat(COMMAND_MAILBOX, param2);
 	    if (*param3 != 0) {
 	      strcat(COMMAND_MAILBOX, " ");

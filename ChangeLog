@@ -1,3 +1,11 @@
+Fri Mar 22 13:48:30 1996  Matti Aarnio  <mea@nic.funet.fi>
+
+	* libsendcmd.c, unix.c:
+	    Even more relaxed approach on parametrizing
+	    the CMDMAILBOX -- now allows SOCK/FIFO/UDP
+	    with fairly flexible (in regards of spaces)
+	    syntax..
+
 Mon Nov 13 17:48:52 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* libsendcmd.c, unix.c:

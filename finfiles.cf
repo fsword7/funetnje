@@ -1,35 +1,36 @@
 *
-*	Configuration file for FUNET-NJE program
+*	Configuration file for HUJI-NJE program
 *
 
 NAME		FINFILES
 ALIAS		HAMSTER
 *IPADDRESS	nic.funet.fi
-IPADDRESS	128.214.6.100
+IPADDRESS	128.214.248.6
 QUEUE		/usr/spool/bitnet
-CMDMAILBOX	/usr/spool/bitnet/.cmdpipe
+*CMDMAILBOX	F /usr/spool/bitnet/.cmdfifo
+*CMDMAILBOX	S /usr/spool/bitnet/.cmdsocket
+CMDMAILBOX	U 127.0.0.1 175
 LOG		/usr/adm/bitnet.log
 RSCSACCT	/usr/adm/bitnet.acct
 * this table is a binary file.
-TABLE		/usr/local/lib/huji/finfiles.routes
+TABLE		/l/funetnje/finfiles.routes
 INFORM		MEA@FINFILES
-FILEEXITS	/usr/local/lib/huji/file-exit.cf
-MSGEXITS	/usr/local/lib/huji/msg-exit.cf
+FILEEXITS	/l/funetnje/file-exit.cf
+MSGEXITS	/l/funetnje/msg-exit.cf
 DEFFORM		STANDARD
 LLEVEL		2
 *DEFAULT-ROUTE	FINHUTC
 *DEFAULT-ROUTE	FIGBOX
 
-LINE 0 FIGBOX
+LINE 0 FIPORT
  TYPE		UNIX_TCP
  BUFSIZE	4096
  TIMEOUT	3
  IPPORT		500
-* TCPNAME	figbox.funet.fi
- TCPNAME	128.214.6.7
+* TCPNAME	fiport.funet.fi
+ TCPNAME	128.214.109.150
  TCP-SIZE	8192
  MAX-STREAMS	7
-
 
 LINE 1 ALIJKU65
  TYPE		UNIX_TCP
@@ -64,30 +65,39 @@ LINE 3 FINHUTC
  SLOW-INTERLEAVE
  MAX-STREAMS	7
 
-LINE 4  FINFAN
+LINE 4 MEA
  TYPE		UNIX_TCP
  BUFSIZE	8192
  TIMEOUT	3
  IPPORT		175
- TCPNAME	convex.csc.fi
+ TCPNAME	130.232.1.11
  TCP-SIZE	8192
  MAX-STREAMS	7
 
-LINE 5 FINUTU
-  TYPE		UNIX_TCP
-  BUFSIZE	1024
-  TIMEOUT	3
-  IPPORT	175
-* TCPNAME	castor.utu.fi
-  TCPNAME	130.232.1.14
-  TCP-SIZE	8192
-  MAX-STREAMS	7
-
-LINE 6 VOGON
- TYPE           UNIX_TCP
- BUFSIZE        1024
- TIMEOUT        3
- IPPORT         175
- TCPNAME        vogon.astro.utu.fi
- TCP-SIZE       8192
- MAX-STREAMS    7
+*LINE 5  FINFAN
+* TYPE		UNIX_TCP
+* BUFSIZE	8192
+* TIMEOUT	3
+* IPPORT		175
+* TCPNAME	convex.csc.fi
+* TCP-SIZE	8192
+* MAX-STREAMS	7
+*
+*LINE 6 FINUTU
+*  TYPE		UNIX_TCP
+*  BUFSIZE	1024
+*  TIMEOUT	3
+*  IPPORT	175
+** TCPNAME	castor.utu.fi
+*  TCPNAME	130.232.1.14
+*  TCP-SIZE	8192
+*  MAX-STREAMS	7
+*
+* LINE 7 OJ287
+*   TYPE		UNIX_TCP
+*   BUFSIZE	1024
+*   TIMEOUT	3
+*   IPPORT	175
+*   TCPNAME	oj287.astro.utu.fi
+*   TCP-SIZE	8192
+*   MAX-STREAMS	7

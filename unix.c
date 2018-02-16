@@ -197,8 +197,8 @@ init_command_mailbox()
 	  SocketName.sin_port = htons(portnum);
 
 	  if (bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
-	    logger(1, "UNIX, Can't bind command socket, error: %s\n",
-		   PRINT_ERRNO);
+	    logger(1, "UNIX, Can't bind command socket '%s', error: %s\n",
+		   socknam, PRINT_ERRNO);
 	    exit(1);
 	  }
 
@@ -931,49 +931,57 @@ const int n;
 	/* int options; */
 	int pid;
 
-	/* It seems that normal wait() without explicitic calls to this
-	   procedure can work also.  All tests indicate that polled
-	   handle_childs() just returns because of (pid <= 0). Always.
-	   Interrupt based handling has taken care of dead child.
-	   This is true at least on  SunOS 4.0.3			*/
+	for (;;) {
 
-	pid = waitpid (-1 /* Any child */, &status, WNOHANG);
-	if (pid <= 0) return ; /* No childs waiting for us. */
+	  /* It seems that normal wait() without explicitic calls to this
+	     procedure can work also.  All tests indicate that polled
+	     handle_childs() just returns because of (pid <= 0). Always.
+	     Interrupt based handling has taken care of dead child.
+	     This is true at least on  SunOS 4.0.3			*/
 
-	/* We salvage dead childrens and make sure we don't gather zombies */
-	if (WIFSTOPPED(status))
-	  logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
-		 pid,WSTOPSIG(status));
-	else if (WIFSIGNALED(status))
-	  logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
-		 pid,WTERMSIG(status),(0200 & status)?", core dumped":"");
-	else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
-	  logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
-		 WEXITSTATUS(status));
+	  pid = waitpid (-1 /* Any child */, &status, WNOHANG);
+	  if (pid <= 0) return ; /* No childs waiting for us. */
+
+	  /* We salvage dead childrens and make sure we don't gather zombies */
+	  if (WIFSTOPPED(status))
+	    logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
+		   pid,WSTOPSIG(status));
+	  else if (WIFSIGNALED(status))
+	    logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
+		   pid,WTERMSIG(status),(0200 & status)?", core dumped":"");
+	  else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+	    logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
+		   WEXITSTATUS(status));
+	}
+	/* NOT REACHED */
 #else /* !_POSIX_SOURCE */
 	union wait status;
 	struct rusage rusage;
 	int pid;
 
-	/* It seems that normal wait() without explicitic calls to this
-	   procedure can work also.  All tests indicate that polled
-	   handle_childs() just returns because of (pid <= 0). Always.
-	   Interrupt based handling has taken care of dead child.
-	   This is true at least on  SunOS 4.0.3			*/
+	for (;;) {
 
-	pid = wait3 (&status,WNOHANG,&rusage);
-	if (pid <= 0) return ; /* No childs waiting for us. */
+	  /* It seems that normal wait() without explicitic calls to this
+	     procedure can work also.  All tests indicate that polled
+	     handle_childs() just returns because of (pid <= 0). Always.
+	     Interrupt based handling has taken care of dead child.
+	     This is true at least on  SunOS 4.0.3			*/
 
-	/* We salvage dead childrens and make sure we don't gather zombies */
-	if (WIFSTOPPED(status))
-	  logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
-		 pid,status.w_stopsig);
-	else if (WIFSIGNALED(status))
-	  logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
-		 pid,status.w_termsig,status.w_coredump?", core dumped":"");
-	else if (WIFEXITED(status) && status.w_retcode != 0)
-	  logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
-		 status.w_retcode);
+	  pid = wait3 (&status,WNOHANG,&rusage);
+	  if (pid <= 0) return ; /* No childs waiting for us. */
+
+	  /* We salvage dead childrens and make sure we don't gather zombies */
+	  if (WIFSTOPPED(status))
+	    logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
+		   pid,status.w_stopsig);
+	  else if (WIFSIGNALED(status))
+	    logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
+		   pid,status.w_termsig,status.w_coredump?", core dumped":"");
+	  else if (WIFEXITED(status) && status.w_retcode != 0)
+	    logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
+		   status.w_retcode);
+	}
+	/* NOT REACHED */
 #endif /* !_POSIX_SOURCE */
 }
 #endif /* BSD_SIGCHLDS */

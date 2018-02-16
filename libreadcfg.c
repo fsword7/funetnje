@@ -69,6 +69,7 @@ read_configuration()
 	    strcpy(BITNET_QUEUE, param1);
 	  } else if (strcasecmp(KeyWord, "CMDMAILBOX") == 0) {
 	    strcpy(COMMAND_MAILBOX, param1);
+	    strcat(COMMAND_MAILBOX, " ");
 	    strcat(COMMAND_MAILBOX, param2);
 	    if (param3[0] != 0) {
 	      strcat(COMMAND_MAILBOX, " ");

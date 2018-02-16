@@ -90,12 +90,12 @@
 #INSTALL=install
 
 # DEC AxpOSF/1 3.2 -- GCC-2.6.3
-CC=gcc -Wall -O6 #-fno-builtin
-#CC=cc -migrate -D__alpha__
+#CC=gcc -Wall -O6 #-fno-builtin
+CC=cc -migrate -D__alpha__ -O5 -inline speed
 #CC=cc -D__alpha__
 CPP=gcc -E
 CDEFS=  -DBSD_SIGCHLDS -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
-CFLAGS= -g $(CDEFS)
+CFLAGS= -g3 $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 MAILIFY=mailify
 MAILIFYCFLAGS= $(CFLAGS) -DUSE_ZMAILER -I/l/include
