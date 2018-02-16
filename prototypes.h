@@ -288,7 +288,7 @@ extern void	read_ebcasc_table __(( char *filepath ));
 extern void	init_active_tcp_connection __(( const int Index, const int finalize ));
 extern void	init_passive_tcp_connection __(( const int TcpType ));
 extern void	send_unix_tcp __(( const int Index, const void *line, const int size ));
-extern void	tcp_partial_write __(( const int Index ));
+extern void	tcp_partial_write __(( const int Index, const int flg ));
 extern void	close_unix_tcp_channel __(( const int Index ));
 extern void	accept_tcp_connection __(( void ));
 extern void	read_passive_tcp_connection __(( void ));

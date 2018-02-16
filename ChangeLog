@@ -1,3 +1,12 @@
+Wed May 24 13:19:13 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* unix.c, unix_tcp.c, protocol.c, prototypes.h:
+	    Still more revisions into NBSTREAM processing code,
+	    also tried to improve sending speed, which now clocks
+	    to 50kB/s or better.. ( Previously 30kB/s was tops
+	    with 0.25 sec timeout on select(), now select timeout
+	    is changed to 1.0 sec :-)  )
+
 Thu May 18 02:51:44 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* sendfile.c:

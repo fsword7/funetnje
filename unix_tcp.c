@@ -877,18 +877,20 @@ if (indx != Index) abort();
 
 #ifdef	NBSTREAM
 void
-tcp_partial_write(Index)
+tcp_partial_write(Index,flg)
 const int Index;
+const int flg;
 {
 	struct	LINE	*Line = &IoLines[Index];
 	int rc;
 
 	do {
+	  errno = 0;
 	  rc = write(Line->socket,Line->WritePending,Line->XmitSize);
 	  if (rc == -1 && errno != EAGAIN &&
 	      errno != EWOULDBLOCK && errno != EINTR) {
-	    logger(1, "UNIX_TCP, tcp_partial_write(): line %s, error: %s\n",
-		   Line->HostName, PRINT_ERRNO);
+	    logger(1, "UNIX_TCP, tcp_partial_write(): line %s, flg %d error: %s\n",
+		   Line->HostName, flg, PRINT_ERRNO);
 	    restart_channel(Index);
 	    return;
 	  }
@@ -896,8 +898,8 @@ const int Index;
 
 	if (rc < 0) {
 
-	  logger(2,"UNIX_TCP: Blocking pending writer on line %s, size left=%d\n",
-		 Line->HostName, Line->XmitSize);
+	  logger(3,"UNIX_TCP: Blocking pending writer on line %s, flg %d, size left=%d\n",
+		 Line->HostName, flg, Line->XmitSize);
 
 	  /* Line->flags |= F_WAIT_V_A_BIT; */
 	  return;
@@ -908,8 +910,8 @@ const int Index;
 	  Line->flags |= F_WAIT_V_A_BIT;
 	  Line->WrBytes += rc;
 
-	  logger(2,"UNIX_TCP: pending writer on line %s, size left=%d\n",
-		 Line->HostName, Line->XmitSize);
+	  logger(3,"UNIX_TCP: pending writer on line %s, flg %d, size left=%d\n",
+		 Line->HostName, flg, Line->XmitSize);
 
 	  return;
 	}
@@ -934,8 +936,11 @@ const void	*line;
 	struct	LINE	*Line = &IoLines[Index];
 
 #ifdef  NBSTREAM	/* ++++++++++++ NBSTREAM ++++++++++++++ */
+	if (Line->WritePending != NULL) {
+	  bug_check("Line  WritePending  pointer non-zero at  send_unix_tcp()!\n");
+	}
 	Line->WritePending = line;
-	tcp_partial_write(Index);
+	tcp_partial_write(Index,1);
 #else			/* ++++++++++++ NBSTREAM ++++++++++++++ */
 
 

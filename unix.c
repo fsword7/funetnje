@@ -297,12 +297,25 @@ timer_ast()
 	      TimerQueue[i].expire = 0;
 	      switch (TimerQueue[i].action) {
 		case T_SEND_ACK:		/* Send ACK	*/
+#ifdef NBSTREAM
+		    if (Line->WritePending != NULL) {
+		      /* Requeue it: */
+		      Line->TimerIndex = queue_timer(Line->TimeOut,
+						     TimerQueue[i].index,
+						     T_SEND_ACK);
+		      break;
+		    }
+#endif
 		    handle_ack(TimerQueue[i].index, DELAYED_ACK);
 		    break;
 		case T_TCP_TIMEOUT:
 		    /* Read timeout, Simulate an ACK if needed */
 		    Line = &(IoLines[TimerQueue[i].index]);
-		    if (Line->state == ACTIVE) {
+		    if (Line->state == ACTIVE
+#ifdef NBSTREAM
+			&& Line->WritePending == NULL
+#endif
+			) {
 		      handle_ack(TimerQueue[i].index, EXPLICIT_ACK);
 		    }
 		    /* Requeue it: */
@@ -500,7 +513,7 @@ poll_sockets()
 again:
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;	/* 1 second timeout */
-#if 1 /* If 0.25 sec timeout is too fast ? */
+#if 0 /* If 0.25 sec timeout is too fast ? */
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 250000;	/* 0.25 second timeout */
 #endif
@@ -541,8 +554,10 @@ again:
 	      (IoLines[i].state != RETRYING) &&
 	      (IoLines[i].state != LISTEN) &&
 	      (IoLines[i].socket >= 0)) {
-#if	defined(NBCONNECT) || defined(NBSTREAM) /* Can't do connects which
-						   take time to finish.. */
+#if	defined(NBCONNECT) || defined(NBSTREAM)
+
+	    /* Can't do connects which take time to finish.. */
+
 	    if (IoLines[i].socketpending >= 0) {
 	      /* A pending open.. */
 
@@ -553,20 +568,26 @@ again:
 #endif
 	    {
 	      /* Normal stream, already open */
-
 	      _FD_SET(IoLines[i].socket, readfds);
 	    }
 #if	NBSTREAM
-	    if (IoLines[i].WritePending &&
-		IoLines[i].state == ACTIVE) {
+	    if (IoLines[i].state == ACTIVE) {
+	      if (IoLines[i].WritePending)
+		/* We have a write pedning */
+		_FD_SET(IoLines[i].socket, writefds);
+	      else if ((IoLines[i].flags & F_CALL_ACK) &&
+		       IoLines[i].ActiveStreams != 0)
+		/* Or we are expected to call ACK */
+		_FD_SET(IoLines[i].socket, writefds);
+	    }
+#else
+	    if (IoLines[i].state == ACTIVE &&
+		IoLines[i].ActiveStreams != 0 &&
+		(IoLines[i].flags & F_CALL_ACK) != 0) {
+	      /* We are expected to call ACK */
 	      _FD_SET(IoLines[i].socket, writefds);
 	    }
 #endif	/* NBSTREAM */
-#if	WRITESELECT
-	    if (IoLines[i].ActiveStreams != 0 && IoLines[i].state == ACTIVE) {
-	      _FD_SET(IoLines[i].socket, writefds);
-	    }
-#endif	/* WRITESELECT */
 	  }
 	}
 
@@ -594,17 +615,6 @@ again:
 	  _FD_SET(PassiveSocketChannel, readfds);
 	}
 
-	/* If we have something left over from the last read(), process
-	   them..   This MAY cause excessive calls, but should improve
-	   the system performance..  */
-
-#if 0
-	for (j = 0; i < MAX_LINES; ++j)
-	  if ((*IoLines[j].HostName != '\0') &&
-	      (IoLines[j].RecvSize != 0))
-	    unix_tcp_receive(j, &IoLines[j]);
-#endif
-
 	if ((nfds = select(FdWidth,
 			   &readfds,
 #if	defined(NBSTREAM) || defined(WRITESELECT)
@@ -624,7 +634,11 @@ again:
 	     handle-Ack from here.
 	   */
 	  for (i = 0; i < MAX_LINES; i++) {
-	    if ((IoLines[i].flags & F_CALL_ACK) != 0) {
+	    if (
+#ifdef NBSTREAM
+		IoLines[i].WritePending == NULL &&
+#endif
+		(IoLines[i].flags & F_CALL_ACK) != 0) {
 	      IoLines[i].flags &= ~F_CALL_ACK;
 	      handle_ack(i, EXPLICIT_ACK);
 	    }
@@ -689,26 +703,29 @@ again:
 
 
 	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
-	    tcp_partial_write(j);
+	    tcp_partial_write(j, 0);
 	  }
 	}
 #endif	/* NBSTREAM */
-#ifdef	WRITESELECT
-	/* Check write-space with select() */
+
+	/* Check if the socket is free to write, and we have
+	   F_CALL_ACK -flag set */
 
 	for (j = 0; j < MAX_LINES; ++j) {
 	  if (IoLines[j].HostName[0] == 0   ||
 	      IoLines[j].ActiveStreams == 0 ||
+#ifdef NBSTREAM
+	      IoLines[j].WritePending != NULL ||
+#endif
 	      IoLines[j].state != ACTIVE    ||
 	      (IoLines[j].flags & F_CALL_ACK) == 0)
-	    continue; /* No line, or no */
+	    continue; /* No line, or no activity here */
 	  i = IoLines[j].socket;
 
 	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
 	    handle_ack(j, EXPLICIT_ACK);
 	  }
 	}
-#endif	/* NBSTREAM */
 
 	/* Check if there is a connection to be accepted */
 

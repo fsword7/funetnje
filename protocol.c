@@ -1210,9 +1210,9 @@ void	*Buffer;
 		break;
 
 	    default:
-		logger(1, "PROTOCOL, Unrecognized RCB: x^%x on line %s\n",
-		       RCB, Line->HostName);
-		trace(pointer-2, size + 2, 1);
+		logger(1, "PROTOCOL, Unrecognized RCB: x^%x on line %s, offset=%d\n",
+		       RCB, Line->HostName, (pointer-buffer)-1);
+		trace(buffer, (pointer-buffer)+size, 1);
 		
 		bug_check("Aborting because of illegal RCB received");
 
