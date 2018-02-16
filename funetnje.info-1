@@ -774,7 +774,7 @@ BITNET node routing databases: `nje.routes'
 ===========================================
 
    *FUNET-NJE* uses *IBM RSCSv1* compatible route files.  Used
-data-elements are SITE, and LINE defnitions (second, and third tokens).
+data-elements are SITE, and LINE definitions (second, and third tokens).
 
    The routing file (for example `finfiles.routes') is generated with
 `njeroutes' -command:
@@ -1064,6 +1064,7 @@ needed for system MTA integration:
 * ucp::         Emulator master control panel
 * njeroutes::   Route-database generator program
 * namesfilter:: Mailer route extractor from BITEARN.NODES file
+* netinit::	Program to automate network route loading
 * acctcat::     Utility to dump the RSCS-accounting records
 
 
@@ -1183,7 +1184,7 @@ exist without "OUTONLY"-tag, and it defines the receiving mailer.
 are "afterthoughts"...
 
 
-File: funetnje.info,  Node: njeroutes,  Next: acctcat,  Prev: namesfilter,  Up: System programs
+File: funetnje.info,  Node: njeroutes,  Next: netinit,  Prev: namesfilter,  Up: System programs
 
 `njeroutes' - Route-database generator program
 ==============================================

@@ -14,7 +14,7 @@ non-commercial use without prior agreenment.
 
 Indirect:
 funetnje.info-1: 443
-funetnje.info-2: 50255
+funetnje.info-2: 50310
 
 Tag Table:
 (Indirect)
@@ -30,34 +30,35 @@ Node: file-exit.cf23788
 Node: msg-exit.cf28465
 Node: cmd-help.txt33176
 Node: routes34690
-Node: User programs36684
-Node: qrdr37453
-Node: receive39487
-Node: sendfile41001
-Node: send41899
-Node: bitsend43106
-Node: bitreceive43355
-Node: ygone43541
-Node: iucvtrap43762
-Node: transfer44013
-Node: System programs44617
-Node: bmail45257
-Node: mailify46438
-Node: ucp47320
-Node: namesfilter48850
-Node: njeroutes49830
-Node: acctcat50255
-Node: Interfacing mailer50686
-Node: Zmailer51390
-Node: smail54948
-Node: sendmail57958
-Node: Nuts and Bolts61100
-Node: directories61626
-Node: cmdpipe62496
-Node: iucvpipe62774
-Node: spool format62954
-Node: netdata70543
-Node: emulator logics70724
-Node: Literature70858
+Node: User programs36685
+Node: qrdr37454
+Node: receive39488
+Node: sendfile41002
+Node: send41900
+Node: bitsend43107
+Node: bitreceive43356
+Node: ygone43542
+Node: iucvtrap43763
+Node: transfer44014
+Node: System programs44618
+Node: bmail45312
+Node: mailify46493
+Node: ucp47375
+Node: namesfilter48905
+Node: njeroutes49885
+Node: netinit50310
+Node: acctcat51272
+Node: Interfacing mailer51701
+Node: Zmailer52405
+Node: smail55963
+Node: sendmail58973
+Node: Nuts and Bolts62115
+Node: directories62641
+Node: cmdpipe63511
+Node: iucvpipe63789
+Node: spool format63969
+Node: netdata71558
+Node: emulator logics71739
+Node: Literature71873
 
 End Tag Table

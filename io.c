@@ -717,7 +717,7 @@ const void	*buffer;
 
 	if ((Line->flags & F_SENDING) != 0) { /* Yes - it is occupied */
 	  if ((Line->flags & F_RELIABLE) == 0) {
-	    logger(1, "IO, Line %s doesn't support queueing\n",
+	    logger(1, "IO: Line %s doesn't support queueing\n",
 		   Line->HostName);
 	    return;		/* Ignore it */
 	  }
@@ -730,7 +730,7 @@ const void	*buffer;
 	  /* If the new last is the same as the first one,
 	     then we have no place... */
 	  if (NextEntry == Line->FirstXmitEntry) {
-	    logger(1, "IO, No place to queue Xmit on line %s\n",
+	    logger(1, "IO: No place to queue Xmit on line %s\n",
 		   Line->HostName);
 	    return;
 	  }

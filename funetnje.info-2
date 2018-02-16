@@ -12,7 +12,32 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 non-commercial use without prior agreenment.
 
 
-File: funetnje.info,  Node: acctcat,  Prev: njeroutes,  Up: System programs
+File: funetnje.info,  Node: netinit,  Next: acctcat,  Prev: njeroutes,  Up: System programs
+
+`netinit.sh' - Automatic route-updater
+======================================
+
+   `netinit.sh' is a small script which can be run from `cron' to
+facilitate automatic system maintance.
+
+   The sample version of it queries pseudo-user `NETINIT's reader and
+if it find there `FINFILES.NETINIT', or  `BITEARN.NODES', it processes
+them for routes (NETINIT), and ZMailer BITNET email routing database
+(ROUTES).
+
+   Sample output below (May-1995 route-db)
+     FINFILES.NETINIT: .../bitspool/NETINIT/0001 NETDATA NETSERV@FINHUTC   \
+                                          NETINIT@FINFILES FINFILES.NETINIT N
+     Ndparse ok, generating routes..
+     Records read:
+     Processing routing table
+     100 200 300 400 500 600 700 800 900 1000
+     1100 1200 1300 1400 1500 1600 1700 1800 1900 2000
+     2100
+     Total records inserted: 2136, 0 duplicates in DUPLICATE.TMP
+
+
+File: funetnje.info,  Node: acctcat,  Prev: netinit,  Up: System programs
 
 `acctcat' - Utility to dump the RSCS-accounting records
 =======================================================

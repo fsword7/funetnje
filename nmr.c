@@ -22,7 +22,7 @@
  |
  | Document:
  |   Network Job Entry - Formats and Protocols (IBM)
- |	SC23-0070-01
+ |	SC23-0070-02
  |	GG22-9373-02 (older version)
  */
 
@@ -150,11 +150,10 @@ const int	size;
 	   explanations in return-message */
 	EBCDIC_TO_ASCII(up, MessageText, s);
 
-	/* Remove all codes whose ASCII is less than
-	   32 and greater than 126 */
+	/* Remove all codes whose ASCII is less than 32 */
 	MessageText[s] = '\0';
 	for (up = (unsigned char *)MessageText; *up != 0; up++)
-	  if ((*up < ' ') || (*up > 126))
+	  if (*up < ' ')
 	    *up = ' ';
 
 #ifdef DEBUG
@@ -246,10 +245,9 @@ void		*Text;
 
 	    message_exit(ToName, ToNode, FrName, FrNode, CMD_CMD, text);
 	  } else {
-	    /* Remove all codes which ASCII is less than
-	       32 and greater than 126 */
+	    /* Remove all codes which ASCII is less than 32 */
 	    for (up = (unsigned char *)text; *up != 0; ++up)
-	      if ((*up < ' ') || (*up > 126)) *up = ' ';
+	      if (*up < ' ') *up = ' ';
 	    message_exit(ToName, ToNode, FrName, FrNode, CMD_MSG, text);
 	  }
 	  return;

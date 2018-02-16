@@ -29,7 +29,7 @@
 #	-DBSD_SIGCHLDS	Do SIGC(H)LD handling via a signal trapper.
 #			Some (most?) SYSV's can safely ignore the child, but
 #			BSDs (SunOS 4.1.3) can't.
-#	-DUSE_XMIT_QUEUE  Propably obsolete code;  never used on TCP/IP lines..
+#	-DUSE_XMIT_QUEUE  Propably obsolete code;  never used on TCP/IP lines ?
 #	-DUSE_ENUM_TYPES  If your compiler allows it, do it!
 #			  Debugging is smarter..  (Not finished thing!)
 #
@@ -98,7 +98,7 @@ CC=gcc -Wall #-fno-builtin
 #CC=cc -migrate -D__alpha__
 #CC=cc -D__alpha__
 CPP=gcc -E
-CDEFS=  -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_SOCKOPT -DUSE_ENUM_TYPES #-DDEBUG
+CDEFS=  -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_SOCKOPT -DUSE_ENUM_TYPES -DUSE_XMIT_QUEUE #-DDEBUG
 CFLAGS= -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 MAILIFY=mailify

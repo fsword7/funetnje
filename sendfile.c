@@ -266,7 +266,8 @@ char	*argv[];
 	      sprintf(To+strlen(To),"@%s",LOCAL_NAME);
 	    } else {
 	      *s++ = 0;
-	      To[8] = 0;
+	      if (strlen(To) > 8)
+		To[8] = 0;
 	      sprintf(To+strlen(To),"@%s",s);
 	    }
 	  } else

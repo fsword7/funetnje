@@ -131,7 +131,7 @@ const int	Index;
 /*	struct	MESSAGE	*MessageEntry; */
 	register long	PreviousState;	/* To know whether to inform
 					   state change */
-/*	register int	i;	 Stream index */
+	register int	i;	/* Stream index */
 
 	Line = &(IoLines[Index]);
 	if (Index > MAX_LINES || Line->HostName[0] == 0) {
@@ -141,6 +141,29 @@ const int	Index;
 
 	/* Init_link_state() will reset the line TCP line */
 	/* init_link_state(Index); --- NOT IN USE! */
+
+	/* CHANGE STATES OF FILES ON ACTIVE STREAMS! */
+
+	/* Close active file, and delete of output file. */
+	for (i = 0; i < MAX_STREAMS; i++) {
+	  Line->CurrentStream = i;
+	  if ((Line->OutStreamState[i] != S_INACTIVE) &&
+	      (Line->OutStreamState[i] != S_REFUSED)) { /* File active */
+	    close_file(Index, F_INPUT_FILE, i);
+	    requeue_file_entry(Index,Line);
+	  }
+	  if ((Line->InStreamState[i] != S_INACTIVE) &&
+	      (Line->InStreamState[i] != S_REFUSED)) { /* File active */
+	    delete_file(Index, F_OUTPUT_FILE, i);
+	  }
+	}
+
+	i = requeue_file_queue(Line);
+	if (i != 0)
+	  logger(1,"IO: init_link_state() calling requeue_file_queue() got an activecount of %d!  Should be 0!\n",i); 
+	/* Line->QueuedFiles = i; */
+	/* Line->QueuedFilesWaiting = 0; */
+
 
 	/* Send the ENQ block again, only if the line was before in
 	   some active state.    If it wasn't, then this call is
@@ -470,7 +493,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	   If we have interactive messages waiting,
 	   then try to block as much as we can in one block. */
 
-	if (Line->MessageQstart != NULL) {
+	if (
+#ifdef NBSTREAM	/* When blocking, DO NOT write messages to it! */
+	    Line->WritePending == NULL &&
+#endif
+	    Line->MessageQstart != NULL) {
 	  /* logger(2,"PROTOCOL: **DEBUG** About to call fill_message_buffer(%d,..): Line %s, MessageEntry = 0x%x\n",
 	     Index,Line->HostName,Line->MessageQstart);  */
 	  fill_message_buffer(Index, Line);

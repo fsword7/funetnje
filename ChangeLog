@@ -1,3 +1,16 @@
+Thu May 18 02:51:44 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* sendfile.c:
+	    Revised target-address processing..
+
+	* nmr.c, send.c:
+	    Consider only codes below ASCII ' ' (SPACE) to be bad on message
+	    transmission. -- Lets 8-bit ISO-Latin chars go thru as is...
+
+	* ebcdic.h, ebcdicinv.c:
+	    Made a 1:1 mapping in between ASCII and EBCDIC in true
+	    JNET fashion (likely exactly same table as they have..)
+
 Mon Apr 24 08:48:51 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* sendfile.c:

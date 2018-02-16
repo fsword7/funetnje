@@ -101,7 +101,7 @@ extern int	errno;
 
 #define	MAX_BUF_SIZE	10240	/* Maximum buffer size			*/
 #define	MAX_ERRORS	10	/* Maximum recovery trials before restart */
-#define	MAX_XMIT_QUEUE	10	/* Maximum pending xmissions for reliable
+#define	MAX_XMIT_QUEUE	20	/* Maximum pending xmissions for reliable
 				   links				*/
 #define	MAX_STREAMS	7	/* Maximum streams we support per line	*/
 

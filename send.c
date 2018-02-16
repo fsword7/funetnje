@@ -234,7 +234,8 @@ char	*from, *address, *text;
 
 	/* Remove all controls */
 	for (p = text; *p != '\0'; p++)
-	  if ((*p < ' ') || (*p > 126)) *p = ' ';
+	  if (((unsigned char)*p) < ' ')
+	    *p = ' ';
 
 	if (type == CMD_CMD) {
 	  /* Uppercase the message's text */

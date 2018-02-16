@@ -367,7 +367,10 @@ struct QUEUE	*Entry;
 	  strcpy(FileParams.SpoolFileName, FileName );
 	  strcpy(FileParams.To, ToAddr);
 #ifdef UNIX
-	  FileParams.FileStats = Entry->fstats;
+	  if (Entry != NULL)
+	    FileParams.FileStats = Entry->fstats;
+	  else
+	    stat(FileParams.SpoolFileName,&FileParams.FileStats);
 #endif
 	}
 
@@ -633,7 +636,7 @@ char *LinkName;
 		  sprintf(line, "      %s, %4dkB %s",
 			  QE->FileName+queuelen, QE->FileSize/1024,
 			  (QE->state<0) ? "HELD" : ((QE->state > 0) ?
-						      "Sending" : "Waiting"));
+						    "Sending" : "Waiting"));
 		  send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
 		}
 		QE = QE->next;
