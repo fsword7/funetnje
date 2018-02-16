@@ -109,12 +109,14 @@ char *selector;
 	  while (*s != 0) {
 	    int tag_len;
 	    char *t;
+	    int prev_char;
 
 	    s1 = s; /* This position SHOULD contain a colon.. we don't
 		       check it, though.. */
-	    ++s;
+	    prev_char = *s++;
 	    /* Scan until next colon, or end of string */
-	    while (*s != 0 && *s != ':') ++s;
+	    while (*s != 0 && !(*s == ':' && prev_char == ' '))
+	      prev_char = *s++;
 
 	    /* Chop trailing spaces */
 	    s2 = s-1;

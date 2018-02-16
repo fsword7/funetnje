@@ -151,8 +151,9 @@ init_command_mailbox()
 #else
 #if	defined(COMMAND_MAILBOX_UDP)	/* AF_INET, SOCK_DGRAM */
 
-	unsigned long iaddr;
+	u_int32 iaddr;
 	struct	sockaddr_in	SocketName;
+	int portnum;
 	int on = 1;
 
 	/* We need a random number soon.. */
@@ -175,11 +176,13 @@ init_command_mailbox()
 	/* Now, bind a local name for it */
 	memset(&SocketName,0,sizeof SocketName);
 	SocketName.sin_family      = AF_INET;
-	SocketName.sin_port        = htons(175);
 	SocketName.sin_addr.s_addr = htonl(INADDR_ANY);
 	iaddr = inet_addr(COMMAND_MAILBOX);
 	if (iaddr != 0xFFFFFFFFL)
 	  SocketName.sin_addr.s_addr = iaddr;
+	portnum = 175;
+	sscanf(COMMAND_MAILBOX,"%*s %d", &portnum);
+	SocketName.sin_port        = htons(portnum);
 
 	if (bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
 	  logger(1, "UNIX, Can't bind command socket, error: %s\n",

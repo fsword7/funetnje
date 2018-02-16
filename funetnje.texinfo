@@ -512,15 +512,16 @@ This is a performace option, which @strong{might} help on busy systems
 The system can do a @code{connect(2)} on a socket, which has been flagged
 as non-blocking.  Without this connection to a system which is unreachable
 would cause system to hang for synchronous timeout...
+(Superceded with @strong{NBSTREAM})
 
 @item -DNBSTREAM
 This compilation option allows for more complete non-blocking operations,
 including actual @code{write(2)}s.
-@strong{This is recommended mode of operation!}
+@strong{This is DEFAULT mode of operation!}
 
 @item -DUSE_XMIT_QUEUE
 Another flag which is necessary for successfull operation of NBSTREAM-code.
-(Without it the NBSTREAM-code causes bug_check()s..)
+(Without it the NBSTREAM-code causes bug_check()s..  DEFAULT MODE)
 
 @item -DNO_GETTIMEOFDAY
 System internal time retrieval for various delay/speed-analysis uses
@@ -560,7 +561,7 @@ Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry
 Uses @code{AF_INET}, @code{SOCK_DGRAM} for the IPC channel.
 Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
 entry (numeric), and it naturally must be on same machine, as the emulator
-runs.  This is only choise for cluster nodes
+runs.  This is only choice for cluster nodes
 
 @item -DBSD_SIGCHLDS
 Uses @code{BSD}-style @code{SIGCLD/SIGCHLD} handling where an signal
@@ -627,7 +628,8 @@ NAME            FINFILES                      @i{Node primary name}
 *IPADDRESS      nic.funet.fi                  @i{Node primary IP address}
 IPADDRESS       128.214.6.100                 @i{used on link signon msgs}
 QUEUE           /usr/spool/bitnet             @i{Emulator spool directory}
-CMDMAILBOX      /usr/spool/bitnet/.cmdpipe    @i{IPC Socket/Fifo/IP-address}
+CMDMAILBOX      /usr/spool/bitnet/.cmdpipe    @i{IPC Socket/Fifo -path}
+#CMDMAILBOX     128.214.6.100 175             @i{IPC IP-address + port number}
 LOG             /usr/adm/bitnet.log           @i{Emulator log-file}
 LLEVEL          1                             @i{Logging level.  Smaller==less}
 RSCSACCT        /usr/adm/bitnet.acct          @i{Define for IBM RSCS-like account file}
@@ -635,7 +637,8 @@ RSCSACCT        /usr/adm/bitnet.acct          @i{Define for IBM RSCS-like accoun
 TABLE           /usr/local/lib/nje/finfiles.routes   @i{NJE route database}
 * @i{EBCDIC<->ASCII tables, (optional), see ebcdictbl(5)}
 *EBCDICTBL      /usr/local/lib/nje/ebcdictbl
-INFORM          MEA@@FINFILES ROOT@@FINFILES    @i{1+ users monitoring line states}
+INFORM          MEA@@FINFILES                  @i{1+ users monitoring line}
+INFORM          ROOT@@FINFILES                 @i{   states}
 FILEEXITS       /usr/local/lib/nje/file-exit.cf      @i{Defines  FILE-EXITs}
 MSGEXITS        /usr/local/lib/nje/msg-exit.cf       @i{Defines  MSG-EXITs}
 DEFFORM         STANDARD                      @i{NJE 'FORM' default}
@@ -1257,7 +1260,7 @@ Options are as follows:
 @table @strong
 @item -u origuser
 Defines the originating user, e.g. local @emph{MAILER}@dots{}
-Only @emph{super-user} can use this option.
+Only @emph{super-user}, and @emph{daemon (uid=1)} can use this option.
 
 @item -v
 Request BSMTP `VERB ON' to be injected.  Sometimes usefull, when
@@ -1299,7 +1302,7 @@ format, and feeds it to the system mailer.
 
 In the C-program there is support for @file{ZMailer}'s zmailer(3) -library,
 which thus can bypass more generic use of @file{/usr/lib/sendmail}
-as a feeder to the system mailer.
+as a feeder to that mailer.
 
 These incoming mail processors are at their best, when they receive
 BSMTP in NETDATA file.
@@ -1351,6 +1354,7 @@ supplementary group, which allows communication with the FUNET-NJE.
      namesfilter -zmailer  < bitearn.nodes > bitnet.routes
      namesfilter -sendmail < bitearn.nodes > bitnet.routes
      namesfilter -smail    < bitearn.nodes > bitnet.routes
+     namesfilter -netsoft  < bitearn.nodes > bitnet.netsofts
 @end example
 
 This utility parses @file{BITEARN.NODES}-file, and from it
@@ -1363,8 +1367,14 @@ If no non-``OUTONLY'' `@emph{:servers*.}' are defined,
 default mode of ``@strong{defrt1}'' is used, othervice
 some smarter version is chosen.
 
+The ``-netsoft'' dumps ":netsoft."-tags from @file{BITEARN.NODES}
+for the curious (author, of course) to see what software people use.
+
 Originally this utility was written for ZMailer usage, other
 modes are ``afterthoughts''@dots{}
+
+To understand more about those tags, see an accompanying file
+@file{newtags.descript} for more info.
 
 @c ----------------------------------------------------------------
 @node njeroutes, netinit, namesfilter, System programs
@@ -1457,8 +1467,8 @@ ZMailer is a mailer running in two modes with multiple programs
 doing their parts; @file{router} (1 to many) doing email address
 routing, @file{scheduler} running transport channels, like
 @file{smtp}, @file{mailbox} (local delivery), etc.
-There are also incoming channel programs @file{smtpserver}, and
-compability interface @file{/usr/lib/sendmail}.
+There is also incoming channel program @file{smtpserver}, and
+compability interface program @file{/usr/lib/sendmail}.
 
 The ZMailer is available from
 ftp://ftp.funet.fi/pub/unix/mail/zmailer/zmailer-@emph{vers}-@emph{datecode}.tar.gz,
@@ -1484,7 +1494,7 @@ into one system somewhere else with following definition in
 @dots{}
 # rrouter.cf uses these..  Uncomment for use
 # : $@{BITNETACTION:="bsmtp3nd mailer@@searn"@}
-# : $@{BITNETACTION:="smtp figbox.funet.fi"@}
+# : $@{BITNETACTION:="smtp figport.funet.fi"@}
 @end example
 the first  one uses special delivery via BITNET facilities to MAILER@@SEARN,
 the second uses ordinary SMTP.
@@ -1522,6 +1532,13 @@ take @file{BITEARN DOMAINS}, or @file{XMAILER NAMES}.
 Channels are defined in @file{$MAILSHARE/scheduler.conf}, in which
 these five are defined as:
 @example
+@dots{}
+# The default definition
+*/*
+        @dots{}
+        # default uid/gid of transport agents
+        user=root
+        group=daemon
 @dots{}
 defrt1/*
         command="sm -c $channel defrt1"
@@ -1790,6 +1807,43 @@ defined on @file{/etc/funetnje.cf}.
 
 There are multiple methods (depending upon your operating system)
 on how to use the client->emulator command channel.
+
+The coded alternatives are:
+@table @strong
+@item COMMAND_MAILBOX_UDP
+Propably the best alternative.  System allows UDP-dgram sending to
+just anybody, but not all can access (from filesystem) the necessary
+magic value to present authorization.
+
+Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
+entry (numeric), and it naturally must be on same machine, as the emulator
+runs.  (Client reads the supposed peer address from that location.)
+
+@item COMMAND_MAILBOX_FIFO
+Uses named pipe for IPC -- not outmost reliable method, and can't grant
+universally working the same way on every machine.
+
+Fifo path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry.
+
+@item COMMAND_MAILBOX_SOCKET
+An @code{AF_UNIX}/@code{SOCK_STREAM} socket; sort of named pipe on BSD world.
+Also somewhat system dependent.
+
+Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry.
+@end table
+
+
+All methods will need a 4-byte magic token with which they will prefix
+each communicated message with the server.  If the token does not match,
+the server will throw away the message, and be silent.
+
+
+The magic token is stored on @file{/QUEUEDIR/.socket.key}-file.
+
+Such arrangement because there is no universally trustable method of
+limiting the communication in between processes.  Therefore the next-best
+is to use filesystem semantics to limit access to ordinary files containing
+magic tokens.
 
 
 @c ----------------------------------------------------------------

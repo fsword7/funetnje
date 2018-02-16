@@ -1,3 +1,33 @@
+Sun Jun 11 03:12:06 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* namesparser.c:
+	    Noticed that the data parsing stopped at first ":",
+	    which caused premature breaks; observe following entry
+	    from BITEARN.NODES -file:
+	    	:remark1.BASE(9501) 00/00/00 00:00:00
+
+	* libreadcfg.c, read_config.c, libsendcmd.c, unix.c:
+	   Amended "CMDMAILBOX"-data to contain port-number in
+	   case UDP-format is used. (That is, have two tokens.)
+	   Default value for the port-number is 175.
+
+	* unix_tcp.c read_passive_tcp_connection():
+	   Noticed that a case when a socket exists, and a new
+	   connection is attempted is handled improperly. The
+	   old socket-fd was FORGOTTEN!  Now it NAKs the connection
+	   attempt with a complaint that there already is a connection
+	   in there...
+
+	   Things will progress from such a situation usually by
+	   detecting a closure on the existing stream, but better
+	   not to rush ahead of things.
+
+	* bmail.c:
+	   Accept "-u" only when calling the program from uids 0 or 1
+	   (root and daemon in most common cases -- for BSD-sendmail
+	    which wants  bmail executable with protection 2111 (user X,
+	    group NJEGRP) )
+
 Sat Jun 10 05:18:27 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* Makefile, consts.h, prototypes.h, recv_file.c, io.c,

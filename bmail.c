@@ -108,6 +108,12 @@ char	*argv[];
 	    if (!*argv) usage("-u missing mandatory data");
 	    origuser = *argv;
 	    upperstr(origuser);
+	    if (!(myuid == 0 || myuid == 1)) {
+	      /* FIXME: HARDWIRED ROOT AND DAEMON!
+	                Daemon is usually the uid which BSD-sendmail
+			uses when spawning a child to do transportation.. */
+	      usage("-u can be used by 'root' and 'daemon' users only!");
+	    }
 	  } else if (strcmp(*argv, "-b") == 0 ||
 		     strcmp(*argv, "-bsmtp") == 0) {
 	    Bsmtp = 1;

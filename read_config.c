@@ -112,6 +112,7 @@ read_configuration()
 	  p = line;
 	  while ((*p == ' ') || (*p == '\t')) ++p;
 	  if (*p == '\0') continue; /* Empty line */
+	  *param1 = *param2 = *param3 = 0;
 	  NumParams = sscanf(p, "%s %s %s %s", KeyWord,
 			     param1, param2, param3);
 
@@ -359,6 +360,10 @@ read_configuration()
 	    }
 	  } else if (strcasecmp(KeyWord, "CMDMAILBOX") == 0) {
 	    strncpy(COMMAND_MAILBOX, param1, sizeof COMMAND_MAILBOX);
+	    if (*param2 != 0) {
+	      strcat(COMMAND_MAILBOX, " ");
+	      strcat(COMMAND_MAILBOX, param2);
+	    }
 	    ThingsRead |= CMDMAILBOX;
 	  } else if (strcasecmp(KeyWord, "QUEUE") == 0) {
 	    strncpy(BITNET_QUEUE, param1, sizeof BITNET_QUEUE);

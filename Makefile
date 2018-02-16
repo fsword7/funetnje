@@ -17,6 +17,8 @@
 #	-D_POSIX_SOURCE	As POSIX.1 as possible..
 #	-DDEBUG		Well, as name says..
 #
+#  Following are actually system defaults now, and defined on  consts.h:
+#
 #	-DNBCONNECT	Can do non-blocking connect(2) and associated
 #			tricks.  WERRY USEFULL as the system won't have to
 #			wait, and timeout synchronously for some dead system..
@@ -24,8 +26,13 @@
 #			(*This is default mode set on  consts.h! *)
 #	-DUSE_XMIT_QUEUE  Necessary for NBSTREAM!
 #			(*This is default mode set on  consts.h! *)
+#
+#  In case you don't want the default stuff, you can define:
+#
 #	-DNO_NBSTREAM	If you want to block NBSTREAM and XMIT_QUEUE.
 #
+#  Other settable things:
+#  
 #	-DUSE_SOCKOPT	Does  setsockopt() for SO_RCVBUF, and SO_SNDBUF to
 #			set them to 256k instead of the default whatever (4k?)
 #			(*This is default mode set on  consts.h! *)
@@ -36,6 +43,7 @@
 #	-DBSD_SIGCHLDS	Do SIGC(H)LD handling via a signal trapper.
 #			Some (most?) SYSV's can safely ignore the child, but
 #			BSDs (SunOS 4.1.3) can't.
+#
 #	-DUSE_ENUM_TYPES  If your compiler allows it, do it!
 #			  Debugging is smarter..
 #			(*This is default mode set on  consts.h! *)

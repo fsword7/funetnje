@@ -207,7 +207,7 @@ const int	Index, finalize;
 	Line->WritePending = NULL;
 	Line->InBCB  = 0;
 	/* Line->OutBCB = 0;
-	   Line->flags |= F_RESET_BCB; */
+	   Line->flags &= ~ F_RESET_BCB; */
 
 	/* Send the first control block */
 	ASCII_TO_EBCDIC("OPEN    ", ControlBlock.type, 8);

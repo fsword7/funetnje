@@ -262,7 +262,7 @@ int infoprint;
 	      }
 	      if ((Line->InStreamState[j] != S_INACTIVE) &&
 		  (Line->InStreamState[j] != S_REFUSED) )
-		sprintf(&line[strlen(line)], " (%s) (%s => %s) %dkB",
+		sprintf(line+strlen(line), " (%s) (%s => %s) %dkB",
 			Line->InFileParams[j].JobName,
 			Line->InFileParams[j].From,
 			Line->InFileParams[j].To,
@@ -306,7 +306,7 @@ int infoprint;
 	      }
 	      if ((Line->OutStreamState[j] != S_INACTIVE)  &&
 		  (Line->OutStreamState[j] != S_REFUSED) )
-		sprintf(&line[strlen(line)], " (%s) (%s => %s) %dkB",
+		sprintf(line+strlen(line), " (%s) (%s => %s) %dkB",
 			Line->OutFileParams[j].JobName,
 			Line->OutFileParams[j].From,
 			Line->OutFileParams[j].To,
@@ -319,11 +319,6 @@ int infoprint;
 		  Line->MaxStreams,
 		  Line->WrFiles, Line->WrBytes, Line->RdFiles, Line->RdBytes);
 	  send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
-/*if (Line->XmitSize != 0 || Line->RecvSize != 0)  {
-  sprintf(line," Bufinfo: InAge=%ds, RecvSize=%d, XmitAge=%ds, XmitSize=%d",
-	  now - Line->InAge,Line->RecvSize, now - Line->XmitAge,Line->XmitSize);
-  send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
-} */
 	}
 
 	sprintf(line, "End of Q SYS display");

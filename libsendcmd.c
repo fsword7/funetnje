@@ -40,6 +40,7 @@ const int cmdlen, offlineok;
 #endif
 #ifdef	COMMAND_MAILBOX_UDP
 	int	Socket;
+	int	portnum = 175;
 	u_int32 ui;
 	struct	sockaddr_in	SocketName;
 #endif
@@ -54,6 +55,9 @@ const int cmdlen, offlineok;
 	  fscanf(pidfile,"%d",&hujipid);
 	  fclose(pidfile);
 	}
+
+	/* XX: Multi-machine setups ??? */
+
 	if (!hujipid ||( kill(hujipid,0) && errno == ESRCH)) {
 	    if (offlineok) return 0;
 	    logger(1,"NJECLIENTLIB: NJE transport module not online!\n");
@@ -151,8 +155,10 @@ const int cmdlen, offlineok;
 	/* Create the connect request. We connect to our local machine */
 	memset((void *) &SocketName, 0, sizeof(SocketName));
 	SocketName.sin_family = AF_INET;
-	SocketName.sin_port   = htons(175);	/* The VMNET PORT */
 	ui = inet_addr(COMMAND_MAILBOX);
+	portnum = 175;			/* The VMNET port - except on UDP.. */
+	sscanf(COMMAND_MAILBOX,"%*s %d",&portnum); /* Fail or no.. */
+	SocketName.sin_port   = htons(portnum);
 	if (ui == 0xFFFFFFFF)  ui = INADDR_LOOPBACK;
 	SocketName.sin_addr.s_addr = ui;	/* Configure if you can */
 	
