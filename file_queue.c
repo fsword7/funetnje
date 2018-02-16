@@ -391,13 +391,13 @@ struct QUEUE	*Entry;
 	      sprintf(MessageSender, "@%s", LOCAL_NAME);
 	      /* Send message back only if not found the QUIET option. */
 	      if (((FileParams.type & F_NOQUIET) != 0) &&
-		  (*auxline != 0))
+		  (*auxline != 0)) {
 		send_nmr((char*)MessageSender,
 			 FileParams.From,
 			 auxline, strlen(auxline),
 			 ASCII, CMD_MSG);
-	      else
-		logger(3,"RECV_FILE: Quiet ack of received file - no msg back.\n");
+	      } else
+		logger(3,"FILE_QUEUE: Quiet ack of received file - no msg back.\n");
 	      break;
 
 	  case LINK_INACTIVE:	/* No alternate route available... */
@@ -412,6 +412,8 @@ struct QUEUE	*Entry;
 		Entry = build_queue_entry(FileName, primline, FileSize,
 					  FileParams.To, &FileParams);
 	      add_to_file_queue(&IoLines[primline],primline,Entry);
+	      logger(2,"FILE_QUEUE: Queued file \"%s\" to inactive link \"%s\"\n",
+		     FileName,IoLines[primline].HostName);
 	      return;
 
 	  default:	/* Hopefully a line index */
@@ -429,6 +431,8 @@ struct QUEUE	*Entry;
 		Entry = build_queue_entry(FileName, primline, FileSize,
 					  FileParams.To, &FileParams);
 	      add_to_file_queue(&IoLines[i],i,Entry);
+	      logger(2,"FILE_QUEUE: Queued file \"%s\" to active link \"%s\"\n",
+		     FileName,IoLines[i].HostName);
 	      break;
 	}
 }

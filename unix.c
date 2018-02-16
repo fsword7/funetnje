@@ -811,6 +811,7 @@ const int fd;
 	  rc = readn(fd,line+1,size);
 	  if (rc == size) {
 	    FileSize = ((line[1] << 8) + line[2]) * 512;
+logger(1,"parse_file_queuer(): Queue file \"%s\" siz=%d\n",line+3,FileSize);
 	    queue_file(line+3, FileSize, NULL, NULL);
 	  } else {
 	    logger(1,"parse_file_queue(): rc != size on nread()\n");

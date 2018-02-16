@@ -752,8 +752,9 @@ const void	*buffer;
 	  /* If the new last is the same as the first one,
 	     then we have no place... */
 	  if (NextEntry == Line->FirstXmitEntry) {
-	    logger(1, "IO: No place to queue Xmit on line %s\n",
-		   Line->HostName);
+	    logger(1, "IO: No place to queue Xmit on line %s  can%s wait\n",
+		   Line->HostName,
+		   (Line->flags & F_XMIT_CAN_WAIT) ? "":"'t");
 	    return;
 	  }
 
@@ -799,7 +800,7 @@ const void	*buffer;
 
 	  /* Put a timer there waiting for us.. */
 
-logger(2,"IO: XMIT-Queued %d bytes to line %s\n",NewSize,Line->HostName);
+/* logger(2,"IO: XMIT-Queued %d bytes to line %s\n",NewSize,Line->HostName); */
 
 	  queue_timer_reset(T_XMIT_INTERVAL, Index, T_XMIT_DEQUEUE);
 	  return;

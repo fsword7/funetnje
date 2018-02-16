@@ -1,5 +1,8 @@
 Thu Jun  8 15:48:14 1995  Matti Aarnio  <mea@nic.funet.fi>
 
+	* namesfilter.c:
+	    New option: "-netsoft" to list node software fields.
+
 	* funetnje.texinfo:
 	    Some additional chapters
 

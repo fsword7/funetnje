@@ -913,8 +913,10 @@ const int Index;
 		memcpy(p, q, size);
 		free(q);	/* Free the memory allocated for it */
 		Line->FirstXmitEntry = ++(Line->FirstXmitEntry) % MAX_XMIT_QUEUE;
-logger(2,"UNIX_TCP: Dequeued XMIT buffer of size %d on line %s\n",
-       size,Line->HostName);
+
+/* logger(2,"UNIX_TCP: Dequeued XMIT buffer of size %d on line %s\n",
+   size,Line->HostName); */
+
 		send_unix_tcp(Index, p, size);
 	}
 	/* Return a flag about the queue status */

@@ -499,8 +499,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	  return;	/* If the LINK is not active, quit now.. */
 
 #ifdef NBSTREAM
-	if (Line->WritePending != NULL)
+	if (Line->WritePending != NULL) {
+	  /* Line state is ACTIVE */
+	  Line->flags |= F_CALL_ACK;
 	  return;	/* There is write pending, quit now... */
+	}
 #endif
 
 	if (Line->MaxStreams > 1) {
@@ -667,8 +670,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	  SendAgain:
 	      /* logger(3, "PROTOCOL: Sending next file's buffer\n"); */
 #ifdef NBSTREAM
-	      if (Line->WritePending != NULL)
+	      if (Line->WritePending != NULL) {
+		if (Line->state == ACTIVE)
+		  Line->flags |= F_CALL_ACK;
 		return; /* Brp.. It is full.. */
+	      }
 #endif
 	      Line->flags |= F_XMIT_CAN_WAIT;
 	      send_file_buffer(Index);	/* pick next record */
