@@ -300,7 +300,7 @@ void *Linebuf;
 int linesize;
 {
 	unsigned char *linebuf = Linebuf;
-	char *p = linebuf;
+	char *p = (char*)linebuf;
 
 	if (linesize < 254) {
 

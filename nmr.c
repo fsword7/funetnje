@@ -782,6 +782,7 @@ const	char	*Faddress, *Taddress;
 	      send_nmr(Faddress, Taddress, line, strlen(line), ASCII, CMD_MSG);
 	      return;
 	  case LINK_INACTIVE:	/* Both link and alternate routes inactives */
+	      break; /* Bypass to below.. */
 	  default:
 	      sprintf(line, "Node %s is routed via %s (%sactive)", NodeName,
 		      IoLines[PrimLine].HostName,

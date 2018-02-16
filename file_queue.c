@@ -19,6 +19,7 @@
 #include "consts.h"
 #include "prototypes.h"
 
+
 #ifdef	HAS_LSTAT	/* lstat(2), or only stat(2)  ?? */
 # define  STATFUNC lstat
 #else
@@ -28,6 +29,8 @@
 static void submit_file __((const int fd, const char *FileName, int FileSize));
 
 int	file_queuer_pipe = -1;
+int	file_queuer_cnt  =  0;
+
 #define	HASH_SIZE 503
 static struct QUEUE *queue_hashes[HASH_SIZE];
 static int hash_inited = 0;
@@ -157,7 +160,7 @@ struct QUEUE *Entry;
 void
 init_files_queue()
 {
-	int	i = -1;
+	int	i = -1, pid;
 	long	FileSize;
 	int	sync_mode = 0;
 	int	pipes[2];
@@ -171,22 +174,50 @@ init_files_queue()
 
 #ifdef	UNIX
 	pipes[0]  = -1;
+	pid = -1;
 	sync_mode = pipe(pipes);
 	if (file_queuer_pipe >= 0)
-	  close(file_queuer_pipe);
+	  /* close(file_queuer_pipe); */
+	  return; /* ALREADY RUNNING! */
+
 	file_queuer_pipe = pipes[0];
+	file_queuer_cnt = 0;
 
-	if (!sync_mode)
-	  if ((i = fork()) > 0) return;	/* Parent.. */
+#if 0
+	setsockblocking(pipes[0],1); /* Set it blocking */
+	setsockblocking(pipes[1],1); /* Set it blocking */
+#endif
 
-	if (!sync_mode && i < 0) sync_mode = 1;	/* Must do in the usual way */
+	if (!sync_mode) {
+
+	  extern FILE *LogFd;
+
+	  if ((pid = fork()) > 0) {
+	    close(pipes[1]);
+	    return;	/* Parent.. */
+	  }
+
+	  /* Child -- detach all except the submit-pipe */
+	  if (LogFd == NULL) {
+	    for (i = getdtablesize(); i >= 0; --i)
+	      if (i != pipes[1])
+		close(i);
+	  } else {
+	    for (i = getdtablesize(); i >= 0; --i)
+	      if (i != pipes[1] && i != fileno(LogFd))
+		close(i);
+	  }
+	}
+	logger(1,"FILE_QUEUE: %s mode queue initializer running, pid=%d\n",
+	       !sync_mode ? "Child":"Sync",getpid());
+
+	if (!sync_mode && pid < 0)	/* Must do in the usual way */
+	  sync_mode = 1;
 	/* When fork()'s return code is 0, we are a child process,
 	   which then goes on and scans all the queue directories,
 	   and sends submissions to the main program.  A LOT faster
 	   start that way, if the queues are large for some reason.. */
-	logger(1,"FILE_QUEUE: %s mode queue initializer running, pid=%d\n",
-	       !sync_mode ? "Child":"Sync",getpid());
-	if (!sync_mode && i == 0) { /* Child must die on PIPE lossage.. */
+	if (!sync_mode && pid == 0) { /* Child must die on PIPE lossage.. */
 	  signal(SIGPIPE,SIG_DFL);
 #ifdef	SIGPOLL
 	  signal(SIGPOLL,SIG_DFL);
@@ -215,8 +246,9 @@ init_files_queue()
 	       this is usefull when this routine is called via DEBUG RESCAN
 	       command and will queue the files to the alternate route,
 	       if found.						*/
+/* logger(1,"queue file: '%s' (%d blk)\n",FileName,FileSize); */
 	    if (sync_mode)
-	      queue_file(FileName, FileSize);
+	      queue_file(FileName, FileSize, NULL, NULL);
 	    else
 	      submit_file(pipes[1], FileName, FileSize);
 	    ++filecnt;
@@ -234,7 +266,7 @@ init_files_queue()
 	  FileSize = get_file_size(FileName);
 	  /* Call OS specific routine */
 	  if (sync_mode)
-	    queue_file(FileName, FileSize);
+	    queue_file(FileName, FileSize, NULL, NULL);
 	  else
 	    submit_file(pipes[1],FileName, FileSize);
 	  ++filecnt;
@@ -244,7 +276,8 @@ init_files_queue()
 	if (!sync_mode) {
 	  logger(1,"FILE_QUEUE: Child-mode file queuer done. Submitted %d files.\n",filecnt);
 	  _exit(0);
-	}
+	} else
+	  logger(1,"FILE_QUEUE: Sync-mode file queuer done. Submitted %d files.\n",filecnt);
 }
 
 
@@ -280,9 +313,10 @@ int	FileSize;
  | that the link exists but inactive, we must loop again and look for it.
 */
 void
-queue_file(FileName, FileSize)
-const char	*FileName;
+queue_file(FileName, FileSize, ToAddr, Entry)
+const char	*FileName, *ToAddr;
 const int	FileSize;	/* File size in blocks */
+struct QUEUE	*Entry;
 {
 	register char	*p;
 	register int	i;
@@ -294,38 +328,48 @@ const int	FileSize;	/* File size in blocks */
 	char	Format[16];	/* Not needed but returned by Find_line_index() */
 	struct stat stats;
 	
-	logger(3,"FILE_QUEUE: queue_file(%s,%d)\n",FileName,FileSize);
+	if (ToAddr == NULL) {
+	  Entry = NULL;
+	  logger(3,"FILE_QUEUE: queue_file(%s,%d,NULL)\n",FileName,FileSize);
 
-	i = strlen(BITNET_QUEUE);
-	if (FileName[0] != '/' ||
-	    strncmp(FileName,BITNET_QUEUE,i) != 0 ||
-	    FileName[i] != '/') {
-	  logger(1, "FILE_QUEUE: File to be queued must be within `%s/'. Its name was: `%s'\n",BITNET_QUEUE,FileName);
-	  return;
-	}
+	  i = strlen(BITNET_QUEUE);
+	  if (FileName[0] != '/' ||
+	      strncmp(FileName,BITNET_QUEUE,i) != 0 ||
+	      FileName[i] != '/') {
+	    logger(1, "FILE_QUEUE: File to be queued must be within `%s/'. Its name was: `%s'\n",BITNET_QUEUE,FileName);
+	    return;
+	  }
 
-	if (STATFUNC(FileName,&stats) != 0 ||
-	    !S_ISREG(stats.st_mode)) {
-	  logger(1,"Either the file does not exist, or it is not a regular file, file: `%s'\n",FileName);
-	  return;
-	}
-	strcpy(FileParams.SpoolFileName,FileName);
+	  if (STATFUNC(FileName,&stats) != 0 ||
+	      !S_ISREG(stats.st_mode)) {
+	    logger(1,"Either the file does not exist, or it is not a regular file, file: `%s'\n",FileName);
+	    return;
+	  }
+	  FileParams.FileStats = stats;
+	  strcpy(FileParams.SpoolFileName,FileName);
 
-	InFile = fopen(FileName,"r+");
-	if (InFile == NULL) {
-	  logger(1, "FILE_QUEUE: Couldn't open file '%s' for envelope analysis.\n",FileName);
-	  return;
+	  InFile = fopen(FileName,"r+");
+	  if (InFile == NULL) {
+	    logger(1, "FILE_QUEUE: Couldn't open file '%s' for envelope analysis.\n",FileName);
+	    return;
+	  }
+	  *FileParams.line = 0;
+	  rc = parse_envelope( InFile, &FileParams, 0 );
+	  fclose( InFile );
+	  if ((rc < 0) || (*FileParams.From == '*')) {
+	    /* Bogus file. Move to hideout... */
+	    logger(1,"FILE_QUEUE, queue_file(%s) got bad file - header contains junk..\n",FileName);
+	    rename_file(&FileParams, RN_JUNK, F_OUTPUT_FILE);
+	    return;
+	  }
+	} else {		/* Re-queueing it, no parse.. */
+	  logger(3,"FILE_QUEUE: queue_file(%s,%d,\"%s\")\n",FileName,FileSize,ToAddr);
+	  strcpy(FileParams.SpoolFileName, FileName );
+	  strcpy(FileParams.To, ToAddr);
+#ifdef UNIX
+	  FileParams.FileStats = Entry->fstats;
+#endif
 	}
-	*FileParams.line = 0;
-	rc = parse_envelope( InFile, &FileParams, 0 );
-	fclose( InFile );
-	if ((rc < 0) || (*FileParams.From == '*')) {
-	  /* Bogus file. Move to hideout... */
-	  logger(1,"FILE_QUEUE, queue_file(%s) got bad file - header contains junk..\n",FileName);
-	  rename_file(&FileParams, RN_JUNK, F_OUTPUT_FILE);
-	  return;
-	}
-    
 
 	if ((p = strchr(FileParams.To,'@')) == NULL) {
 	  /* Huh! No '@' in target address ! */
@@ -362,7 +406,14 @@ const int	FileSize;	/* File size in blocks */
 	      /* Anyway place the file to there.. */
 	      /* Queue it */
 	      FileName = rename_file(&FileParams,RN_NORMAL,F_OUTPUT_FILE);
-	      add_to_file_queue(FileName, primline, FileSize);
+	      if (Entry && Entry->primline != primline) {
+		free(Entry);
+		Entry = NULL;
+	      }
+	      if (!Entry)
+		Entry = build_queue_entry(FileName, primline, FileSize,
+					  FileParams.To, &FileParams);
+	      add_to_file_queue(&IoLines[primline],primline,Entry);
 	      return;
 
 	  default:	/* Hopefully a line index */
@@ -372,7 +423,14 @@ const int	FileSize;	/* File size in blocks */
 		return;
 	      }
 	      FileName = rename_file(&FileParams,RN_NORMAL,F_OUTPUT_FILE);
-	      add_to_file_queue(FileName, i, FileSize);
+	      if (Entry && Entry->primline != primline) {
+		free(Entry);
+		Entry = NULL;
+	      }
+	      if (!Entry)
+		Entry = build_queue_entry(FileName, primline, FileSize,
+					  FileParams.To, &FileParams);
+	      add_to_file_queue(&IoLines[i],i,Entry);
 	      break;
 	}
 }
@@ -383,8 +441,8 @@ const int	FileSize;	/* File size in blocks */
  | to the file's size.
  */
 
-static void /* Internal routine, common to many.. */
-__add_to_file_queue(Line, Index, Entry)
+void
+add_to_file_queue(Line, Index, Entry)
 struct LINE *Line;
 const int Index;
 struct QUEUE *Entry;
@@ -445,17 +503,17 @@ struct QUEUE *Entry;
 	  bug_check("FILE_QUEUE, Can't Malloc for file queue.");
 	}
 	hash_insert(Entry);
-	Line->QueuedFiles++;	/* Increment count */
+	Line->QueuedFiles++;		/* Increment count */
 	Line->QueuedFilesWaiting++;	/* Increment count */
 }
 
 
-
-void
-add_to_file_queue(FileName, LineIndex, FileSize)
-const char *FileName;
+struct QUEUE *
+build_queue_entry(FileName, LineIndex, FileSize, ToAddr, FileParams)
+const char *FileName, *ToAddr;
 const int LineIndex;
 const int FileSize;
+struct FILE_PARAMS *FileParams;
 {
 	struct	QUEUE	*Entry;
 	struct	LINE	*Line;
@@ -474,14 +532,16 @@ const int FileSize;
 	  bug_check("FILE_QUEUE, Can't malloc() memory");
 	}
 
-#ifdef	UNIX
-	if (STATFUNC(FileName,&Entry->fstats) != 0) {
-	  logger(1,"** FILE_QUEUE: Tried to queue a non-existent file: `%s' on line %d\n",FileName,LineIndex);
-	  return;
-	}
-#endif
+	if (FileParams == NULL) {
+	  if (STATFUNC(FileName,&Entry->fstats) != 0) {
+	    logger(1,"** FILE_QUEUE: Tried to queue a non-existent file: `%s' on line %d\n",FileName,LineIndex);
+	    return NULL;
+	  }
+	} else
+	  Entry->fstats = FileParams->FileStats;
 
 	strcpy(Entry->FileName, FileName);
+	strcpy(Entry->ToAddr, ToAddr);
 #ifdef UNIX
 	Entry->FileSize = Entry->fstats.st_size; /* So we can see it in
 						    SHOW QUEUE */
@@ -501,7 +561,7 @@ const int FileSize;
 	Entry->primline = LineIndex;
 	Entry->altline  = -1;
 
-	__add_to_file_queue(Line,LineIndex,Entry);
+	return Entry;
 #if 0 /* XX: Think more about multiple parallel queues.. */
 #endif
 }
@@ -514,41 +574,37 @@ show_files_queue(UserName,LinkName)
 const char	*UserName;		/* To whom to broadcast the reply */
 char *LinkName;
 {
-	int	i;
-	struct	QUEUE	*temp;
+	int	i, j = 0;
+	struct	QUEUE	*QE;
 	char	line[LINESIZE],
 		from[SHORTLINE];		/* The sender (local daemon) */
 	int	queuelen = strlen(BITNET_QUEUE)+1;
-	int	maxlines = 1000;
+	int	maxlines = 30;
 
 	/* Create the sender and receiver's addresses */
 	sprintf(from, "@%s", LOCAL_NAME);
 
 	upperstr(LinkName);
 	if (*LinkName) {
-	  maxlines = 30;
 	  for (i = 0; i < MAX_LINES; ++i) {
 	    if (IoLines[i].HostName[0] != 0 &&
 		strcmp(IoLines[i].HostName,LinkName)==0) {
-	      if ((temp = IoLines[i].QueueStart) != 0) {
+	      if ((QE = IoLines[i].QueueStart) != 0) {
 		sprintf(line, "Showing at most %d files on link %s queue",
 			maxlines, LinkName);
 		send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
-		i = 0;
-		while (temp != NULL && maxlines-- > 0) {
-		  sprintf(line, " %3d   %s, %4d kB %s", ++i,
-			  temp->FileName+queuelen, temp->FileSize/1024,
-			  (temp->state < 0) ? "HELD" : ((temp->state > 0) ?
-							"Sending" : "Waiting"));
-		  send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
-		  temp = temp->next;
+		while (QE != NULL) {
+		  ++j;
+		  if (j <= maxlines) {
+		    sprintf(line, " %3d   %s, %4d kB %s", j,
+			    QE->FileName+queuelen, QE->FileSize/1024,
+			    (QE->state<0) ? "HELD" : ((QE->state > 0) ?
+							"Sending":"Waiting"));
+		    send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
+		  }
+		  QE = QE->next;
 		}
-		maxlines = i; /* Know how many files were shown */
-		while (temp != NULL) {
-		  temp = temp->next;
-		  ++i;
-		}
-		sprintf(line, "End of list: %d out of %d files",maxlines,i);
+		sprintf(line, "End of list: %d out of %d files",maxlines,j);
 	      } else {
 		sprintf(line, "No files queued on link %s", LinkName);
 	      }
@@ -563,61 +619,66 @@ char *LinkName;
 
 	  sprintf(line, "Files waiting:");
 	  send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
+	  j = 0;
 	  for (i = 0; i < MAX_LINES; i++) {
 	    if (IoLines[i].HostName[0] != 0 &&
-		(temp = IoLines[i].QueueStart) != 0) {
+		(QE = IoLines[i].QueueStart) != 0) {
 	      sprintf(line, "Files queued for link %s:",
 		      IoLines[i].HostName);
 	      send_nmr(from, UserName, line, strlen(line),
 		       ASCII, CMD_MSG);
-	      while (temp != 0) {
-		sprintf(line, "      %s, %4dkB %s",
-			temp->FileName+queuelen, temp->FileSize/1024,
-			(temp->state < 0) ? "HELD" : ((temp->state > 0) ?
+	      while (QE != 0) {
+		++j;
+		if (j <= maxlines) {
+		  sprintf(line, "      %s, %4dkB %s",
+			  QE->FileName+queuelen, QE->FileSize/1024,
+			  (QE->state<0) ? "HELD" : ((QE->state > 0) ?
 						      "Sending" : "Waiting"));
-		send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
-		temp = temp->next;
+		  send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
+		}
+		QE = QE->next;
 	      }
 	    }
 	  }
 	}
-	sprintf(line, "End of list:");
+	sprintf(line, "End of list: (%d files, %d shown)",j,maxlines);
 	send_nmr(from, UserName, line, strlen(line), ASCII, CMD_MSG);
 }
 
 
-void
-dequeue_file_entry_ok(Index,temp)
-const int Index;
-struct LINE	*temp;
+struct QUEUE *
+dequeue_file_entry_ok(Index,Line, freeflg)
+const int Index, freeflg;
+struct LINE	*Line;
 {
-	struct	QUEUE	*FE,*FE2;
-	struct	FILE_PARAMS *FP = & temp->OutFileParams[temp->CurrentStream];
+	struct	QUEUE	*FE,*FE2, *QFE = NULL;
+	struct	FILE_PARAMS *FP = & Line->OutFileParams[Line->CurrentStream];
 
 	if (FP->FileEntry == NULL) {
 	  logger(1,"FILE_QUEUE: dequeue_file_entry_ok(%s:%d) Non-active stream dequeued!\n",
-		 temp->HostName,temp->CurrentStream);
-	  return;
+		 Line->HostName,Line->CurrentStream);
+	  return NULL; /* Will propably cause SIGSEGV.. */
 	}
 
 	/* logger(2,"FILE_QUEUE: dequeue_file_entry_ok(%s:%d) fn=%s, state=%d\n",
-	   temp->HostName,temp->CurrentStream,FP->SpoolFileName,
+	   Line->HostName,Line->CurrentStream,FP->SpoolFileName,
 	   FP->FileEntry->state); */
 	FP->FileEntry->state=0;
+	QFE = FP->FileEntry;
 
 	hash_delete(FP->FileEntry);
 
-	if (FP->FileEntry->next == NULL && FP->FileEntry != temp->QueueEnd) {
+	if (FP->FileEntry->next == NULL && FP->FileEntry != Line->QueueEnd) {
 	  /* Actually do nothing, as this is a lone devil left over from
 	     DEBUG RESCAN -- an active stream at the time of the rescan.. */
-	} else if (FP->FileEntry == temp->QueueStart) {
+	} else if (FP->FileEntry == Line->QueueStart) {
 	  /* Ours is the first one.. */
-	  temp->QueueStart = FP->FileEntry->next;
-	  if (temp->QueueStart == NULL)	/* And the only one.. */
-	    temp->QueueEnd = NULL;
+	  Line->QueueStart = FP->FileEntry->next;
+	  if (Line->QueueStart == NULL)	/* And the only one.. */
+	    Line->QueueEnd = NULL;
 
 	} else {
-	  FE = temp->QueueStart;
+	  FE = Line->QueueStart;
 	  FE2 = FE;
 	  while (FE->next) {	/* MUST go at least once, as else it was
 				   the first one.. */
@@ -633,35 +694,41 @@ struct LINE	*temp;
 	       and FE2 points to its predecessor		*/
 	    FE2->next = FE->next;
 	    if (FE2->next == NULL) /* End of list, predecessor is the tail */
-	      temp->QueueEnd = FE2;
+	      Line->QueueEnd = FE2;
 	  }
 	}
-	free(FP->FileEntry);
 	FP->FileEntry = NULL;
-	temp->QueuedFiles -= 1;
+	Line->QueuedFiles -= 1;
+
+	if (freeflg) { free(QFE); QFE = NULL; }
+
+	return QFE;
 }
 
 void
-requeue_file_entry(Index,temp)
+requeue_file_entry(Index,Line)
 const int Index;
-struct LINE	*temp;
+struct LINE	*Line;
 {
-	int i = temp->CurrentStream;
+	int i = Line->CurrentStream;
+	struct QUEUE *Entry;
 
-	dequeue_file_entry_ok(Index,temp);
+	Entry = dequeue_file_entry_ok(Index,Line, 0);
 	/* Requeue file */
-	queue_file(temp->OutFileParams[i].SpoolFileName,
-		   temp->OutFileParams[i].FileSize);
+	queue_file(Line->OutFileParams[i].SpoolFileName,
+		   Line->OutFileParams[i].FileSize,
+		   Line->OutFileParams[i].To,
+		   Entry);
 }
 
 
 struct QUEUE *
-pick_file_entry(Index,temp)
+pick_file_entry(Index,Line)
 const int Index;
-const struct LINE *temp;
+const struct LINE *Line;
 {
-	struct QUEUE *FileEntry = temp->QueueStart;
-	int i = temp->QueuedFiles+1;
+	struct QUEUE *FileEntry = Line->QueueStart;
+	int i = Line->QueuedFiles+1;
 
 	/* In case the file is queued on an alternate line as well, we have
 	   to make sure that when the primary link is active, we don't rob
@@ -706,8 +773,9 @@ struct LINE *Line;
 	  /* States are: 0: Waiting, -1: held, +1: active */
 	  if (Entry->state < 1) {	/* Don't free active files! */
 	    hash_delete(Entry);
-	    queue_file(Entry->FileName,Entry->FileSize);
-	    free(Entry);
+	    Line->QueuedFiles -= 1;
+	    Line->QueuedFilesWaiting -= 1;
+	    queue_file(Entry->FileName,Entry->FileSize,Entry->ToAddr,Entry);
 	  } else {
 	    ++activecnt;
 	    if (Line->QueueStart == NULL)
@@ -747,6 +815,8 @@ struct LINE *Line;
 	  /* States are: 0: Waiting, -1: held, +1: active */
 	  if (Entry->state < 1) {	/* Don't free active files! */
 	    hash_delete(Entry);
+	    Line->QueuedFiles        -= 1;
+	    Line->QueuedFilesWaiting -= 1;
 	    free(Entry);
 	  } else {
 	    ++activecnt;

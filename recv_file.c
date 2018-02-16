@@ -316,11 +316,13 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	unsigned char	OutputLine[LINESIZE], MessageSender[20];
 	char		*FileName;
 	char		*p;
-	time_t		dt;
+	TIMETYPE	dt;
+	char		*dts;
 	char		ToNode[10], Format[20];
 	register int	i, FileSize;
 	int		PrimLine, AltLine;
 	struct	FILE_PARAMS	*FileParams;
+	struct	QUEUE		*Entry;
 
 	if (*StreamState != S_NJT_SENT) { /* Something is wrong */
 	  logger(1, "RECV_FILE, line=%s:%d, EOF received when in state %d\n",
@@ -349,13 +351,13 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 
 	*StreamState = S_INACTIVE;	/* Xfer complete - Stream is idle */
 
-	dt = time(0) - FileParams->RecvStartTime;
-	if (dt < 1) dt = 1;
-	logger(2,"RECV_FILE: received SYS%s file on line %s:%d, %d B in %d secs, %d B/sec.\n",
+	memset(&dt,0,sizeof(dt));
+	dts = MsecAgeStr(&FileParams->RecvStartTime, &dt);
+	logger(2,"RECV_FILE: received SYS%s file on line %s:%d, %d B in %s secs, %s B/sec.\n",
 	       SYSIN ? "IN" : "OUT",
 	       IoLines[Index].HostName, Stream,
-	       IoLines[Index].OutFilePos[Stream], dt,
-	       IoLines[Index].OutFilePos[Stream] / dt);
+	       IoLines[Index].OutFilePos[Stream], dts,
+	       BytesPerSecStr(IoLines[Index].OutFilePos[Stream],&dt));
 
 	/* Because we'll get another EOF or ACK soon... */
 
@@ -371,6 +373,8 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	}
 
 	/* Following code lifted from   FILE_QUEUE.C:  queue_file()  */
+
+	stat(FileParams->SpoolFileName,&FileParams->FileStats);
 
 	switch (i = find_line_index(ToNode,FileParams->line,Format,
 				    &PrimLine,&AltLine)) {
@@ -414,7 +418,9 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	      rscsacct_log(FileParams,0);
 
 	      /* Queue it */
-	      add_to_file_queue(FileName, PrimLine, FileSize);
+	      Entry = build_queue_entry(FileName, PrimLine, FileSize,
+					FileParams->To, FileParams);
+	      add_to_file_queue( &IoLines[PrimLine], PrimLine, Entry );
 	      return 0;
 
 	  default:	/* Hopefully a line index */
@@ -431,7 +437,9 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	      FileName = rename_file(FileParams, RN_NORMAL, F_OUTPUT_FILE);
 	      /* Queue it */
 
-	      add_to_file_queue(FileName, i, FileSize);
+	      Entry = build_queue_entry(FileName, i, FileSize,
+					FileParams->To, FileParams);
+	      add_to_file_queue( &IoLines[i], i, Entry );
 	      break;
 	} /* switch() */
 
@@ -813,9 +821,13 @@ int	Index, Stream, SYSIN;
 
 	/* Signal that the file was closed and hold it */
 	close_file(Index, F_OUTPUT_FILE, Stream);
-	rename_file(&IoLines[Index].InFileParams[Stream],
-		    RN_HOLD_ABORT, F_OUTPUT_FILE);
-	IoLines[Index].InStreamState[Stream] = S_INACTIVE;
+	{
+	  struct FILE_PARAMS *FileParams;
+	  FileParams = &IoLines[Index].InFileParams[Stream];
+	  stat(FileParams->SpoolFileName,&FileParams->FileStats);
+	  rename_file(FileParams, RN_HOLD_ABORT, F_OUTPUT_FILE);
+	  IoLines[Index].InStreamState[Stream] = S_INACTIVE;
+	}
 }
 
 

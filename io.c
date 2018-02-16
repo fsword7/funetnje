@@ -33,8 +33,6 @@
 static int   add_VMnet_block __(( const int Index, const int flag, const void *buffer, const int size, void *NewLine, const int BCBcount ));
 static void  debug_dump_buffers __(( const char *UserName ));
 
-EXTERNAL struct	ENQUIRE	Enquire;
-
 EXTERNAL int	MustShutDown;
 EXTERNAL int	PassiveSocketChannel;
 EXTERNAL int	LogLevel;
@@ -52,11 +50,10 @@ int infoprint;
 	int	i, j;
 	char	line[LINESIZE],
 		from[SHORTLINE];	/* The message's sender address */
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
-	time_t now;
-
-	time(&now);
+	TIMETYPE now;
+	GETTIME(&now);
 
 	/* Create the sender's address.
 	   It is the daemon on the local machine */
@@ -68,14 +65,14 @@ int infoprint;
 	send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &(IoLines[i]);
-	  if (*(temp->HostName) == 0) continue; /* No host defined for this
+	  Line = &(IoLines[i]);
+	  if (*(Line->HostName) == 0) continue; /* No host defined for this
 						   line, ignore             */
 	  sprintf(line, "Line.%d %-8s %3d (Q=%04d)  ", i,
-		  temp->HostName, temp->TotalErrors,
-		  temp->QueuedFiles);
+		  Line->HostName, Line->TotalErrors,
+		  Line->QueuedFiles);
 
-	  switch (temp->state) {
+	  switch (Line->state) {
 	    case INACTIVE:
 	        strcat(line, "INACTIVE  ");
 		break;
@@ -99,7 +96,7 @@ int infoprint;
 		strcat(line, "Retry     ");
 		break;
 	    case TCP_SYNC:
-		if (temp->socketpending >= 0)
+		if (Line->socketpending >= 0)
 		  strcat(line, "TCP-pend  ");
 		else
 		  strcat(line, "TCP-sync  ");
@@ -108,18 +105,18 @@ int infoprint;
 		strcat(line, "******    ");
 		break;
 	  }
-	  switch (temp->type) {
+	  switch (Line->type) {
 	    case DMF:
 		sprintf(&line[strlen(line)], "  DMF (%s)",
-			temp->device);
+			Line->device);
 		break;
 	    case DMB:
 		sprintf(&line[strlen(line)], "  DMB (%s)",
-			temp->device);
+			Line->device);
 		break;
 	    case DSV:
 		sprintf(&line[strlen(line)], "  DSV (%s)",
-			temp->device); 
+			Line->device); 
 		break;
 	    case UNIX_TCP:
 		strcat(line, "  TCP      ");
@@ -135,11 +132,11 @@ int infoprint;
 		break;
 	    case DECNET:
 		sprintf(&line[strlen(line)], "  DECNET (%s)",
-			temp->device);
+			Line->device);
 		break;
 	    case ASYNC:
 		sprintf(&line[strlen(line)], "  ASYNC (%s)",
-			       temp->device);
+			       Line->device);
 		break;
 	    default:
 		strcat(line, "   ***");
@@ -148,21 +145,25 @@ int infoprint;
 	  send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 
 	  if (infoprint) {
-	    int InAge   = temp->InAge   ? now - temp->InAge   : 99999;
-	    int XmitAge = temp->XmitAge ? now - temp->XmitAge : 99999;
-	    sprintf(line," Bufinfo: InAge=%ds, RecvSize=%d, XmitAge=%ds, XmitSize=%d",
-		    InAge, temp->RecvSize, XmitAge, temp->XmitSize);
+	    char InAge[20], XmitAge[20];
+	    TIMETYPE nw;
+	    memcpy(&nw,&now,sizeof(nw));
+	    strcpy(InAge,MsecAgeStr(&Line->InAge,&nw));
+	    memcpy(&nw,&now,sizeof(nw));
+	    strcpy(XmitAge,MsecAgeStr(&Line->XmitAge,&nw));
+	    sprintf(line," Bufinfo: InAge=%ss, RecvSize=%d, XmitAge=%ss, XmitSize=%d",
+		    InAge, Line->RecvSize, XmitAge, Line->XmitSize);
 	    send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 	  }
 
-	  if (temp->state != ACTIVE) /* Not active - don't display */
+	  if (Line->state != ACTIVE) /* Not active - don't display */
 	    continue;		/* streams status */
 
 	  for (j = 0; j < MAX_STREAMS; j++) {
 	    sprintf(line, "Rcv-%d  ", j);
-	    if (temp->InStreamState[j] != S_INACTIVE) {
+	    if (Line->InStreamState[j] != S_INACTIVE) {
 	      /* Don't show inactive ones */
-	      switch (temp->InStreamState[j]) {
+	      switch (Line->InStreamState[j]) {
 		case S_INACTIVE:
 		    strcat(line, "Inactive");
 		    break;
@@ -194,19 +195,19 @@ int infoprint;
 		    strcat(line, "******   ");
 		    break;
 	      }
-	      if ((temp->InStreamState[j] != S_INACTIVE) &&
-		  (temp->InStreamState[j] != S_REFUSED) )
+	      if ((Line->InStreamState[j] != S_INACTIVE) &&
+		  (Line->InStreamState[j] != S_REFUSED) )
 		sprintf(&line[strlen(line)], " (%s) (%s => %s) %dkB",
-			temp->InFileParams[j].JobName,
-			temp->InFileParams[j].From,
-			temp->InFileParams[j].To,
-			(int)(temp->OutFilePos[j]/1024));
+			Line->InFileParams[j].JobName,
+			Line->InFileParams[j].From,
+			Line->InFileParams[j].To,
+			(int)(Line->OutFilePos[j]/1024));
 	      send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 	    }
 	    sprintf(line, "Snd-%d  ", j);
-	    if (temp->OutStreamState[j] != S_INACTIVE) {
+	    if (Line->OutStreamState[j] != S_INACTIVE) {
 	      /* Don't show inactive ones */
-	      switch(temp->OutStreamState[j]) {
+	      switch(Line->OutStreamState[j]) {
 		case S_INACTIVE:
 		    strcat(line, "Inactive");
 		    break;
@@ -238,22 +239,24 @@ int infoprint;
 		    strcat(line, "******  ");
 		    break;
 	      }
-	      if ((temp->OutStreamState[j] != S_INACTIVE)  &&
-		  (temp->OutStreamState[j] != S_REFUSED) )
+	      if ((Line->OutStreamState[j] != S_INACTIVE)  &&
+		  (Line->OutStreamState[j] != S_REFUSED) )
 		sprintf(&line[strlen(line)], " (%s) (%s => %s) %dkB",
-			temp->OutFileParams[j].JobName,
-			temp->OutFileParams[j].From,
-			temp->OutFileParams[j].To,
-			(int)(temp->InFilePos[j]/1024));
+			Line->OutFileParams[j].JobName,
+			Line->OutFileParams[j].From,
+			Line->OutFileParams[j].To,
+			(int)(Line->InFilePos[j]/1024));
 	      send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 	    }
 	  }
-	  sprintf(line," %d streams in service, inactive ones not shown",
-		  temp->MaxStreams);
+	  sprintf(line,
+		  " %d streams in service.  WrSum: %ldfil/%ldB  RdSum: %ldfil/%ldB",
+		  Line->MaxStreams,
+		  Line->WrFiles, Line->WrBytes, Line->RdFiles, Line->RdBytes);
 	  send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
-/*if (temp->XmitSize != 0 || temp->RecvSize != 0)  {
+/*if (Line->XmitSize != 0 || Line->RecvSize != 0)  {
   sprintf(line," Bufinfo: InAge=%ds, RecvSize=%d, XmitAge=%ds, XmitSize=%d",
-	  now - temp->InAge,temp->RecvSize, now - temp->XmitAge,temp->XmitSize);
+	  now - Line->InAge,Line->RecvSize, now - Line->XmitAge,Line->XmitSize);
   send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 } */
 	}
@@ -273,7 +276,7 @@ const char	*to;	/* User@Node */
 	int	i;
 	char	line[LINESIZE],
 		from[SHORTLINE];	/* The message's sender address */
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
 /* Create the sender's address. It is the daemon on the local machine */
 	sprintf(from, "@%s", LOCAL_NAME);	/* No username */
@@ -283,21 +286,21 @@ const char	*to;	/* User@Node */
 	send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &(IoLines[i]);
-	  if (*(temp->HostName) != '\0') {
+	  Line = &(IoLines[i]);
+	  if (*(Line->HostName) != '\0') {
 	    sprintf(line, "Line.%d %8s: Blocks send/recv: %d/%d, Wait recvd: %d,",
-		    i, temp->HostName,
-		    temp->sumstats.TotalOut+temp->stats.TotalOut,
-		    temp->sumstats.TotalIn+temp->stats.TotalIn,
-		    temp->sumstats.WaitIn+temp->stats.WaitIn	    );
+		    i, Line->HostName,
+		    Line->sumstats.TotalOut+Line->stats.TotalOut,
+		    Line->sumstats.TotalIn+Line->stats.TotalIn,
+		    Line->sumstats.WaitIn+Line->stats.WaitIn	    );
 	    send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 	    sprintf(line, "     NMRs sent/recv: %d/%d, NAKs send/recvd: %d/%d,  Acks-only sent/recv: %d/%d",
-		    temp->sumstats.MessagesOut+temp->stats.MessagesOut,
-		    temp->sumstats.MessagesIn+temp->stats.MessagesIn,
-		    temp->sumstats.RetriesOut+temp->stats.RetriesOut,
-		    temp->sumstats.RetriesIn+temp->stats.RetriesIn,
-		    temp->sumstats.AckOut+temp->stats.AckOut,
-		    temp->sumstats.AckIn+temp->stats.AckIn);
+		    Line->sumstats.MessagesOut+Line->stats.MessagesOut,
+		    Line->sumstats.MessagesIn+Line->stats.MessagesIn,
+		    Line->sumstats.RetriesOut+Line->stats.RetriesOut,
+		    Line->sumstats.RetriesIn+Line->stats.RetriesIn,
+		    Line->sumstats.AckOut+Line->stats.AckOut,
+		    Line->sumstats.AckIn+Line->stats.AckIn);
 	    send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 	  }
 	}
@@ -383,47 +386,54 @@ void
 init_link_state(Index)
 const int Index;
 {
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	struct	MESSAGE	*MessageEntry;
 	register int	i;	/* Stream index */
 	int	oldstate;
 
-	temp = &(IoLines[Index]);
-	if (Index > MAX_LINES || temp->HostName[0] == 0) {
+	Line = &(IoLines[Index]);
+	if (Index > MAX_LINES || Line->HostName[0] == 0) {
 	  logger(1,"IO: init_link_state(%d) - Bad line number!\n",Index);
 	  return;
 	}
 
-	oldstate = temp->state;
-	temp->state = INACTIVE;
+	if (Line->socket >= 0)
+	  close(Line->socket);
+	Line->socket = -1;
+	if (Line->socketpending >= 0)
+	  close(Line->socketpending);
+	Line->socketpending = -1;
 
-	logger(2, "IO: init_link_state(%s/%d) type=%d\n",
-	       temp->HostName,  Index,  temp->type);
+	oldstate = Line->state;
+	Line->state = INACTIVE;
+
+	logger(2, "IO: init_link_state(%s/%d) type=%d (Q=%d)\n",
+	       Line->HostName,  Index,  Line->type, Line->QueuedFiles);
 	
 	/* Close active file, and delete of output file. */
 	for (i = 0; i < MAX_STREAMS; i++) {
-	  temp->CurrentStream = i;
-	  if ((temp->OutStreamState[i] != S_INACTIVE) &&
-	      (temp->OutStreamState[i] != S_REFUSED)) { /* File active */
+	  Line->CurrentStream = i;
+	  if ((Line->OutStreamState[i] != S_INACTIVE) &&
+	      (Line->OutStreamState[i] != S_REFUSED)) { /* File active */
 	    close_file(Index, F_INPUT_FILE, i);
-	    requeue_file_entry(Index,temp);
+	    requeue_file_entry(Index,Line);
 	  }
-	  if ((temp->InStreamState[i] != S_INACTIVE) &&
-	      (temp->InStreamState[i] != S_REFUSED)) { /* File active */
+	  if ((Line->InStreamState[i] != S_INACTIVE) &&
+	      (Line->InStreamState[i] != S_REFUSED)) { /* File active */
 	    delete_file(Index, F_OUTPUT_FILE, i);
 	  }
 	}
 
-	i = requeue_file_queue(temp);
+	i = requeue_file_queue(Line);
 	if (i != 0)
 	  logger(1,"IO: init_link_state() calling requeue_file_queue() got an activecount of %d!  Should be 0!\n",i); 
-	temp->QueuedFiles = i;
-	temp->QueuedFilesWaiting = 0;
+	/* Line->QueuedFiles = i; */
+	/* Line->QueuedFilesWaiting = 0; */
 
-	temp->state = oldstate;
+	Line->state = oldstate;
 
 	/* Dequeue all messages and commands waiting on it */
-	MessageEntry = temp->MessageQstart;
+	MessageEntry = Line->MessageQstart;
 	while (MessageEntry != NULL) {
 	  struct MESSAGE *NextEntry = MessageEntry->next;
 	  free(MessageEntry);
@@ -432,34 +442,35 @@ const int Index;
 
 #ifdef	USE_XMIT_QUEUE
 	/* Clear all queued transmit buffers */
-	while (temp->FirstXmitEntry != temp->LastXmitEntry) {
-	  if (temp->XmitQueue[temp->FirstXmitEntry])
-	    free(temp->XmitQueue[temp->FirstXmitEntry]);
-	  temp->XmitQueue[temp->FirstXmitEntry] = NULL;
-	  temp->FirstXmitEntry = (temp->FirstXmitEntry +1) % MAX_XMIT_QUEUE;
+	while (Line->FirstXmitEntry != Line->LastXmitEntry) {
+	  if (Line->XmitQueue[Line->FirstXmitEntry])
+	    free(Line->XmitQueue[Line->FirstXmitEntry]);
+	  Line->XmitQueue[Line->FirstXmitEntry] = NULL;
+	  Line->FirstXmitEntry = (Line->FirstXmitEntry +1) % MAX_XMIT_QUEUE;
 	}
-	temp->FirstXmitEntry = 0;
-	temp->LastXmitEntry  = 0;
+	Line->FirstXmitEntry = 0;
+	Line->LastXmitEntry  = 0;
 #endif
 
 	/* After all files closed, restart the line */
-	temp->errors = 0;	/* We start again... */
-	temp->InBCB  = 0;
-	temp->OutBCB = 0;
-	temp->flags &= ~(F_RESET_BCB    | F_WAIT_A_BIT | F_WAIT_V_A_BIT |
+	Line->errors = 0;	/* We start again... */
+	Line->InBCB  = 0;
+	Line->OutBCB = 0;
+	Line->flags &= ~(F_RESET_BCB    | F_WAIT_A_BIT | F_WAIT_V_A_BIT |
 			 F_WAIT_V_A_BIT | F_SENDING    | F_CALL_ACK     |
 			 F_XMIT_CAN_WAIT| F_SLOW_INTERLEAVE);
-	temp->CurrentStream = 0;
-	temp->ActiveStreams = 0;
-	temp->FreeStreams   = temp->MaxStreams;
+	Line->CurrentStream = 0;
+	Line->ActiveStreams = 0;
+	Line->FreeStreams   = Line->MaxStreams;
 	for (i = 0; i < MAX_STREAMS; i++) {
-	  temp->InStreamState[i] = S_INACTIVE;
-	  temp->OutStreamState[i] = S_INACTIVE;
+	  Line->InStreamState[i] = S_INACTIVE;
+	  Line->OutStreamState[i] = S_INACTIVE;
 	}
-	temp->MessageQstart = NULL;
-	temp->MessageQend   = NULL;
-	temp->RecvSize = 0;
-	temp->XmitSize = 0;
+	Line->MessageQstart = NULL;
+	Line->MessageQend   = NULL;
+	Line->RecvSize = 0;
+	Line->XmitSize = 0;
+	Line->WritePending = NULL;
 
 	/* Dequeue all waiting timeouts for this line */
 	delete_line_timeouts(Index);
@@ -472,7 +483,7 @@ void
 restart_line(Index)
 const int Index;
 {
-	struct LINE *temp = &IoLines[Index];
+	struct LINE *Line = &IoLines[Index];
 
 	/* First check the line is in correct status */
 	if ((Index < 0) || (Index >= MAX_LINES)) {
@@ -481,10 +492,10 @@ const int Index;
 	  return;
 	}
 
-	temp->flags &= ~F_SHUT_PENDING; /* Remove the shutdown
+	Line->flags &= ~F_SHUT_PENDING; /* Remove the shutdown
 						    pending flag. */
 
-	switch (temp->state) {
+	switch (Line->state) {
 	  case INACTIVE:
 	  case SIGNOFF:
 	  case RETRYING:
@@ -493,30 +504,31 @@ const int Index;
 	  case F_SIGNON_SENT:
 	  case I_SIGNON_SENT:
 	      logger(1, "IO, Trying to start line %s (#%d) in state %d. Illegal\n",
-		     temp->HostName, Index, temp->state);
+		     Line->HostName, Index, Line->state);
 	      return;
 	  default:
 	      logger(1, "IO, Line %s (#%d) in illegal state (#%d) for start op.\n",
-		     temp->HostName,Index,temp->state);
+		     Line->HostName,Index,Line->state);
 	      return;
 	}
 
-	logger(2, "IO, Restarting line #%d (%s)\n", Index, temp->HostName);
+	logger(2, "IO, Restarting line #%d (%s) (Q=%d)\n",
+	       Index, Line->HostName, Line->QueuedFiles);
 
 	/* Init the line according to its type */
-	temp->state = DRAIN;	/* Will be set to INACTIVE in case
+	Line->state = DRAIN;	/* Will be set to INACTIVE in case
 				   of error during initialization. */
 
 	/* Programmable backoff.. */
-	if (temp->RetryIndex < MAX_RETRIES-1 &&
-	    temp->RetryPeriods[temp->RetryIndex+1] > 0)
-	  temp->RetryPeriod = temp->RetryPeriods[temp->RetryIndex++];
+	if (Line->RetryIndex < MAX_RETRIES-1 &&
+	    Line->RetryPeriods[Line->RetryIndex+1] > 0)
+	  Line->RetryPeriod = Line->RetryPeriods[Line->RetryIndex++];
 	else
-	  temp->RetryPeriod = temp->RetryPeriods[temp->RetryIndex];
+	  Line->RetryPeriod = Line->RetryPeriods[Line->RetryIndex];
 
 	init_link_state(Index);
 
-	switch (temp->type) {
+	switch (Line->type) {
 #ifdef VMS
 	  case DMB:
 	  case DSV:
@@ -559,12 +571,12 @@ void
 queue_receive(Index)
 const int	Index;
 {
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
-	temp = &(IoLines[Index]);
+	Line = &(IoLines[Index]);
 
 /* Do we have to queue a receive ??? */
-	switch (temp->state) {
+	switch (Line->state) {
 	  case INACTIVE:
 	  case SIGNOFF:
 	  case RETRYING:
@@ -578,42 +590,42 @@ const int	Index;
 	      break;	/* OK, requeue it */
 	  default:
 	      logger(1, "IO, Illegal line state %d on line %d during queue-Receive\n",
-		     temp->state, Index);
-	      temp->state = INACTIVE;
+		     Line->state, Index);
+	      Line->state = INACTIVE;
 	      return;
 	}
 
-	switch (temp->type) {
+	switch (Line->type) {
 #ifdef VMS
 	  case DMB:
 	  case DSV:
 	  case DMF:
 	      if (queue_dmf_receive(Index) != 0)
 		/* Queue a timeout for it */
-		temp->TimerIndex =
-		  queue_timer(temp->TimeOut, Index, T_DMF_CLEAN);
+		Line->TimerIndex =
+		  queue_timer(Line->TimeOut, Index, T_DMF_CLEAN);
 	      break;
 	  case ASYNC:
 	      if (queue_async_receive(Index) != 0)
-		temp->TimerIndex =
-		  queue_timer(temp->TimeOut, Index, T_ASYNC_TIMEOUT);
+		Line->TimerIndex =
+		  queue_timer(Line->TimeOut, Index, T_ASYNC_TIMEOUT);
 	      break;
 	  case DECNET:
 	      if (queue_DECnet_receive(Index) != 0)
-		temp->TimerIndex =
-		  queue_timer(temp->TimeOut, Index,
+		Line->TimerIndex =
+		  queue_timer(Line->TimeOut, Index,
 			      T_DECNET_TIMEOUT);
 		  break;
 #ifdef EXOS
 	  case EXOS_TCP:
 	      if (queue_exos_tcp_receive(Index) != 0) {
-		if (temp->state != ACTIVE)
-		  temp->TimerIndex =
+		if (Line->state != ACTIVE)
+		  Line->TimerIndex =
 		    queue_timer(VMNET_INITIAL_TIMEOUT,
 				Index, T_TCP_TIMEOUT);
 		else
-		  temp->TimerIndex =
-		    queue_timer(temp->TimeOut, Index,
+		  Line->TimerIndex =
+		    queue_timer(Line->TimeOut, Index,
 				T_TCP_TIMEOUT);
 	      }
 	      break;
@@ -630,21 +642,21 @@ const int	Index;
 		   DLE-ENQ packet while the other side is acking the previous
 		   one. This is  caused due to slow lines). */
 
-		if (temp->state != ACTIVE)
-		  temp->TimerIndex =
+		if (Line->state != ACTIVE)
+		  Line->TimerIndex =
 		    queue_timer(VMNET_INITIAL_TIMEOUT,
 				Index, T_TCP_TIMEOUT);
 		else
-		  temp->TimerIndex =
-		    queue_timer(temp->TimeOut, Index,
+		  Line->TimerIndex =
+		    queue_timer(Line->TimeOut, Index,
 				T_TCP_TIMEOUT);
 	      break;
 #endif
 #endif /* VMS */
 #ifdef UNIX
 	  case UNIX_TCP: /* We poll here, so we don't queue a real receive */
-	      temp->TimerIndex =
-		queue_timer(temp->TimeOut, Index, T_TCP_TIMEOUT);
+	      Line->TimerIndex =
+		queue_timer(Line->TimeOut, Index, T_TCP_TIMEOUT);
 	      break;
 #endif /* UNIX */
 	  default:
@@ -669,7 +681,7 @@ send_data(Index, buffer, size, AddEnvelope)
 const int	Index, size, AddEnvelope;	/* Add the BCB+...? */
 const void	*buffer;
 {
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	int	NewSize;
 	const	unsigned char *SendBuffer;
 
@@ -684,42 +696,42 @@ const void	*buffer;
 	register int NextEntry;
 #endif
 
-	temp = &(IoLines[Index]);
-	temp->flags &= ~F_XMIT_MORE;	/* Default - do not block */
+	Line = &(IoLines[Index]);
+	Line->flags &= ~F_XMIT_MORE;	/* Default - do not block */
 
 	/* Collects stats */
 	if (*(unsigned char *)buffer != NAK)
-	  temp->stats.TotalOut++;
+	  Line->stats.TotalOut++;
 	else
-	  temp->stats.RetriesOut++;
+	  Line->stats.RetriesOut++;
 
 	SendBuffer = buffer;
 	NewSize    = size;
-	i = temp->OutBCB;
-	flag = (temp->flags & F_RESET_BCB);
+	i = Line->OutBCB;
+	flag = (Line->flags & F_RESET_BCB);
 
 #ifdef	USE_XMIT_QUEUE  /* Obsolete ? */
 	/* Test whether the link is already transmitting.
 	   If so, queue the message only if the link supports so.
 	   If not, ignore this transmission.			  */
 
-	if ((temp->flags & F_SENDING) != 0) { /* Yes - it is occupied */
-	  if ((temp->flags & F_RELIABLE) == 0) {
+	if ((Line->flags & F_SENDING) != 0) { /* Yes - it is occupied */
+	  if ((Line->flags & F_RELIABLE) == 0) {
 	    logger(1, "IO, Line %s doesn't support queueing\n",
-		   temp->HostName);
+		   Line->HostName);
 	    return;		/* Ignore it */
 	  }
-	  temp->flags |= F_WAIT_V_A_BIT; /* Signal wait-a-bit so sender
+	  Line->flags |= F_WAIT_V_A_BIT; /* Signal wait-a-bit so sender
 					    will not transmit more */
 
 	  /* Calculate where shall we put it in the queue (Cyclic queue) */
-	  NextEntry = (temp->LastXmitEntry + 1) % MAX_XMIT_QUEUE;
+	  NextEntry = (Line->LastXmitEntry + 1) % MAX_XMIT_QUEUE;
 
 	  /* If the new last is the same as the first one,
 	     then we have no place... */
-	  if (NextEntry == temp->FirstXmitEntry) {
+	  if (NextEntry == Line->FirstXmitEntry) {
 	    logger(1, "IO, No place to queue Xmit on line %s\n",
-		   temp->HostName);
+		   Line->HostName);
 	    return;
 	  }
 
@@ -742,7 +754,7 @@ const void	*buffer;
 	  SendBuffer = p;
 	  if (AddEnvelope == ADD_BCB_CRC)
 	    if (flag != 0)	/* If we had to reset BCB, don't increment */
-	      temp->OutBCB = (i + 1) % 16;
+	      Line->OutBCB = (i + 1) % 16;
 
 	  /* <TTB>(LN=length_of_VMnet+TTR) <VMnet_block> <TTR>(LN=0) */
 
@@ -759,9 +771,9 @@ const void	*buffer;
 	  ttb = (void *)(p + 0);
 	  memcpy(ttb, &Ttb, TTB_SIZE);
 
-	  temp->XmitQueue[temp->LastXmitEntry] = (char *)p;
-	  temp->XmitQueueSize[temp->LastXmitEntry] = NewSize;
-	  temp->LastXmitEntry = NextEntry;
+	  Line->XmitQueue[Line->LastXmitEntry] = (char *)p;
+	  Line->XmitQueueSize[Line->LastXmitEntry] = NewSize;
+	  Line->LastXmitEntry = NextEntry;
 	  return;
 	}
 #endif
@@ -770,44 +782,44 @@ const void	*buffer;
 	   If the line is TCP - block more records if can.
 	   Other types - don't try to block.			*/
 
-	if ((temp->flags & F_RELIABLE) != 0) {
+	if ((Line->flags & F_RELIABLE) != 0) {
 	  /* There are  DECNET, or TCP/IP links, which get TTB + TTRs */
 
-	  if (temp->XmitSize == 0)
-	    temp->XmitSize = TTB_SIZE;
+	  if (Line->XmitSize == 0)
+	    Line->XmitSize = TTB_SIZE;
 	  /* First block - leave space for TTB */
 	  NewSize = add_VMnet_block(Index, AddEnvelope,
 				    buffer, size,
-				    &temp->XmitBuffer[temp->XmitSize], i);
-	  temp->XmitSize += NewSize;
+				    &Line->XmitBuffer[Line->XmitSize], i);
+	  Line->XmitSize += NewSize;
 	  if (AddEnvelope == ADD_BCB_CRC)
 	    if (flag != 0)	/* If we had to reset BCB, don't increment */
-	      temp->OutBCB = (i + 1) % 16;
+	      Line->OutBCB = (i + 1) % 16;
 
 	} else {		/* Normal block */
 
 	  if (AddEnvelope == ADD_BCB_CRC) {
-	    if ((temp->type == DMB) || (temp->type == DSV))
-	      temp->XmitSize =
+	    if ((Line->type == DMB) || (Line->type == DSV))
+	      Line->XmitSize =
 		NewSize = add_bcb(Index, buffer,
-				  size, temp->XmitBuffer, i);
+				  size, Line->XmitBuffer, i);
 	    else
-	      temp->XmitSize =
+	      Line->XmitSize =
 		NewSize = add_bcb_crc(Index, buffer,
-				      size, temp->XmitBuffer, i);
+				      size, Line->XmitBuffer, i);
 	    if (flag != 0)	/* If we had to reset BCB, don't increment */
-	      temp->OutBCB = (i + 1) % 16;
+	      Line->OutBCB = (i + 1) % 16;
 
 	  } else {
-	    memcpy(temp->XmitBuffer, buffer, size);
-	    temp->XmitSize = size;
+	    memcpy(Line->XmitBuffer, buffer, size);
+	    Line->XmitSize = size;
 	  }
-	  SendBuffer = temp->XmitBuffer;
+	  SendBuffer = Line->XmitBuffer;
 	}
 
 	/* Check whether we've overflowed some buffer. If so - bugcheck... */
 
-	if (temp->XmitSize > MAX_BUF_SIZE) {
+	if (Line->XmitSize > MAX_BUF_SIZE) {
 	  logger(1, "IO: Xmit buffer overflow in line #%d\n", Index);
 	  bug_check("Xmit buffer overflow\n");
 	}
@@ -815,13 +827,13 @@ const void	*buffer;
 	/* If TcpIp line and there is room in buffer and the sender
 	   allows us to defer sending - return. */
 
-	if ((temp->flags & F_RELIABLE) != 0) {
-	  if ((temp->flags & F_XMIT_CAN_WAIT) != 0)
-	    if ((temp->XmitSize + TTB_SIZE +
+	if ((Line->flags & F_RELIABLE) != 0) {
+	  if ((Line->flags & F_XMIT_CAN_WAIT) != 0)
+	    if ((Line->XmitSize + TTB_SIZE +
 		 2 * TTR_SIZE + 5 + 2 +
 		 /* +5 for BCB + FCS overhead, +2 for DECnet;s CRC */
-		 temp->MaxXmitSize) < temp->TcpXmitSize) { /* There is room */
-	      temp->flags |= F_XMIT_MORE;
+		 Line->MaxXmitSize) < Line->TcpXmitSize) { /* There is room */
+	      Line->flags |= F_XMIT_MORE;
 	      return;
 	    }
 	}
@@ -829,35 +841,35 @@ const void	*buffer;
 	/* Ok - we have to transmit buffer. If DECnet or TcpIp - insert
 	   the TTB and add TTR at end */
 
-	if ((temp->flags & F_RELIABLE) != 0) {
-	  NewSize = temp->XmitSize;
-	  ttb = (void *)temp->XmitBuffer;
-	  ttr = (void *)(&(temp->XmitBuffer[NewSize]));
+	if ((Line->flags & F_RELIABLE) != 0) {
+	  NewSize = Line->XmitSize;
+	  ttb = (void *)Line->XmitBuffer;
+	  ttr = (void *)(&(Line->XmitBuffer[NewSize]));
 	  Ttr.F = Ttr.U = 0;
 	  Ttr.LN = 0;		/* Last TTR */
 	  memcpy(ttr, &Ttr, TTR_SIZE);
-	  temp->XmitSize = NewSize = NewSize + TTR_SIZE;
+	  Line->XmitSize = NewSize = NewSize + TTR_SIZE;
 	  Ttb.F = 0;		/* No flags */
 	  Ttb.U = 0;
 	  Ttb.LN = htons(NewSize);
 	  Ttb.UnUsed = 0;
 	  memcpy(ttb, &Ttb, TTB_SIZE);
-	  SendBuffer = temp->XmitBuffer;
+	  SendBuffer = Line->XmitBuffer;
 
 	  /* Check whether we've overflowed some buffer. If so - bugcheck... */
-	  if (temp->XmitSize > MAX_BUF_SIZE) {
+	  if (Line->XmitSize > MAX_BUF_SIZE) {
 	    logger(1, "IO, TCP Xmit buffer overflow in line #%d\n", Index);
 	    bug_check("Xmit buffer overflow\n");
 	  }
 	}
 
-	temp = &(IoLines[Index]);
+	Line = &(IoLines[Index]);
 #ifdef DEBUG
 	logger(3, "IO: Sending: line=%s, size=%d, sequence=%d:\n",
-	       temp->HostName, NewSize, i);
+	       Line->HostName, NewSize, i);
 	trace(SendBuffer, NewSize, 5);
 #endif
-	switch(temp->type) {
+	switch(Line->type) {
 #ifdef VMS
 	  case ASYNC:
 	      send_async(Index, SendBuffer, NewSize);
@@ -991,17 +1003,17 @@ void
 compute_stats()
 {
 	int	i;
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	struct	STATS	*stats, *sum;
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &(IoLines[i]);
-	  if (*(temp->HostName) == 0) continue; /* no line */
-	  stats = &temp->stats;
-	  sum   = &temp->sumstats;
+	  Line = &(IoLines[i]);
+	  if (*(Line->HostName) == 0) continue; /* no line */
+	  stats = &Line->stats;
+	  sum   = &Line->sumstats;
 
 	  logger(2, "Stats for line #%d, name=%s, state=%d\n",
-		 i, temp->HostName, temp->state);
+		 i, Line->HostName, Line->state);
 	  logger(2, "Out: Total=%d, Wait-a-Bit=%d, Acks=%d, Messages=%d, NAKS=%d\n",
 		 stats->TotalOut, stats->WaitOut, stats->AckOut,
 		 stats->MessagesOut, stats->RetriesOut);
@@ -1036,10 +1048,42 @@ compute_stats()
 	}
 
 	/* Use -1 so Delete_lines_timeout for line 0 will not clear us */
-
 	queue_timer(T_STATS_INTERVAL, -1, T_STATS);
 }
 
+void
+vmnet_monitor()
+{
+	struct LINE *Line = IoLines;
+	int i;
+	char vmnet_from[20];
+	char vmnet_to[20];
+	time_t now, timelim;
+
+	now = time(NULL);
+	timelim = now - (T_VMNET_INTERVAL << 1); /* Timelimit is twice
+						    the probe interval */
+
+	sprintf(vmnet_from,"VMNET@%s", LOCAL_NAME);
+
+	for (i = 0; i < MAX_LINES; ++i, ++Line) {
+	  if (*(Line->HostName) == 0) continue; /* no line */
+	  if (Line->state != ACTIVE) continue;  /* we look only actives.. */
+
+	  sprintf(vmnet_to,"@%s",Line->HostName);
+	  send_nmr(vmnet_from, vmnet_to, "CPQ TIME", 8, ASCII, CMD_CMD);
+	  if (GETTIMESEC(Line->InAge) < timelim) {
+	    logger(1,"IO: VMNET-MON: Line %s not responding to our 'CPQ TIME' -probes! (age: %ds)\n",
+		   Line->HostName, now-GETTIMESEC(Line->InAge));
+	    Line->state = INACTIVE;
+	    /* Will close line and put it into correct state */
+	    restart_channel(i);
+	  }
+	}
+
+	/* Use -1 so Delete_lines_timeout for line 0 will not clear us */
+	queue_timer(T_VMNET_INTERVAL, -1, T_VMNET_MONITOR);
+}
 
 /**************** DEBUG section *********************************/
 /*
@@ -1051,23 +1095,23 @@ debug_dump_buffers(UserName)
 const char	*UserName;
 {
 	register int	i;
-	register struct LINE	*temp;
+	register struct LINE	*Line;
 
 	logger(1, "** IO, Debug-dump-buffers called by user %s\n", UserName);
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &(IoLines[i]);
-	  if (*(temp->HostName) == '\0')	/* Line not defined */
+	  Line = &(IoLines[i]);
+	  if (*(Line->HostName) == '\0')	/* Line not defined */
 	    continue;
-	  if (temp->XmitSize > 0) {
+	  if (Line->XmitSize > 0) {
 	    logger(1, "Line=%d, node=%s, xmit:\n",
-		   i, temp->HostName);
-	    trace(temp->XmitBuffer, temp->XmitSize, 1);
+		   i, Line->HostName);
+	    trace(Line->XmitBuffer, Line->XmitSize, 1);
 	  }
-	  if (temp->RecvSize > 0) {
+	  if (Line->RecvSize > 0) {
 	    logger(1, "Line=%d, node=%s, recv:\n",
-		   i, temp->HostName);
-	    trace(temp->InBuffer, temp->RecvSize, 1);
+		   i, Line->HostName);
+	    trace(Line->InBuffer, Line->RecvSize, 1);
 	  }
 	}
 	logger(1, "** IO, End of buffers dump\n");
@@ -1078,26 +1122,26 @@ const char	*UserName;
 /*
  | Rescan the queue. Clear all the current queue (free all its memory) and
  | then rescan the queue to queue again all files. This is done after files
- | are manually renamed to be queued to another link.
+ | are manually renamed to be queued to another link. [VMS explanation]
  */
 /*static*/ void
 debug_rescan_queue(UserName,opt)
 const char	*UserName, opt;
 {
 	register int	i;
-	register struct LINE	*temp;
+	register struct LINE	*Line;
 	int activecnt = 0;
 
 	logger(1, "** IO, Debug-rescan-queue called by user %s, opt: `%c'\n", UserName,opt);
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &(IoLines[i]);
+	  Line = &(IoLines[i]);
 	  activecnt = 0;
-	  if (temp->HostName[0] != 0  &&  temp->QueueStart != NULL) {
-	    activecnt = delete_file_queue(temp);
+	  if (Line->HostName[0] != 0  &&  Line->QueueStart != NULL) {
+	    activecnt = delete_file_queue(Line);
 	  }
-	  temp->QueuedFiles = activecnt;
-	  temp->QueuedFilesWaiting = 0;
+	  /* Line->QueuedFiles = activecnt;
+	     Line->QueuedFilesWaiting = 0; */
 	}
 
 	if (opt != '-') {
@@ -1174,7 +1218,7 @@ const int length;
 	  case CMD_QUEUE_FILE: 
 	      /* Compute the file's size in bytes: */
 	      i = ((line[1] << 8) + (line[2])) * 512;
-	      queue_file(&line[3], i);
+	      queue_file(&line[3], i, NULL, NULL);
 	      break;
 	  case CMD_SEND_MESSAGE:	/* Get the parameters */
 	  case CMD_SEND_COMMAND:
@@ -1210,12 +1254,13 @@ const int length;
 			 ASCII, CMD_CMD);
 	      break;
 	  case CMD_START_LINE:
+	      i = line[1];
 	      if ((i >= 0) && (i < MAX_LINES) &&
 		 IoLines[i].HostName[0] != 0)
-		restart_line(line[1] & 0xff);
+		restart_line(i);
 	      else
-		logger(1, "IO: Operator START LINE #%d on nonconfigured line\n",
-		       line[1]&0xff);
+		logger(1,"IO: Operator START LINE #%d on nonconfigured line\n",
+		       i);
 	      break;
 	  case CMD_STOP_LINE:	/* Stop a line after the last file */
 	      i = (line[1] & 0xff);

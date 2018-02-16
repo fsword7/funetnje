@@ -35,7 +35,7 @@
 #include "ndlib.h"
 #include <utime.h>
 #ifdef	USE_ZMAILER
-#include <mail.h> /* Often in /usr/local/include/.. Use cc's -I accordingly */
+#include <zmailer.h> /* Often in /usr/local/include/.. Use cc's -I accordingly */
 #endif
 
 char LOCAL_NAME   [10];
@@ -222,7 +222,7 @@ MailifyParam *mfp;
 		fprintf(mfp->logfile,"500 MAL-FORMED  `MAIL FROM:' -entry!\n");
 	      exit(9);
 	    }
-	    ++p;
+	    ++p;++p; /* ":<" */
 	    if (mfp->mailfrom) {
 	      if (mfp->logfile)
 		fprintf(mfp->logfile,"500 Multiple active `MAIL FROM:' -entries!\n");
@@ -249,7 +249,7 @@ MailifyParam *mfp;
 		fprintf(mfp->logfile,"500 MAL-FORMED  `RCPT TO:' -entry!\n");
 	      exit(9);
 	    }
-	    ++p;
+	    ++p;++p; /* ":<" */
 	    if (mfp->rcptto == NULL) {
 	      mfp->rcptto = (char**)malloc(sizeof(char*)*(mfp->rcptcnt+1));
 	    } else {
@@ -415,6 +415,9 @@ const int size;
 struct ndparam *ndp;
 {
 	MailifyParam *mfp = (MailifyParam*)ndp->outfile;
+	((char*)buffer)[size] = 0;
+	/* if (mfp->logfile)
+	   fprintf(mfp->logfile,"%d: %s\n",mfp->linecnt,buffer); */
 	if (mfp->linecnt == 0) {
 	  mfp->is_smtp = 0;
 	  if (ndp->profsnote) {
@@ -429,6 +432,7 @@ struct ndparam *ndp;
 	    }
 	  }
 	}
+	mfp->linecnt += 1; /* Increment the line cnt.. */
 	if (mfp->is_smtp)
 	  mailify_bsmtp(buffer,size,ndp,mfp);
 	else if (ndp->profsnote)
@@ -696,7 +700,7 @@ dump_file(path,outpath,binary,dumpstyle,debugdump)
 
 /* ---------------------------------------------------------------- */
 
-void
+volatile void
 bug_check(string)
 char const      *string;
 {

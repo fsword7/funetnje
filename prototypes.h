@@ -39,10 +39,10 @@
 #include <utmp.h>
 
 #ifdef	DEBUG_FOPEN
-#define fopen __fopen
-#define fclose __fclose
-#define fdopen __fdopen
-#define freopen __freopen
+#define fopen _nje_fopen
+#define fclose _nje_fclose
+#define fdopen _nje_fdopen
+#define freopen _nje_freopen
 #endif
 
 #if 0
@@ -260,7 +260,7 @@ extern void	close_command_mailbox __(( void ));
 extern void	send_opcom __(( const char *text ));
 extern void	init_timer __(( void ));
 extern time_t	timer_ast __(( void ));
-extern int	queue_timer __(( const int expiration, const int Index, const int WhatToDo ));
+extern int	queue_timer __(( const int expiration, const int Index, const TimerType WhatToDo ));
 extern void	dequeue_timer __(( const int TimerIndex ));
 extern void	delete_line_timeouts __(( const int Index ));
 extern void	poll_sockets __(( void  ));
@@ -279,8 +279,8 @@ extern void	delete_file __(( const int Index, const int Stream, const int direct
 extern int	close_file __(( const int Index, const int Stream, const int direction ));
 extern char    *rename_file __(( struct FILE_PARAMS *FileParams, const int flag, const int direction));
 extern int	get_file_size __(( const char *FileName ));
-extern void	ibm_time __(( unsigned long *QuadWord ));
-extern unsigned long	ibmtime2unixtime __(( const unsigned long *QuadWord ));
+extern void	ibm_time __(( u_int32 *QuadWord ));
+extern time_t	ibmtime2unixtime __(( const u_int32 *QuadWord ));
 extern int	make_dirs __(( char *path ));
 extern void	read_ebcasc_table __(( char *filepath ));
 
@@ -288,20 +288,22 @@ extern void	read_ebcasc_table __(( char *filepath ));
 extern void	init_active_tcp_connection __(( const int Index, const int finalize ));
 extern void	init_passive_tcp_connection __(( const int TcpType ));
 extern void	send_unix_tcp __(( const int Index, const void *line, const int size ));
+extern void	tcp_partial_write __(( const int Index ));
 extern void	close_unix_tcp_channel __(( const int Index ));
 extern void	accept_tcp_connection __(( void ));
 extern void	read_passive_tcp_connection __(( void ));
-extern void	unix_tcp_receive __(( const int Index ));
+extern void	unix_tcp_receive __(( const int Index, struct LINE *Line ));
 extern int	writen __(( const int fd, const void *buf, const int len ));
 extern int	readn __(( const int fd, void *buf, const int len ));
 
 /* file_queue.c */
 extern void	init_files_queue __(( void ));
-extern void	queue_file __(( const char *FileName, const int FileSize ));
-extern void	add_to_file_queue __(( const char *FileName, const int LineIndex, const int FileSize ));
+extern void	queue_file __(( const char *FileName, const int FileSize, const char *ToAddr, struct QUEUE *Entry ));
+extern struct QUEUE *build_queue_entry __((const char *, const int, const int, const char *, struct FILE_PARAMS *));
+extern void	add_to_file_queue __(( struct LINE *, const int, struct QUEUE *));
 extern void	show_files_queue __(( const char *UserName, char *LinkName ));
 extern void	requeue_file_entry __(( const int Index, struct LINE *temp ));
-extern void	dequeue_file_entry_ok __(( const int Index, struct LINE *temp ));
+extern struct QUEUE *dequeue_file_entry_ok __(( const int Index, struct LINE *temp, const int freeflg ));
 extern struct QUEUE *pick_file_entry __(( const int Index, const struct LINE *temp ));
 extern int	delete_file_queue __(( struct LINE *Line ));
 extern int	requeue_file_queue __(( struct LINE *Line ));
@@ -316,6 +318,7 @@ extern void	queue_receive __(( const int Index ));
 extern void	send_data __(( const int Index, const void *buffer, const int Size, const int AddEnvelope ));
 extern void	close_line __(( const int Index ));
 extern void	compute_stats __(( void ));
+extern void	vmnet_monitor __(( void ));
 extern void	parse_operator_command __(( unsigned char *line, const int length ));
 extern void	debug_rescan_queue __(( const char *UserName, const char opt ));
 
@@ -348,12 +351,13 @@ extern void	ASCII_TO_EBCDIC __(( const void *InString, void *OutString, const in
 extern void	EBCDIC_TO_ASCII __(( const void *InString, void *OutString, const int Size ));
 extern void	PAD_BLANKS	__(( void *String, const int StartPos, const int FinalPos ));
 extern int	despace __(( char *string, int len ));
-extern long	timevalsub __((struct timeval *result, struct timeval *a, struct timeval *b));
-extern long	timevaladd __((struct timeval *result, struct timeval *a, struct timeval *b));
+extern int32	timevalsub __((struct timeval *result, struct timeval *a, struct timeval *b));
+extern int32	timevaladd __((struct timeval *result, struct timeval *a, struct timeval *b));
 extern int	get_send_fileid __(( void ));
 extern int	get_user_fileid __(( const char *uname ));
 extern void	set_user_fileid __(( const char *uname, const int spoolid ));
-
+extern char	*MsecAgeStr __((TIMETYPE *timeptr, TIMETYPE *ageptr ));
+extern char	*BytesPerSecStr __((long bytecount, TIMETYPE *deltatimep ));
 
 /* protocol.c -shrunk */
 extern void	restart_channel __(( const int Index ));

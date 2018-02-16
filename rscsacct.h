@@ -1,5 +1,22 @@
 /* RSCS accounting record  for  FUNET-NJE */
 
+/* Some hard-ware dependencies */
+#ifndef __U_INT32
+#if	defined(__alpha__) /* 64 bit.. */
+#define __U_INT32
+typedef unsigned int u_int32;
+typedef int int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#else
+#define __U_INT32
+typedef unsigned long u_int32;
+typedef long int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#endif
+#endif
+
 
 struct RSCSLOG {
 /*  0 */	unsigned char ACCTLOGU[8];	/* Logger userid 'RSCSEARN' */
@@ -13,7 +30,7 @@ struct RSCSLOG {
 /* 49 */	unsigned char ACNTINDV;		/* origin dev. type:
 						    0x8n=Punch, 0x4n=Print  */
 /* 50 */	char filler[2];			/* 2 filling blanks         */
-/* 52 */	long          ACNTRECS;		/* Number of records in file*/
+/* 52 */	int32         ACNTRECS;		/* Number of records in file*/
 /* 56 */	unsigned char ACNTTOVM[8];	/* Destination location uid */
 /* 64 */	char filler2[8];		/* 8 filling blanks         */
 /* 72 */	unsigned char ACNTSYS[5];	/* Sys id (serial+cpu model)*/

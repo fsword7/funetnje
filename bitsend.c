@@ -47,7 +47,8 @@ main(argc,argv)
 	int	i;
 	int	fnametypeset = 0;
 	int	rc;
-	unsigned long	now,seqid;
+	unsigned long seqid;
+	time_t now;
 	struct tm *timestruct;
 	struct stat filestat;
 
@@ -116,7 +117,7 @@ main(argc,argv)
 	  }
 	}
 	if (*From == 0 || getuid() > LuserUidLevel) {
-	  if (cuserid(From) == NULL) {
+	  if (mcuserid(From) == NULL) {
 	    fprintf(stderr,"Can't determine who you are. Aborting!\n");
 	    exit(2);
 	  }
@@ -178,7 +179,7 @@ main(argc,argv)
 	  /* Multiple pieces - more than 0 - I hope [mea] */
 
 	  pp = pieces;
-	  now = (unsigned long) time(NULL);
+	  time(&now);
 	  seqid = (now % (2<<18)) << 6; /* 64 individual files... */
 	  seqid = (seqid | ((now / 86400) % (2<<7)) << 24) % 100000000;
 
@@ -250,9 +251,9 @@ splitsrc( infile,pieces,piecebase,piecesize )
 	    /* store this file name into array... */
 	    len = strlen(piecename)+1;
 	    if (*pieces == NULL)
-	      *pieces = malloc((pieceindex+2)*sizeof(char*));
+	      *pieces = (char**)malloc((pieceindex+2)*sizeof(char*));
 	    else
-	      *pieces = realloc(*pieces,(pieceindex+2)*sizeof(char*));
+	      *pieces = (char**)realloc(*pieces,(pieceindex+2)*sizeof(char*));
 	    (*pieces)[pieceindex] = malloc( len );
 	    strcpy( (*pieces)[pieceindex],piecename );
 	    (*pieces)[++pieceindex] = NULL;

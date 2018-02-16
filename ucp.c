@@ -325,12 +325,12 @@ char	*string;
 		size = strlen(string) + 1;
 		break;
 	case CMD_DEBUG_RESCAN:
-		cuserid(&line[1]);	/* Add the username of sender */
+		mcuserid(&line[1]);	/* Add the username of sender */
 		line[11] = *string;
 		size = 13;
 		break;
 	default:
-		cuserid(&line[1]);	/* Add the username of sender */
+		mcuserid(&line[1]);	/* Add the username of sender */
 		size = strlen(&line[1]) + 1;	/* 1 for the command code */
 		break;
 	}

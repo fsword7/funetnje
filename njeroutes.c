@@ -54,9 +54,9 @@ main(argc,argv)
 	  printf("Routing table: "); gets(in_file);
 	  printf("Output file: "); gets(out_file);
 	} else  {
-	  memcpy( header_file,argv[1],sizeof header_file -1);
-	  memcpy( in_file,argv[2],sizeof in_file -1);
-	  memcpy( out_file,argv[3],sizeof out_file -1);
+	  strncpy( header_file,argv[1],sizeof header_file -1);
+	  strncpy( in_file,argv[2],sizeof in_file -1);
+	  strncpy( out_file,argv[3],sizeof out_file -1);
 	}	  
 	
 	if ((c = strchr(header_file, '\n')) != NULL) *c = '\0';

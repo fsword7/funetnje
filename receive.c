@@ -400,7 +400,7 @@ dump_file(path,outpath,binary,dumpstyle,debugdump)
 
 }
 
-void
+volatile void
 bug_check(string)
 char const      *string;
 {

@@ -55,23 +55,25 @@ owner+group readable in `QUEUE'/.socket.key -file. (4 bytes)
 Said key is a generated at main module startup time, and is
 a random number..
 
-File submissions (by  sendfile(1), and bmail(1)) are done into the
-`QUEUE' directory with (initially) filenames that start with `.'
-Once the file is written in full, file is renamed to be something
-without the starting `.', and is submitted via client-library
-submit_file() routine.
+File submissions (by  sendfile(1), and bmail(1)) are done into
+the `QUEUE' directory with (initially) filenames that start
+with `.'   Once the file is written in full, file is renamed
+to be something without the starting `.', and is submitted
+via client-library submit_file() routine.
 
-The NJE-CP -control program (ucp) is not sgid, as only user(s) with
-real reason for being able to use it will need to use it, and they
-can be equiped with proper ancilliary group(s) for doing the access.
+The NJE-CP -control program (ucp) is not sgid, as only user(s)
+with real reason for being able to use it will need to use it,
+and they can be equiped with proper ancilliary group(s) for
+doing the access.
 
 Summary of BITSPOOL data:
 
-When files are spooled into those dirs for user perusal, they are in
-there with a plain-ascii header, and binary body.  The body contains
-records of a two-byte record length (in network byte order facilitating
-sharing via NFS, for example), and then <len>-bytes of data in the
-"network line format". (This makes store & forward to be a simple thing.)
+When files are spooled into those dirs for user perusal, they
+are in there with a plain-ascii header, and binary body.  The
+body contains records of a two-byte record length (in network
+byte order facilitating sharing via NFS, for example), and
+then <len>-bytes of data in the "network line format". (This
+makes store & forward to be a simple thing.)
 
 Locally generated files shall not contain anything but
 PUNCH, or PRINT records, and mark their format as:

@@ -30,6 +30,10 @@ extern	FILE	*dump_header __(( char const *path, const int debugdump, int *binary
 extern	int	dump_file __(( char const *path, char const *outpath, int binary, const int dumpstyle, const int debugdump ));
 extern	void	usage __(( void ));
 
+#ifndef __STDC__
+extern FILE *fopen();
+#endif
+
 
 /* From  370 Reference Summary:
 
@@ -69,7 +73,7 @@ long a1,a2,a3,a4,a5,a6,a7,a8,a9;
 void etprintf(fmt,index,timep)
 char *fmt;
 int index;
-long *timep;
+u_int32 *timep;
 {
   eprintf(fmt,index);
   eprintf("<IBM TIME>\n");
@@ -175,7 +179,7 @@ int len;
 	eprintf ("   2:1  FLAG     = X'%02X'\n",DSH->FLAG);
 	eprintf ("   3:1  SEQUENCE = D'%d'\n",DSH->SEQUENCE);
 
-	while (1) {
+	for (;;) {
 	  I(-1);I(4);
 	  eprintf (" 4 - %d: General Section:\n", 4+NDHsize-1);
 	  eprintf (" %3d:2  LENGTH_4 = D'%d'\n",  I(2),ntohs(NDH->LENGTH_4));
@@ -210,7 +214,7 @@ int len;
 	if (RSCS->ID != 0x87 /* RSCS section code */) {
 	  eprintf (" %d-: Unrecognized section, not RSCS anyway.\n",RSCSpos);
 	} else
-	  while (1) {
+	  for(;;) {
 	    /* We have a RSCS section */
 	    I(-1); I(RSCSpos);
 	    RSCSsize = ntohs(RSCS->LENGTH_4);

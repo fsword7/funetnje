@@ -105,7 +105,7 @@ transfer( transparency,path,Destin )
 	if (FrMpos >= 0) {
 	  char From[20];
 
-	  if (cuserid(From) == NULL) {
+	  if (mcuserid(From) == NULL) {
 	    fprintf(stderr,"Can't determine who you are. Aborting!\n");
 	    exit(2);
 	  }
@@ -182,7 +182,7 @@ Args:  [-t] Destin@Address absolute-filepath\n\
 /*
  | Log the string, and then abort.
  */
-void
+volatile void
 bug_check(string)
 const char	*string;
 {

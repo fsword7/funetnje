@@ -27,6 +27,23 @@
 
  */
 
+/* Some hard-ware dependencies */
+#ifndef __U_INT32
+#if	defined(__alpha__) /* 64 bit.. */
+#define __U_INT32
+typedef unsigned int u_int32;
+typedef int int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#else
+#define __U_INT32
+typedef unsigned long u_int32;
+typedef long int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#endif
+#endif
+
 #include "site_consts.h"
 /*   VMS sepcific code   */
 #ifdef VMS
@@ -43,6 +60,18 @@ unsigned long	DMF_routine_address;	/* The address of DMF framing routine */
 #include <sys/stat.h>
 #include <netinet/in.h> /* Sockets definitions */
 extern int	errno;
+
+#ifndef NO_GETTIMEOFDAY
+# include <sys/time.h>
+# define TIMETYPE struct timeval
+# define GETTIME(x)	gettimeofday(x,NULL)
+# define GETTIMESEC(x)	(x.tv_sec)
+#else
+# define TIMETYPE time_t
+# define GETTIME(x)	time(x)
+# define GETTIMESEC(x)	(x)
+#endif
+
 
 #ifndef CONFIG_FILE
 #define	CONFIG_FILE	"/etc/funetnje.cf"
@@ -167,7 +196,7 @@ EXTERNAL char	ClusterNode[16];
 #define	TCP_SYNC	8	/* TCP - accepting a connection.	*/
 typedef int LinkStates;
 #else
-enum {
+typedef enum {
   INACTIVE = 0, SIGNOFF, DRAIN, I_SIGNON_SENT, ACTIVE, F_SIGNON_SENT,
   LISTEN, RETRYING, TCP_SYNC } LinkStates;
 #endif
@@ -238,6 +267,7 @@ typedef enum {
 				     at each TCP block, not at each record */
 
 /* Codes for timer routine (What action to do when timer expires) */
+#ifndef USE_ENUM_TYPES
 #define	T_DMF_CLEAN	1	/* Issue $QIO with IO$_CLEAN function for DMF*/
 #define	T_CANCEL	2	/* Issue $CANCEL system service		*/
 #define	T_SEND_ACK	3	/* Send an ACK. Used to insert a delay before
@@ -251,8 +281,17 @@ typedef enum {
 #define	T_ASYNC_TIMEOUT	10	/* Timeout on Asynchronous lines.	*/
 #define	T_DECNET_TIMEOUT 11	/* Timeout to keep DECnet pseudo-Ack	*/
 #define	T_DMF_RESTART	13	/* Restart a DMF/DMB line		*/
+#define T_VMNET_MONITOR	14	/* "VMNET MONITOR"-process		*/
+typedef unsigned short TimerType;
+#else
+typedef enum {
+  T_DMF_CLEAN, T_CANCEL, T_SEND_ACK, T_AUTO_RESTART, T_TCP_TIMEOUT,
+  T_POLL, T_STATS, T_ASYNC_TIMEOUT, T_DECNET_TIMEOUT, T_DMF_RESTART,
+  T_VMNET_MONITOR } TimerType;
+#endif
 #define	T_STATS_INTERVAL 3600	/* Compute each T_STATS_INT seconds.	*/
 #define	T_AUTO_RESTART_INTERVAL 60 /* Retry granularity is 1 minute.	*/
+#define T_VMNET_INTERVAL	120 /* "VMNET MONITOR" interval.        */
 
 /* General status */
 #define	G_INACTIVE	0	/* Not active or not allowed */
@@ -392,6 +431,8 @@ typedef unsigned char SRCBs;
 #define	htonl(xxx)	(((xxx >> 24) & 0xff) | ((xxx & 0xff0000) >> 8) | \
 			 ((xxx & 0xff00) << 8) | ((xxx & 0xff) << 24))
 
+
+
 /* Commonly used structures definitions */
 struct	DESC	{		/* String descriptor */
 	short	length;
@@ -417,7 +458,8 @@ struct	QUEUE {
 	int	FileSize;		/* File size in blocks	*/
 	int	state;			/* 0: waiting, >0: sending, <0: hold */
 	unsigned char	FileName[LINESIZE];	/* File name	*/
-	long	hash;			/* For quick comparing.. */
+	unsigned char	ToAddr[20];		/* Destination node */
+	u_int32	hash;			/* For quick comparing.. */
 	struct QUEUE *hashnext;
 	int	altline;	/* Mark which line is primary route,
 				   and tell possible alternate one.
@@ -438,10 +480,11 @@ struct	FILE_PARAMS {
 			flags,		/* Our internal flags		*/
 			RecordsCount,	/* How many records		*/
 			FileSize;	/* File size in bytes		*/
-	time_t		XmitStartTime,	/* For speed determination	*/
+	TIMETYPE	XmitStartTime,	/* For speed determination	*/
 			RecvStartTime;	/* In and outbound...		*/
-	unsigned long	NJHtime;	/* Arrived file's NJH time	*/
+	time_t		NJHtime;	/* Arrived file's NJH time	*/
 	struct	QUEUE	*FileEntry;	/* Current file's queue ptr	*/
+	struct stat	FileStats;	/* standard (UNIX) file params	*/
 	char	SpoolFileName[LINESIZE],/* Spool file name		*/
 			FileName[20],	/* IBM Name			*/
 			FileExt[20],	/* IBM Extension		*/
@@ -592,9 +635,7 @@ struct	LINE	{
 	struct	MESSAGE		/* Interactive messages waiting for this line*/
 		*MessageQstart, *MessageQend;
 
-	time_t InAge, XmitAge; /* Timestamps of last read/write */
-	unsigned char InBuffer[MAX_BUF_SIZE],	/* Buffer received	*/
-		      XmitBuffer[MAX_BUF_SIZE];	/* Last buffer sent	*/
+	TIMETYPE  InAge, XmitAge; /* Timestamps of last read/write */
 	int	XmitSize;	/* Size of contents of this buffer	*/
 	void	*WritePending;	/* Flag that we have a write pending	*/
 	int	WriteSize;	/* When non-block writing, pre-written cnt */
@@ -611,6 +652,13 @@ struct	LINE	{
 	int	FirstXmitEntry, LastXmitEntry;	/* The queue bounds	*/
 #endif
 
+	struct	STATS	stats;		/* Line's statistics		*/
+	struct	STATS	sumstats;	/* Line's cumulative statistics	*/
+	long	WrFiles, WrBytes;	/* Cumulative for monitoring .. */
+	long	RdFiles, RdBytes;
+	unsigned char InBuffer[MAX_BUF_SIZE],	/* Buffer received	*/
+		      XmitBuffer[MAX_BUF_SIZE];	/* Last buffer sent	*/
+
 	/* The received NJH, DSH, and NJT for analysis at reception stream
 	   closing time.  These buffers get defragmented headers, and are
 	   analyzed for appropriate contents at convenient moment..	*/
@@ -625,8 +673,6 @@ struct	LINE	{
 			SizeSavedJobTrailer[MAX_STREAMS];
 	/* Actually we do nothing with NJT's -- except note their presence.
 	   MVS systems can (AND DO!) send multiple DSH:s within a file!    */
-	struct	STATS	stats;		/* Line's statistics		*/
-	struct	STATS	sumstats;	/* Line's cumulative statistics	*/
 };
 
 
@@ -654,24 +700,24 @@ EXTERNAL int	E_BITnet_name_length;
 struct	TTB {			/* Data block header */
 	unsigned char	F,	/* Flags */
 			U;	/* Unused */
-	unsigned short	LN;	/* Length */
-	unsigned long	UnUsed;	/* Unused */
+	u_int16		LN;	/* Length */
+	u_int32		UnUsed;	/* Unused */
 	};
 
 #define	TTR_SIZE	4
 struct	TTR {			/* Record header */
 	unsigned char	F,	/* Flags */
 			U;	/* Unused */
-	unsigned short	LN;	/* Length */
+	u_int16		LN;	/* Length */
 	};
 
 #define	VMctl_SIZE	33
 struct	VMctl {			/* Control record of VMnet */
 	unsigned char	type[8],	/* Request type */
 			Rhost[8];	/* Sender name */
-	unsigned long	Rip;		/* Sender IP address */
+	u_int32		Rip;		/* Sender IP address */
 	unsigned char	Ohost[8];	/* Receiver name */
-	unsigned long	Oip;		/* Receiver IP address */
+	u_int32		Oip;		/* Receiver IP address */
 	unsigned char	R;		/* Error Reason code */
 				/* Some processors pad this to 36.. */
 	};

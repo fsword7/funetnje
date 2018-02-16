@@ -370,7 +370,7 @@ dump_header(path,dirpath)
 	return 0;
 }
 
-void
+volatile void
 bug_check(str)
      char const *str;
 {

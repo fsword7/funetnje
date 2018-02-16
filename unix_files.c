@@ -280,7 +280,7 @@ RenameToUniqueFileid( fp, PathOrDir, ToUser, HomeDir, MaxFiles, RealUID )
 
 	  p = path2+strlen(path2);
 
-	  if (RealUID >= 0 && fstat1.st_uid != RealUID) {
+	  if (RealUID > 0 && fstat1.st_uid != RealUID) {
 	    /* If the directory ownership is not right, chown.. */
 	    chown(path,RealUID,-1);
 	    fstat1.st_uid = RealUID;
@@ -306,7 +306,7 @@ RenameToUniqueFileid( fp, PathOrDir, ToUser, HomeDir, MaxFiles, RealUID )
 
 	  /* If the file was not changed to SpoolID, much is lost.. */
 	  if (!renameok) {
-	    sprintf(p,"A%08lxA",time(NULL));
+	    sprintf(p,"A%08lxA",(long unsigned)time(NULL));
 
 	    s = (unsigned char *)(strlen(path2)+path2-1);
 
@@ -392,7 +392,7 @@ AnalyzeFileExitAction( ex,fp,ExplicitePseudoUser,RealUser,RealUID,ToUser,HomeDir
 	}
 	*ExplicitePseudoUser = 0;	/* No knowledge yet */
 	*RealUser   = 0;
-	*RealUID    = -2;	/* Great Mr. Nobody... */
+	*RealUID    = -1;	/* Great Mr. Nobody... */
 	*HomeDir = 0;
 	if ((passwds = Getpwnam(ToUser)) != NULL) {
 	  *RealUser = 1;
@@ -489,7 +489,7 @@ _inform_filearrival( path, FileParams, OutputLine, transitflag )
      const int transitflag;
 {
 	struct FILE_EXIT_CONFIG *Action;
-	int ExplicitePseudoUser,RealUser,RealUID;
+	int ExplicitePseudoUser,RealUser = 0,RealUID = -1;
 	char ToUser[20];
 	char HomeDir[256];
 	char FilePath[512];
@@ -599,11 +599,11 @@ _inform_filearrival( path, FileParams, OutputLine, transitflag )
 	  chown(FileParams->SpoolFileName,RealUID,-1);
 	  strcpy(Argv,FileParams->SpoolFileName);
 	  p = strrchr(Argv,'/');
-	  if (p) { /* Can't fail actually! */
+	  if (p) { /* Can't fail actually! -- 'famous last words..' */
 	    struct stat stats;
 	    *p = 0;
 	    stat(Argv,&stats);
-	    if (stats.st_uid != RealUID) {
+	    if (stats.st_uid != RealUID && RealUID > 0) {
 	      chown(Argv,RealUID,-1); /* Make sure user owns this directory
 					 and thus can access files  */
 	      chmod(Argv,(stats.st_mode & 0755));

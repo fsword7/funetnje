@@ -50,6 +50,7 @@ CmdHelpFile: /usr/local/lib/huji/cmd-help.txt
 
 #$TOUSER $TONODE  $FRUSER  $FRNODE  M ACTION args
 #                 "." == FRUSER is blank, that is from some 'SYSTEM'..
+VMNET    *        *        *        M  DISCARD
 MAILER   *        *        *        M  DISCARD
 MAILSERV FINFILES .        *        M  DISCARD
 MAILSERV FINFILES *        *        M  RUN  /usr/local/lib/mailserver/nje-msg $FRUSER $FRNODE $TEXT

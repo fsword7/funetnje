@@ -20,7 +20,7 @@
  |
  | Document:
  |   Network Job Entry - Formats and Protocols (IBM)
- |	SC23-0070-01
+ |	SC23-0070-02
  |	GG22-9373-02 (older version)
  */
 
@@ -141,8 +141,16 @@ const int	Index;
 	if (i > 0)
 	  fseek(temp->InFds[Stream], -i-2, 1);
 
+	/* See if it was an error! */
+	if (i == -2) {
+	  /* XXX: [mea] do  Less Reliable Transport Service  sender cancel
+	                here...  SC23-0070-02: pp. 4-6 - 4-7   */
+	  /* XXX: [mea]  Should cause transmission abort,
+			 and move file into error area (postmast).. */
+	  bug_check("missing LRTS sender cancel code!");
+	}
 	/* Now see if it was an EOF */
-	if (i < 0) {
+	if (i == -1) {
 	  if (FileParams->format != EBCDIC)
 	    /* We will have to generate, and send the NJT */
 	    temp->OutStreamState[Stream] = S_EOF_FOUND;
@@ -267,8 +275,17 @@ const int	Index, flag, SYSIN;
 	  memcpy(NetworkJobHeader.NJHGUSID, FromUser, 8);
 	  memcpy(NetworkJobHeader.NJHGORGN, FromNode, 8);
 	  memcpy(NetworkJobHeader.NJHGORGR, FromUser, 8);
-	  memcpy(NetworkJobHeader.NJHGXEQN, ToNode,   8);
-	  memcpy(NetworkJobHeader.NJHGXEQU, ToUser,   8);
+	  if (SYSIN) {
+	    /* For SYSIN the NJHGXEQ[NU] are the EXECUTIONER */
+	    memcpy(NetworkJobHeader.NJHGXEQN, ToNode, 8);
+	    memcpy(NetworkJobHeader.NJHGXEQU, ToUser, 8);
+	  } else {
+	    /* For SYSOUT the NJHGXEQ[NU] are SENDER */
+	    memcpy(NetworkJobHeader.NJHGXEQN, FromNode, 8);
+	    memcpy(NetworkJobHeader.NJHGXEQU, FromUser, 8);
+	  }
+
+	  /* Now recycle the FromNode/FromUser variables */
 
 	  /* Following two are usually the same as "From"... */
 	  CREATE_NJH_FIELD(FileParams->PrtTo, FromUser, FromNode);
@@ -340,8 +357,9 @@ const int	Index, flag, SYSIN;
 	    memcpy(NetworkDatasetHeader.RSCS.NDHVFTYP, FileExt, 12);
 
 	    i = strlen(FileParams->DistName);
+	    if (i > 8) i = 8;
+	    upperstr(FileParams->DistName);
 	    ASCII_TO_EBCDIC(FileParams->DistName, SmallTemp, i);
-	    upperstr(SmallTemp);
 	    PAD_BLANKS(SmallTemp, i, 8);
 	    memcpy(NetworkDatasetHeader.RSCS.NDHVDIST, SmallTemp, 8);
 

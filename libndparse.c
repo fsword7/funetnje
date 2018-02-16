@@ -328,7 +328,7 @@ struct ndparam	*ndp;
 			    if (debugdump)
 			      fprintf(stderr, "%sNetdata LRECL = %d\n",
 				      NDP, i);
-			    if (i > 65534)
+			    if (i > 65535)
 			      fprintf(stderr,"%sNetdata record length=%d too long\n", NDP, i);
 			    break;
 

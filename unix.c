@@ -39,17 +39,17 @@ extern int	LogLevel;	/* So we change it with the LOGLEVEL CP command */
 
 extern struct	SIGN_OFF	SignOff;
 extern int	MustShutDown;
-extern int	PassiveSocketChannel,	/* We called LISTEN on it */
+extern int	PassiveSocketChannel,	/* We called LISTEN on it	*/
 		PassiveReadChannel;	/* We are waiting on it for
-					   the initial VMnet record */
+					   the initial VMnet record	*/
 
-#define	MAX_QUEUE_ENTRIES	9	/* Maximum entries in timer's queue */
-struct	TIMER	{			/* The timer queue */
+#define	MAX_QUEUE_ENTRIES	20	/* Maximum entries in timer's queue */
+struct	TIMER	{			/* The timer queue		*/
 		int	expire;		/* Number of seconds until
-					   expiration */
-		time_t	expiration;	/* Expiration time */
-		int	index;		/* Line's index */
-		int	action;		/* What to do when expires */
+					   expiration			*/
+		time_t	expiration;	/* Expiration time		*/
+		int	  index;	/* Line's index			*/
+		TimerType action;	/* What to do when expires	*/
 	} TimerQueue[MAX_QUEUE_ENTRIES];
 
 #define	EXPLICIT_ACK	0
@@ -63,7 +63,7 @@ extern int	sys_nerr;	/* Maximum error number recognised */
 extern char	*sys_errlist[];	/* List of error messages */
 #define	PRINT_ERRNO	(errno > sys_nerr ? "***" : sys_errlist[errno])
 
-long socket_access_key;
+u_int32 socket_access_key;
 
 /*===================== COMMAND ============================*/
 /*
@@ -268,7 +268,7 @@ const char *text;
 void
 init_timer()
 {
-	long	i, timer_ast();
+	long	i;
 
 	/* Zero the queue */
 	for (i = 0; i < MAX_QUEUE_ENTRIES; i++)
@@ -282,8 +282,7 @@ time_t
 timer_ast()
 {
 	long	i;
-	int	queue_timer();
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	time_t	now;
 
 	time(&now);
@@ -302,12 +301,12 @@ timer_ast()
 		    break;
 		case T_TCP_TIMEOUT:
 		    /* Read timeout, Simulate an ACK if needed */
-		    temp = &(IoLines[TimerQueue[i].index]);
-		    if (temp->state == ACTIVE) {
+		    Line = &(IoLines[TimerQueue[i].index]);
+		    if (Line->state == ACTIVE) {
 		      handle_ack(TimerQueue[i].index, EXPLICIT_ACK);
 		    }
 		    /* Requeue it: */
-		    temp->TimerIndex = queue_timer(temp->TimeOut,
+		    Line->TimerIndex = queue_timer(Line->TimeOut,
 						   TimerQueue[i].index,
 						   T_TCP_TIMEOUT);
 		    break;
@@ -317,6 +316,9 @@ timer_ast()
 		    break;
 		case T_STATS:	/* Compute statistics */
 		    compute_stats();
+		    break;
+		case T_VMNET_MONITOR:
+		    vmnet_monitor();
 		    break;
 		default:
 		    logger(1, "UNIX, No timer routine, code=d^%d\n",
@@ -339,8 +341,9 @@ timer_ast()
  */
 int
 queue_timer(expiration, Index, WhatToDo)
-int	expiration, WhatToDo;
-int	Index;			/* Index in IoLines array */
+int		expiration;
+TimerType	WhatToDo;
+int		Index;			/* Index in IoLines array */
 {
 	int	i;
 	time_t	now;
@@ -411,17 +414,17 @@ static void
 auto_restart_lines()
 {
 	int	i;
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
 	for (i = 0; i < MAX_LINES; i++) {
-	  temp = &IoLines[i];
-	  if (*temp->HostName == 0) continue;	/* Not defined... */
-	  if ((temp->flags & F_AUTO_RESTART) == 0)
+	  Line = &IoLines[i];
+	  if (*Line->HostName == 0) continue;	/* Not defined... */
+	  if ((Line->flags & F_AUTO_RESTART) == 0)
 	    continue;			/* Doesn't need restarts at all */
-	  switch (temp->state) {	/* Test whether it needs restart */
+	  switch (Line->state) {	/* Test whether it needs restart */
 	      case INACTIVE:
 	      case RETRYING:
-		  if ( -- temp->RetryPeriod > 0)	/* Not yet.. */
+		  if ( -- Line->RetryPeriod > 0)	/* Not yet.. */
 		    break;
 		  restart_line(i);	/* Yes - it needs */
 		  break;
@@ -527,7 +530,7 @@ again:
 	    logger(2,"poll(): file_queuer_pipe fd=%d\n",file_queuer_pipe);*/
 	}
 
-/* Add the sockets used for NJE comminucation */
+/* Add the sockets used for NJE communication */
 	for (i = 0; i < MAX_LINES; i++) {
 	  if (IoLines[i].HostName[0] == 0) continue; /* No defined line */
 
@@ -538,7 +541,8 @@ again:
 	      (IoLines[i].state != RETRYING) &&
 	      (IoLines[i].state != LISTEN) &&
 	      (IoLines[i].socket >= 0)) {
-#ifdef	NBCONNECT /* Can't do connects which take time to finish.. */
+#if	defined(NBCONNECT) || defined(NBSTREAM) /* Can't do connects which
+						   take time to finish.. */
 	    if (IoLines[i].socketpending >= 0) {
 	      /* A pending open.. */
 
@@ -553,10 +557,16 @@ again:
 	      _FD_SET(IoLines[i].socket, readfds);
 	    }
 #if	NBSTREAM
-	    if (IoLines[i].WritePending) {
+	    if (IoLines[i].WritePending &&
+		IoLines[i].state == ACTIVE) {
 	      _FD_SET(IoLines[i].socket, writefds);
 	    }
 #endif	/* NBSTREAM */
+#if	WRITESELECT
+	    if (IoLines[i].ActiveStreams != 0 && IoLines[i].state == ACTIVE) {
+	      _FD_SET(IoLines[i].socket, writefds);
+	    }
+#endif	/* WRITESELECT */
 	  }
 	}
 
@@ -592,19 +602,18 @@ again:
 	for (j = 0; i < MAX_LINES; ++j)
 	  if ((*IoLines[j].HostName != '\0') &&
 	      (IoLines[j].RecvSize != 0))
-	    unix_tcp_receive(j);
+	    unix_tcp_receive(j, &IoLines[j]);
 #endif
 
 	if ((nfds = select(FdWidth,
 			   &readfds,
-#ifdef	NBSTREAM
+#if	defined(NBSTREAM) || defined(WRITESELECT)
 			   &writefds,
 #else
 			   has_pending_connects ? &writefds : NULL,
 #endif
 			   NULL, &timeout)) == -1) {
 	  if (errno == EINTR) return; /* Ah well, happens at the debugger */
-	  /*if (errno == EBADF) return;*/
 	  logger(1, "UNIX, Select error, error: %s\n", PRINT_ERRNO);
 	  bug_check("UNIX, Select error");
 	}
@@ -639,11 +648,9 @@ again:
 	    if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
 
 	      /* Look for the line that corresponds to that FD */
-
 	      init_active_tcp_connection(j,1); /* Finalize that open */
 
 	      /* Turn off this bit from delayed writes.. */
-
 	      _FD_CLR(i, writefds);
 	    }
 	  } /* for (..j..) */
@@ -666,7 +673,7 @@ again:
 	      for (j = 0; j < MAX_LINES; j++)
 		if ((IoLines[j].socket == i) &&
 		    (*IoLines[j].HostName != '\0'))
-		  unix_tcp_receive(j);
+		  unix_tcp_receive(j, &IoLines[j]);
 	    }
 	  }
 
@@ -675,13 +682,30 @@ again:
 
 	for (j = 0; j < MAX_LINES; ++j) {
 	  if (IoLines[j].HostName[0] == 0 ||
-	      !IoLines[j].WritePending)
+	      !IoLines[j].WritePending ||
+	      IoLines[j].state != ACTIVE)
 	    continue; /* No line, or no */
 	  i = IoLines[j].socket;
 
 
 	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
 	    tcp_partial_write(j);
+	  }
+	}
+#endif	/* NBSTREAM */
+#ifdef	WRITESELECT
+	/* Check write-space with select() */
+
+	for (j = 0; j < MAX_LINES; ++j) {
+	  if (IoLines[j].HostName[0] == 0   ||
+	      IoLines[j].ActiveStreams == 0 ||
+	      IoLines[j].state != ACTIVE    ||
+	      (IoLines[j].flags & F_CALL_ACK) == 0)
+	    continue; /* No line, or no */
+	  i = IoLines[j].socket;
+
+	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
+	    handle_ack(j, EXPLICIT_ACK);
 	  }
 	}
 #endif	/* NBSTREAM */
@@ -713,18 +737,23 @@ const int fd;
 	long FileSize;
 	int rc;
 	extern int file_queuer_pipe;
+	extern int file_queuer_cnt;
 
 	if ((rc = readn(fd,line,1)) == 1) {
 	  size = line[0];
 	  rc = readn(fd,line+1,size);
 	  if (rc == size) {
 	    FileSize = ((line[1] << 8) + line[2]) * 512;
-	    queue_file(line+3, FileSize);
+	    queue_file(line+3, FileSize, NULL, NULL);
+	  } else {
+	    logger(1,"parse_file_queue(): rc != size on nread()\n");
 	  }
+	  ++file_queuer_cnt;
 	}
 	if (rc < 1) {
 	  close(file_queuer_pipe);
 	  file_queuer_pipe = -1;
+logger(1, "parse_file_queuer() cnt=%d\n", file_queuer_cnt);
 	}
 }
 
@@ -795,8 +824,8 @@ parse_op_command()
 	if ((p = strchr(line+4, '\n')) != NULL) *p = '\0';
 
 	/* Match the access key.. */
-	if (socket_access_key != *(long *)&(line[0]) ||
-	    *(long *)&(line[0]) == 0) {
+	if (socket_access_key != *(u_int32 *)&(line[0]) ||
+	    *(u_int32 *)&(line[0]) == 0) {
 	  logger(1, "UNIX: Somebody spoofed command access, key mismatch!\n");
 	  return;
 	}
@@ -818,7 +847,7 @@ const int n;
 {
 #ifdef	_POSIX_SOURCE	/* WE DO  waitpid()  */
 	int status;
-	int options;
+	/* int options; */
 	int pid;
 
 	/* It seems that normal wait() without explicitic calls to this
@@ -885,6 +914,16 @@ const int n;
 	logger(1,"SIGHUP: Rescanning exits, restarting log file.\n");
 	logger(1,"==============================================\n");
 
+	close_route_file();
+	rscsacct_close();
+	fileid_db_close();
+
+	if (open_route_file() == 0) {
+	  logger(1,"******* AIEE!!!  CAN'T RE-OPEN ROUTE FILE! *****\n");
+	  send_opcom("FUNET-NJE ABORTING! Problems RE-OPENING the route table!");
+	  exit(1);
+	}
+
 	if (*FileExits)
 	  read_exit_config(FileExits); /* ==0 OK, others: error */
 
@@ -896,7 +935,6 @@ const int n;
 	  LogFd = NULL;
 	}
 
-	rscsacct_close();
 	rscsacct_open(RSCSACCT_LOG);
 
 	logger(1,"================================================\n");
@@ -912,7 +950,7 @@ log_line_stats()
 	register int i;
 	struct STATS *S, *stats;
 
-	logger(0,"STATS: Line statistics over whole HUJINJE process runtime:\n\n");
+	logger(0,"STATS: Line statistics over whole FUNETNJE process runtime:\n\n");
 
 	for (i=0; i<MAX_LINES; ++i) {
 	  S     = & IoLines[i].sumstats;
@@ -1045,7 +1083,7 @@ DIR	**context;
 		   Directory, PRINT_ERRNO);
 	    return 0;
 	  }
-	  logger(3,"UNIX: find_file(%s -> `%s' dir)\n",
+	  logger(4,"UNIX: find_file(%s -> `%s' dir)\n",
 		 FileMask,Directory);
 	}
 
@@ -1065,10 +1103,10 @@ DIR	**context;
 		sprintf(FileName, "%s/%s",
 			Directory, dirp->d_name);
 		stat( FileName,&stats );
-		if ((stats.st_mode & S_IFMT) == S_IFREG) {
+		if (S_ISREG(stats.st_mode)) {
 		  /* Inform about regular files ONLY. */
 		  /* XXX: S_ISREG() could be used instead ? */
-		  logger(3,"UNIX: find_file(`%s' dir) -> `%s' file\n",
+		  logger(4,"UNIX: find_file(`%s' dir) -> `%s' file\n",
 			 Directory,FileName);
 		  return 1;
 		}
@@ -1094,10 +1132,10 @@ const int	Index;		/* Index into IoLine structure */
 const int	Stream;
 const char	*FileName;
 {
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	FILE	*fd;
 
-	temp = &(IoLines[Index]);
+	Line = &(IoLines[Index]);
 
 	/* Open the file */
 	if ((fd = fopen(FileName, "r+")) == NULL) { /* Open file. */
@@ -1105,10 +1143,10 @@ const char	*FileName;
 	  return 0;
 	}
 
-	temp->InFds[Stream] = fd;
+	Line->InFds[Stream] = fd;
 
-	strcpy(temp->OutFileParams[Stream].SpoolFileName, FileName);
-	if (parse_envelope(fd, &temp->OutFileParams[Stream], 1)<0) {
+	strcpy(Line->OutFileParams[Stream].SpoolFileName, FileName);
+	if (parse_envelope(fd, &Line->OutFileParams[Stream], 1)<0) {
 	  fclose(fd);
 	  logger(1,"UNIX: file `%s' does not have HUJINJE headers\n",
 		 FileName);
@@ -1132,12 +1170,12 @@ int	Index,		/* Index into IoLine structure */
 {
 	FILE	*fd;
 	char	FileName[LINESIZE];
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	struct	FILE_PARAMS *FP;
 	int	oldumask;
 
-	temp = &(IoLines[Index]);
-	FP = &(temp->InFileParams[Stream]);
+	Line = &(IoLines[Index]);
+	FP = &(Line->InFileParams[Stream]);
 
 /* Create the filename in the queue */
 	sprintf(FileName, "%s/%s%d_%d.%s", BITNET_QUEUE, TEMP_R_FILE,
@@ -1145,11 +1183,11 @@ int	Index,		/* Index into IoLine structure */
 	strcpy(FP->SpoolFileName, FileName);
 
 	/* logger(3,"UNIX: open_recv_file(%s:%d)\n",
-	       temp->HostName,Stream); */
+	       Line->HostName,Stream); */
 
-	temp->SizeSavedJobHeader[Stream] = 0;
-	temp->SizeSavedDatasetHeader[Stream] = 0;
-	temp->SizeSavedJobTrailer[Stream] = 0;
+	Line->SizeSavedJobHeader[Stream] = 0;
+	Line->SizeSavedDatasetHeader[Stream] = 0;
+	Line->SizeSavedJobTrailer[Stream] = 0;
 	FP->RecordsCount = 0;
 	FP->FileName[0] = FP->FileExt[0] = FP->JobName[0] = 0;
 	FP->type = 0;
@@ -1163,8 +1201,8 @@ int	Index,		/* Index into IoLine structure */
 	}
 	umask(oldumask);
 
-	temp->OutFds[Stream] = fd;
-	FP->RecvStartTime = time(0);
+	Line->OutFds[Stream] = fd;
+	GETTIME(&FP->RecvStartTime);
 	FP->flags = 0;
 	return 1;
 }
@@ -1227,9 +1265,10 @@ const int	Stream, Index, size;
 		 NewSize, size, ftell(fd)-2,
 		 IoLines[Index].OutFileParams[Stream].SpoolFileName
 		 );
-	  bug_check("Uread - buffer too small");
+	  /* bug_check("Uread - buffer too small"); */
 	  /* XXX: [mea]  Should cause transmission abort,
 			 and move file into error area.. */
+	  return -2;
 	}
 	if (fread(string, NewSize, 1, fd) == 1) {
 	  return NewSize;
@@ -1328,7 +1367,6 @@ const int flag, direction;
 {
 	char	InputFile[LINESIZE], ToNode[30], UnderScores[9], *p;
 	static char	line[LINESIZE];/* Will return here the new file name */
-	struct stat	filestats;
 
 	if (direction == F_OUTPUT_FILE) { /* The file just received */
 	  /* FileParams = &IoLines[Index].InFileParams[Stream]; */
@@ -1352,14 +1390,17 @@ const int flag, direction;
 
 	p = line + strlen(line);
 
-	stat(InputFile,&filestats); /* It MUST exist.. */
+	/* XXX: Propably this  stat()  is superficial.. */
+	/* stat(InputFile,&FileParams->FileStats); /* The file MUST exist.. */
 	/* Name to be unique within the disk, and at most 14 chars.. */
 	memcpy(UnderScores,"________",8);
 	UnderScores[8-strlen(ToNode)] = 0; /* Chop it off.. */
-	sprintf(p, "%s%s%06ld", ToNode, UnderScores, filestats.st_ino);
+	sprintf(p, "%s%s%06ld", ToNode, UnderScores,
+		(long)FileParams->FileStats.st_ino);
 
-	/* What line will it go to ??? */
-	if (rename(InputFile, line) == -1) {
+	/* What line will it go to ??? -- rename only if the names DIFFER */
+	if (strcmp(InputFile, line) != 0 &&
+	    rename(InputFile, line) == -1) {
 	  make_dirs( line );	/* [mea] Make sure we have this dir... */
 	  if (rename(InputFile, line) == -1) {
 	    logger(1, "UNIX: Can't rename '%s' to '%s'. Error: %s\n",
@@ -1406,22 +1447,22 @@ const char	*FileName;
 
 void
 ibm_time(QuadWord)
-unsigned long	*QuadWord;
+u_int32	*QuadWord;
 {
-	QuadWord[0] = htonl((unsigned long) (((float)time(0) / BIT_32_SEC) +
-					     IBM_TIME_ORIGIN));
+	QuadWord[0] = htonl((u_int32) (((float)time(0) / BIT_32_SEC) +
+				       IBM_TIME_ORIGIN));
 	QuadWord[1] = 0;
 }
 
 /* Return UNIX time from given IBM time.. [mea] */
-unsigned long
+time_t
 ibmtime2unixtime(QuadWord)
-const unsigned long *QuadWord;
+const u_int32 *QuadWord;
 {
-	unsigned long t = (unsigned long)((float)(ntohl(QuadWord[0])
-						  - (unsigned long)IBM_TIME_ORIGIN)
-					  * BIT_32_SEC );
-	return t;
+	u_int32 t = (u_int32)((float)(ntohl(QuadWord[0])
+				      - (u_int32)IBM_TIME_ORIGIN)
+			      * BIT_32_SEC );
+	return (time_t)t;
 }
 
 /*

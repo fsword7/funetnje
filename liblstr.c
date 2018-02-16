@@ -17,7 +17,7 @@
 char *lowerstr(str)
 char *str;
 {
-	register char *s = str;
+	char *s = str;
 	while (s && *s) {
 	  if (isupper(*s))
 	    *s = tolower(*s);

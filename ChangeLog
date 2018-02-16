@@ -1,3 +1,181 @@
+Fri Apr 21 11:23:23 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* unix.c, util.c:
+	    A bit more processing when the emulator gets SIGHUP:
+		- close (and open) route table
+		- close (and open) RSCS accounting file
+		- close (open is implicitic) Spoolid cache
+		- re-read File-Exits
+		- re-read Msg-Exits
+		- close (and open) logfile.
+
+	* consts.h, unix_tcp.c, unix.c:
+	    Under some unclear conditions the InBuffer and/or XmitBuffer
+	    appeared to be overfull -> data following it becomes over-
+	    written causing all kinds of havock...  Re-arranged buffers
+	    so that such overwrite corrupts (at first) dataset-headers,
+	    and only then goes out to next buffer in chain..
+	    There used to be important length counters following
+	    those buffers...
+
+	* unix_tcp.c, io.c, unix.c:
+	    Still more fixes to NBSTREAM -- under some conditions
+	    the  WritePending  was left set, and clearing it
+	    at link activation was not taken care off..
+	    ( NBSTREAM implies (fully) NBCONNECT, on one case the
+	      NBCONNECT wasn't happening -> active connect failed.. )
+
+	    Odd startup problems turned out to be non-resets of
+	    InBCB and OutBCB variables when the link starts.
+	    (Reset to zero at link init is a protocol requirement!)
+
+Thu Apr 20 12:47:07 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* zmailer-configs/, smail-configs/, sendmail-configs/:
+	    New subdirectories with SOME support files
+	    for each mailer.
+
+	* bintree.c:
+	    Changed ``bintree-db''-file header structure (radically)
+	    Now it contains couple signature-like objects, which
+	    are used to see if the file is correct for the machine
+	    where it is run.
+
+	* util.c:
+	    Decided that having spoolid-cache in machine-independent
+	    format is not 1) easy, 2) necessary.
+
+Wed Apr 19 22:11:35 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* file_queue.c, io.c:
+	    Looked over the  Line->QueuedFiles & Line->QueuedFilesWaiting
+	    variables usages.
+
+	* io.c vmnet_monitor(), unix.c, prototypes.h, consts.h:
+	    NBSTREAM requires active monitor.  Implemented by
+	    sending NMR-cmd "CPQ TIME" to each ACTIVE link-peer.
+	    If the link does not return anything (`Line->InAge'
+	    timestamp is updated at each socket read) within TWO
+	    T_VMNET_INTERVALs, link is determined dead, and
+	    ``restart_channel(i)'' is called.
+
+	    Query is sent from VMNET@HOSTNAME userid, and therefore
+	    msg-exit.cf MUST be configured to process it...  Well,
+	    reply is MSG from system, and thus undeliverability will
+	    not cause msg-ping-pong, but purity is a nice goal.
+
+	* unix_tcp.c, unix.c, protocol.c, Makefile:
+	    NBSTREAM -- FINALLY done right!
+
+Tue Apr 18 08:18:30 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* unix_tcp.c:
+	    Nth attempt to get the ENQUIRE correct - now finally, it
+	    is no SYN+NAK, nor SYN+ENQ; it is SOH+ENQ...
+
+	* util.c:
+	    `spoolid'-db routines needed machine-byte-order INDEPENDENT format
+	    (The RARE case of moving server from one host to another bite me..)
+
+	* protocol.c restart_channel():
+	    Removed  init_link_state() -call, which was VERY harmfull,
+	    though its effects were very indirect indeed...
+
+	    Added several tests of:  ``Line->state != ACTIVE''
+	    into the main NJE-protocol switch-statement.
+	    ( When the block-write fails, it is correct to quit, and not
+	      to try to send (again) to a closed socket.. -> SIGSEGV )
+
+	* __fopen.c:
+	    Changed the "__"-prefix of __fopen() et.al. to be "_nje_",
+	    because apparently the OSF/1 does have __fdopen() in its
+	    libraries..
+
+	* sendfile.c:
+	    Processing of "-asa" -printouts decremented "maxlen"
+	    at wrong place -- when the file was longer than 136
+	    lines, the system started to collapse..
+
+Thu Apr 13 11:40:59 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* namesfilter.c, netinit.sh:
+	    With some reading of  NEWTAGS DESCRIPT (available from your
+	    nearest NETSERV), determined the CORRECT way to pick mailer
+	    entries, and rewrote the "netinit.sh" to automate (in smarter
+	    way) the BITNET related databases.  (Thanks to Eric Thomas.)
+
+Wed Apr 12 09:00:02 1995  Matti Aarnio  <mea@nic.funet.fi> ( & Paul E Bryant )
+
+	* send_file.c:
+	    When creating a NetworkJobHeader, the NDHGXEQ[UN] -fields
+	    get SENDERs value for SYSOUTs, but DESTINATION for SYSINs!
+
+	    With help of Eric Thomas discovered that  NDHVDIST was
+	    produced with garbage contents (his LMAIL mailer is picky,
+	    when it comes to NJE data...).  Reason:  upperstr() on
+	    a buffer containing (at that point) EBCDIC data :-(
+
+Fri Mar 24 15:02:45 1995  Matti Aarnio  <mea@hamsterix.funet.fi>
+
+	* unix_files.c, unix.c, io.c, file_queue.c, consts.h:
+	    Added "ToAddr" into the queue-entry information thus
+	    making it unnecessary to re-scan spool files when
+	    some event causes full queue re-scan.. -- like
+	    state-change of a link..
+
+Fri Mar 24 11:22:18 1995  Paul E Bryant <peb@mailbox.rl.ac.uk>
+
+	* njeroutes.c main():
+	    Copying arguments from argv[] to string buffers must
+	    use  strncpy(), NOT memcpy()!
+
+	* bmail.c:
+	    Define a #define MAILERNAME which can be set on Makefile
+	    to define some other "userid", which sends email.  Default
+	    is "MAILER".
+
+	    Header-folding code for narrow (normal) BSMTP-PUNCH mode.
+
+Thu Mar 23 15:20:12 1995  Matti Aarnio  <mea@hamsterix.funet.fi>
+
+	* logger.c, namesfilter.c, headers.h, consts.h, detach.c, util.c,
+	  prototypes.h, unix.c, unix_brdcst.c, unix_tcp.c, liblstr.c, Makefile:
+	    "Minor" porting job to get the thing to compile on OSF/1 v3.2.
+	    (Completed in 30 minutes -- that's why I say "minor" :) )
+
+	    The most important thing was to teach it not to assume that
+	    "long" or "unsigned long" mean anything -- rather they do not
+	    mean 32-bit integers on 64-bit alphas...  Also teached it to
+	    treat TIME specially -- time_t is for it.
+
+	    Used "SunOS-4.1.3+GCC" compile switches to compile it on DEC AXP..
+
+Tue Jan 10 16:32:15 1995  Matti Aarnio  (mea@nic.funet.fi)
+
+	* io.c:
+	    When doing  init_link_state(),  do remember also
+	    to close (possibly) open sockets so that a case of
+	    write-failure on a link will not cause accumulation
+	    of the connected sockets.
+
+Fri Nov 25 15:44:14 1994  Matti Aarnio  (mea@nic.funet.fi)
+
+	* unix_files.c:
+	    More care on   chown(2)  calls.
+	    Now it should not  chown to root the user's spool
+	    directory, when SENDING a file.
+
+Wed Oct  5 15:58:00 1994  Matti Aarnio  (mea@nic.funet.fi)
+
+	* mailify.c:
+	    Finally integrated it with Zmailer and TESTED.
+	    (Full functionality only for BSMTP, NETDATA, and
+	     plain PUNCH file..)
+
+	* libreceive.c, nmr.c, unix_tcp.c, libndfuncs.c, bintree.c:
+	    Various complaints from SunOS 4.x 'cc', the bundled
+	    compiler..
+
 Tue Sep 27 09:39:36 1994  Matti Aarnio  (mea@nic.funet.fi)
 
 	* namesparser.c, namesfilter.c: NEW
@@ -33,7 +211,7 @@ Thu Jul  7 16:08:01 1994  Matti Aarnio  (mea@nic.funet.fi)
 	    Rewrote parameter parsing for NMR forwarding.
 	    A locally linked (ROUTE NNNN TO `LOCALNAME`) host
 	    failed NMR delivery, and caused a SIGBUS error..
-	    (Wierd, isn't it..)
+	    (Weird, isn't it..)
 
 Tue Mar 15 01:25:38 1994  "Matti E. Aarnio"  (mea@oj287.astro.utu.fi)
 
@@ -939,7 +1117,7 @@ Sat Nov  6 10:22:24 1993  Matti Aarnio  (mea@ftp.funet.fi)
 	    If at all possible, fork a child-process and read a list
 	    of files from special pipe(2) created for IPC.
 	    (System will work, even if it can't fork()..  Although
-	     at such situation the things are bad in deed..)
+	     at such situation the things are bad indeed..)
 
 	* unix.c  writen(), readn():
 	    Corrected return values.

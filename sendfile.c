@@ -60,8 +60,10 @@ char *explain;
     fprintf(stderr, " [-rawpun]");
 /* Sendfile: -lrecl !! */
   fprintf(stderr, " [filepath]\n");
-  if (explain)
+  if (explain) {
     fputs(explain,stderr);
+    fputc('\n',stderr);
+  }
   exit(EX_USAGE);
 }
 
@@ -155,13 +157,13 @@ char	*argv[];
 	  if (strcmp (*argv,"-rawpun") ==0 ) {
 
 	    if (OpMode != Punch)
-	      usage("  Bad usage of `-rawpun'\n");
+	      usage("  Bad usage of `-rawpun'");
 	    rawpun = 1;
 
 	  } else if (strcmp(*argv, "-asa") == 0) {
 
 	    if (OpMode != Print && OpMode != Sendfile)
-	      usage("  Bad usage of `-asa'\n");
+	      usage("  Bad usage of `-asa'");
 	    asaform = 1;
 
 	  } else if (strcmp(*argv, "-fix") == 0) {
@@ -177,7 +179,7 @@ char	*argv[];
 
 	    ++argv;
 	    if (!*argv)
-	      usage("  -class option requires ONE parameter!\n");
+	      usage("  -class option requires ONE parameter!");
 	    --argc;
 	    upperstr(*argv);
 	    FileClass = **argv;
@@ -186,9 +188,9 @@ char	*argv[];
 
 	    ++argv;
 	    if (OpMode == Submit)
-	      usage("  -fn is improper option for SUBMIT!\n");
+	      usage("  -fn is improper option for SUBMIT!");
 	    if (!*argv || !*(argv+1))
-	      usage("  -fn option requires TWO parameters!\n");
+	      usage("  -fn option requires TWO parameters!");
 	    strncpy(fname, *argv,sizeof fname -1);
 	    strncpy(ftype, *++argv,sizeof ftype -1);
 	    fnametypeset = 1;
@@ -198,9 +200,9 @@ char	*argv[];
 
 	    ++argv;
 	    if (OpMode == Submit)
-	      usage("  -form is improper option for SUBMIT!\n");
+	      usage("  -form is improper option for SUBMIT!");
 	    if (!*argv)
-	      usage("  -form  option requires one parameter!\n");
+	      usage("  -form  option requires one parameter!");
 	    strncpy(Forms,*argv,sizeof Forms -1);
 	    argc -= 1;
 
@@ -208,25 +210,25 @@ char	*argv[];
 
 	    ++argv;
 	    if (OpMode == Submit)
-	      usage("  -dist is improper option for SUBMIT!\n");
+	      usage("  -dist is improper option for SUBMIT!");
 	    if (!*argv)
-	      usage("  -dist  option requires one parameter!\n");
+	      usage("  -dist  option requires one parameter!");
 	    strncpy(Dist,*argv,sizeof Dist -1);
 	    argc -= 1;
 
 	  } else if (strcmp(*argv,"-tag")==0) {
 
 	    if (OpMode == Submit)
-	      usage("  -tag is improper option for SUBMIT!\n");
+	      usage("  -tag is improper option for SUBMIT!");
 	    if (!*++argv)
-	      usage("  -tag  option requires one parameter!\n");
+	      usage("  -tag  option requires one parameter!");
 	    Tag = *argv;
 	    argc -= 1;
 
 	  } else if (strcmp(*argv,"-u")==0) {
 
 	    if (!*++argv)
-	      usage("  -u  option requires one parameter!\n");
+	      usage("  -u  option requires one parameter!");
 	    --argc;
 	    strncpy(From,*argv,sizeof(From)-1);
 	    From[sizeof(From)-1] = 0;
@@ -238,17 +240,17 @@ char	*argv[];
 	  } else if (strcmp(*argv,"-lrecl")==0) {
 
 	    if (OpMode != Sendfile)
-	      usage("  -lrecl  is usable only with  sendfile!\n");
+	      usage("  -lrecl  is usable only with  sendfile!");
 	    if (!*++argv)
-	      usage("  -lrecl  option requires one parameter!\n");
+	      usage("  -lrecl  option requires one parameter!");
 	    --argc;
 	    if ((lrecl = atoi(*argv)) < 10 || lrecl > 65535)
-	      usage("  Bad value of  -lrecl  parameter!  Must be within 10 - 65535.\n");
+	      usage("  Bad value of  -lrecl  parameter!  Must be within 10 - 65535.");
 
 	  } else if (strcmp(*argv,"-bin") == 0) {
 
 	    if (OpMode != Sendfile)
-	      usage("  -bin  is usable only with  sendfile!\n");
+	      usage("  -bin  is usable only with  sendfile!");
 
 	    binary = 1;
 	    if (FileClass == 0)
@@ -281,7 +283,7 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 #endif
 	if (*argv) { /* extra file path... ? */
 	  if ((infile = fopen(*argv,"r")) == NULL) {
-	    fprintf(stderr,"Can't open `%s' -file for reading! \n",*argv);
+	    fprintf(stderr,"Can't open `%s' -file for reading!\n",*argv);
 	    exit(3);
 	  }
 	  /* fclose(stdin); */
@@ -321,7 +323,7 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 	  }
 	  ++argv;
 	}
-	if (*argv) usage("SENDFILE: extra arguments/unknown options?\n");
+	if (*argv) usage("SENDFILE: extra arguments/unknown options?");
 	
 
 	if (getuid() >= LuserUidLevel) {
@@ -333,7 +335,7 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 	}
 	/* Not yet set, set it ! */
 	if (*From == 0) {
-	  if (cuserid(From) == NULL) {
+	  if (mcuserid(From) == NULL) {
 	    fprintf(stderr,"Can't determine who you are. Aborting!\n");
 	    exit(2);
 	  }
@@ -485,8 +487,10 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 		line[len] = ' ';
 
 	    ebcdicline[2] = rectype;
-	    if (asaform) maxlen--;
-	    ebcdicline[3] = maxlen;
+	    if (asaform)
+	      ebcdicline[3] = maxlen-1;
+	    else
+	      ebcdicline[3] = maxlen;
 	    p = ebcdicline + 4;
 	    if (OpMode == Print && !asaform) {
 	      /* We know NOTHING about carriage control! */

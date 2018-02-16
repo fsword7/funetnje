@@ -127,13 +127,13 @@ const char	*line;
 	  {  ILGL, "\0\0\0\0" }};
 
 	struct hdrnames *hp = Headers;
-	long	tt;
+	u_int32	tt;
 
 	strncpy(temp, line, 5);
-	tt = *(long*)temp;
+	tt = *(u_int32*)temp;
 
 	while (hp->class != ILGL) {
-	  if (tt == *(long*)hp->name)
+	  if (tt == *(u_int32*)hp->name)
 	    return hp->class;
 	  ++hp;
 	}
@@ -562,7 +562,7 @@ int len;
 }
 
 
-long
+int32
 timevalsub(result,a,b)
 struct timeval *result,*a,*b;
 {
@@ -574,7 +574,7 @@ struct timeval *result,*a,*b;
 	return result->tv_sec;
 }
 
-long
+int32
 timevaladd(result,a,b)
 struct timeval *result,*a,*b;
 {
@@ -613,8 +613,16 @@ fileid_db_open()
 	sprintf(path,"%s/.spoolid.htdb",BITNET_QUEUE);
 
 	SpoolidBT = bintree_open(path, sizeof(struct spoolids),
-				  spoolid_compare);
+				 spoolid_compare);
 	return (SpoolidBT == NULL);
+}
+
+void
+fileid_db_close()
+{
+	/* Used when system gets a SIGHUP */
+	if (SpoolidBT != NULL) bintree_close(SpoolidBT);
+	SpoolidBT = NULL;
 }
 
 int
@@ -710,4 +718,59 @@ const int spoolid;
 
 	datp->spoolid = spoolid;
 	bintree_update(SpoolidBT,datp);
+}
+
+/* Report age -- in milliseconds  - as a STRING */
+char *
+MsecAgeStr(timeptr, ageptr)
+TIMETYPE *timeptr, *ageptr;
+{
+	static char buf[20];
+	TIMETYPE age;
+	if (ageptr == NULL)
+	  ageptr = &age;
+
+#ifndef NO_GETTIMEOFDAY
+	memset(&age,0,sizeof(age));
+	if (ageptr->tv_sec == 0)
+	  GETTIME(ageptr);
+	/* Using ``struct timeval'', et.al. - microsecond resolution */
+	ageptr->tv_sec  = ageptr->tv_sec  - timeptr->tv_sec;
+	ageptr->tv_usec = ageptr->tv_usec - timeptr->tv_usec;
+	if (ageptr->tv_usec < 0) {
+	  ageptr->tv_sec -= 1;
+	  ageptr->tv_usec += 1000000;
+	}
+	sprintf(buf,"%d.%03d",ageptr->tv_sec, (ageptr->tv_usec + 500)/1000);
+#else
+	/* Using one second resolution. */
+	if (*ageptr == 0)
+	  GETTIME(ageptr);
+	*ageptr = *timeptr - *ageptr;
+	sprintf(buf,"%d",*ageptr);
+#endif
+	return buf;
+}
+
+char *
+BytesPerSecStr(bytecount,deltatimep)
+	long bytecount;
+	TIMETYPE  *deltatimep;
+{
+	static char buf[20];
+#ifndef NO_GETTIMEOFDAY
+	/* Using ``struct timeval'', et.al. - microsecond resolution */
+	double age = (double)deltatimep->tv_sec + (deltatimep->tv_usec * 0.000001);
+	if (age == 0.0)
+	  sprintf(buf,"%ld",bytecount);
+	else
+	  sprintf(buf,"%6.3f",(double)bytecount/age);
+#else
+	/* Using one second resolution. */
+	if (*deltatimep == 0)
+	  sprintf(buf,"%ld",bytecount);
+	else
+	  sprintf(buf,"%5.1f",(double)bytecount/(double)*deltatimep);
+#endif
+	return buf;
 }

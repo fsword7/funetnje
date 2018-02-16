@@ -199,7 +199,7 @@ int	cc;
 	  *from = 0;
 	}
 	if (*from == 0)
-	  cuserid(from);
+	  mcuserid(from);
 
 	if (mode == 0) {		/* Batch mode */
 	  send_nje(type, from, address, text);	/* Send it to the daemon */

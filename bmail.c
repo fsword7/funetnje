@@ -28,11 +28,16 @@
 #include "ndlib.h"
 #include <sysexits.h>
 
+#ifndef MAILERNAME	/* Name of the user that "SENDS" email */
+#define MAILERNAME "MAILER"
+#endif
+
 #define	LSIZE	256			/* Maximum line length */
 
 char LOCAL_NAME   [10];
 char BITNET_QUEUE [80];
 char LOG_FILE     [80] = "-";	/* STDERR as the default */
+char mailername   [10];
 
 int LogLevel = 1;
 FILE *LogFd = NULL;
@@ -43,7 +48,7 @@ void
 usage(str)
 char *str;
 {
-  fprintf(stderr, "Usage: bmail [-u origuser] [-v] [-tag RSCS-TAG]\n             [-nd Gateway-address | -b(smtp) Gateway-address]\n             FromUser@FromNode ToUser@ToNode [ToUser@ToNode...]\n");
+  fprintf(stderr, "Usage: bmail [-u origuser] [-v] [-tag RSCS-TAG] [-M mailername]\n             [-nd Gateway-address | -b(smtp) Gateway-address]\n             FromUser@FromNode ToUser@ToNode [ToUser@ToNode...]\n");
   fprintf(stderr, "  File is taken from the standard input\n");
   if (str)
     fprintf(stderr,"ErrMsg: %s\n",str);
@@ -69,9 +74,15 @@ char	*argv[];
 	long	reccount = 0;
 	long	recpos = 0;
 	int	verbose = 0;
+	int	head = 1; /* Clear, when past the headers. P Bryant */
 	char	*origuser = NULL;
-	    
+	int	myuid = getuid();
+
 	memset( ebcdicline, 0, 80 );
+	strncpy(mailername,MAILERNAME,8);
+	mailername[8] = 0;
+
+
 
 	if (argc < 3) usage("Too few arguments");
 
@@ -104,6 +115,11 @@ char	*argv[];
 	    if (!*argv) usage("-b(smtp) missing mandatory data");
 	    GateWay = *argv;
 	    upperstr(GateWay);
+	  } else if (strcmp(*argv,"-M") == 0) {
+	    ++argv;
+	    if (!*argv) usage("-M missing mandatory data");
+	    strncpy(mailername, *argv, 8);
+	    mailername[8] = 0;
 	  } else if (strcmp(*argv,"-v") == 0) {
 	    verbose = 1;
 	  } else break;
@@ -155,7 +171,7 @@ char	*argv[];
 
 /* The RSCS envelope for our NJE emulator */
 	if (!origuser && (ForcedMailer || Bsmtp))
-	  origuser = "MAILER";
+	  origuser = mailername;
 	if (Bsmtp || ForcedMailer || origuser)
 	  sprintf(NjeFrom, "%s@%s", origuser, LOCAL_NAME);
 	else
@@ -164,9 +180,9 @@ char	*argv[];
 	fprintf(fd, "FRM: %-17.17s\n", NjeFrom);
 	fprintf(fd, "FMT: BINARY\nTYP: MAIL\nEXT: MAIL\nCLS: M\nFOR: QUMAIL\n");
 	if (Bsmtp || ForcedMailer)
-	  fprintf(fd, "FNM: %-12s\n", "MAILER");	/* The `username' that sends it */
+	  fprintf(fd, "FNM: %-12s\n", mailername);	/* The `username' that sends it */
 	else
-	  fprintf(fd, "FNM: %-12s\n", cuserid(0));	/* The username that sends it */
+	  fprintf(fd, "FNM: %-12s\n", mcuserid(0));	/* The username that sends it */
 	if(Bsmtp)
 		fprintf(fd, "TOA: %-17.17s\n", GateWay);
 	else
@@ -203,17 +219,24 @@ char	*argv[];
 
 	  /* -- Prepare BSMTP envelope file -- */
 
-	  fprintf(buffile,"HELO %s.BITNET\n", LOCAL_NAME);
+	  sprintf(line,"HELO %s.BITNET\n", LOCAL_NAME);
+	  lrecl = strlen(line)-1;
+	  fputs(line,buffile);
 	  if (verbose)
 	    fprintf(buffile,"VERB ON\n");
 	  fprintf(buffile,"TICK %d\n",(int)time(NULL));
-	  fprintf(buffile,"MAIL FROM:<%s>\n", From);
+	  sprintf(line,"MAIL FROM:<%s>\n", From);
+	  fputs(line,buffile);
+	  lencnt = strlen(line)-1;
+	  if (lencnt > lrecl) lrecl = lencnt;
 	  while (*argv) {
-	    fprintf(buffile,"RCPT TO:<%s>\n", *argv);
+	    sprintf(line,"RCPT TO:<%s>\n", *argv);
+	    fputs(line,buffile);
+	    lencnt = strlen(line)-1;
+	    if (lencnt > lrecl) lrecl = lencnt;
 	    ++argv;
 	  }
 	  fprintf(buffile,"DATA\n");
-	  lencnt = 0;
 	  c1 = 0;
 
 	  /* Copy the file over, find longest line's length.. */
@@ -242,8 +265,9 @@ char	*argv[];
 	  fseek(buffile,0,0);	/* rewind() ! */
 
 	  /* -- And output it.. -- */
+	  if (lrecl < 79) lrecl = 79;
 	  if (!do_netdata(buffile,&PUNCH,NjeFrom,To,
-			  "MAILER","MAIL",lrecl+1,ND_VARY,0,NULL)) {
+			  mailername,"MAIL",lrecl+1,ND_VARY,0,NULL)) {
 	    fprintf(stderr,"BMAIL/ND: write of bitnet spool file failed!\n");
 	    unlink(tFileName);
 	    exit (EX_TEMPFAIL);
@@ -295,16 +319,35 @@ char	*argv[];
 	      if (*(p-1)=='\n')
 		*(--p) = 0;
 	    l = line+1;
-	    while (!failure && len > 0) {	/* Fold long input.. */
+	    if (--len == 0) head = 0;	/* Blank line indicated end of header */
+	    while (!failure) {	/* Fold long input.. */
+	      int tempchar;
 	      if (Bsmtp && (*l == '.')) {
 		/* Duplicate the (sub)line starting `.' */
 		--l;
 		*l = '.';
 		++len;
 	      }
+	      /* P Bryant 10/1/95 code to sort out folding */
+	      p=l+len;
+	      if (len > 80) {	/*must fold in header*/
+		/* now serch back for separator */
+		p=l+80;
+		if (head != 0) while (*p != ' ' && p != l ) --p;
+		/* if p=l we cannot fold so hope for best */
+		if (p == l) p=l+80;
+	      }
+	      tempchar = *p;
+	      *p = 0;		/* terminate record */
 	      eprintf("%-80.80s",l);
-	      l   += 80;
-	      len -= 80;
+	      *p = tempchar;
+	      len = len -( p - l);
+	      if (len <= 0) break;
+	      l = p;
+	      if (*l != ' ' && head != 0){ *(--l)= ' ';++len;}
+	      /*	      eprintf("%-80.80s",l);
+			      l   += 80;
+			      len -= 80; */
 	    }
 	  } /* While fgets() -loop */
 

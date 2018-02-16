@@ -145,7 +145,7 @@ int cc;
 #endif
 
 	if (open_route_file() == 0) { /* Open the routing table */
-	  send_opcom("FUNET-NJE aborting. Problems openning routing table");
+	  send_opcom("FUNET-NJE aborting. Problems opening the route table!");
 	  exit(1);
 	}
 
@@ -213,6 +213,9 @@ int cc;
 	/* Start the statistics timer */
 	queue_timer(T_STATS_INTERVAL, -1, T_STATS);
 
+	/* Start the automatic link (VMNET) monitor */
+	queue_timer(T_VMNET_INTERVAL, -1, T_VMNET_MONITOR);
+
 #ifdef UNIX
 #ifdef	BSD_SIGCHLDS
 # ifdef	SIGCHLD
@@ -242,14 +245,16 @@ int cc;
 	/* ALARM -- programmed timeout */
 	signal(SIGALRM,handle_sigalrm);
 
+#if 0
 	signal(SIGSEGV,handle_sigsegv);
 #ifdef SIGBUS
        	signal(SIGBUS,handle_sigbus);
 #endif
+#endif
 
 /* XX: Lets do things with link-activation time  'debug_rescan_queue()'
-       calls, instead of this routine.. (Gerald Hanush)
-	init_files_queue();		 Init the in-memory file's queue */
+       calls, instead of this routine.. (Gerald Hanush)		*/
+	init_files_queue();	/*	 Init the in-memory file's queue */
 
 	while (MustShutDown <= 0) {
 	  poll_sockets();
@@ -378,6 +383,10 @@ init_lines_data_base()
 	  IoLines[i].sumstats.RetriesOut  = 0;
 	  IoLines[i].sumstats.MessagesIn  = 0;
 	  IoLines[i].sumstats.MessagesOut = 0;
+	  IoLines[i].WrFiles = 0;
+	  IoLines[i].WrBytes = 0;
+	  IoLines[i].RdFiles = 0;
+	  IoLines[i].RdBytes = 0;
 	}
 }
 
@@ -386,7 +395,7 @@ init_lines_data_base()
 /*
  | Log the string, and then abort.
  */
-void
+volatile void
 bug_check(string)
 const char	*string;
 {

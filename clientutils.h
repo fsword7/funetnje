@@ -94,5 +94,6 @@ extern	char   *ExpandHomeDir __((const char *PathOrDir, const char *HomeDir,
 				  const char *ToUser, char *path));
 extern void	logger    __(( ));
 extern void	trace __(( const void *ptr, const int n, const int lvl ));
-extern char    *local_time __(( void ));
+extern char	*local_time __(( void ));
 extern volatile void  bug_check __(( const char *text ));
+extern char	*mcuserid __((char *from ));

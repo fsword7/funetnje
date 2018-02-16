@@ -18,7 +18,9 @@
 #include "consts.h"
 #include "prototypes.h"
 
-#define UTMP    "/etc/utmp"
+#ifndef UTMP_FILE
+#define UTMP_FILE    "/etc/utmp"
+#endif
 
 extern int alarm_happened;
 
@@ -53,7 +55,7 @@ char *msg;
 	lowerstr(user);
 	despace(user,strlen(user));
 
-	if ((fdutmp = open(UTMP, O_RDONLY,0600)) <= 0)  {
+	if ((fdutmp = open(UTMP_FILE, O_RDONLY,0600)) <= 0)  {
 	  return(0);
 	}
 

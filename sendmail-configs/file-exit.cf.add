@@ -1,0 +1,18 @@
+file-exit.cf  #############################################################
+#
+#  By Paul Bryant <P.Bryant@rl.ac.uk>
+#
+
+part of
+
+#
+# NETINIT is pseudo id for automatically re-generating routing tables
+# This is done with  netinit.sh  which must be configured by hand.
+#
+NETINIT  UKSAGE   BITEARN  NODES    *   *   *        *        *   default  RUN  /usr/local/nje/maketable $SPOOL UKSAGE 
+# /usr/local/nje/maketable $SPOOL" 
+#
+# Finally  a `catch them all' default handling case.
+#
+*        *        *        *        *   *   *        *        *
+default                         KEEP

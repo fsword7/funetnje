@@ -3,6 +3,9 @@
  *		    by parsing BITEARN.NODES node database
  *
  *  Matti Aarnio <mea@nic.funet.fi> 1994-Sep-27
+ *
+ *  Format of the BITEARN NODES -file is described (well, partially)
+ *  in the  NEWTAGS DESCRIPT  available from your nearest NETSERV..
  */
 
 #include <stdio.h>
@@ -24,12 +27,13 @@ usage(msg)
 %s:  Filters BITEARN.NODES data to mailer databases\n\
      namesfilter -zmailer  < bitearn.nodes | sort > bitnet.routes\n\
      namesfilter -smail    < bitearn.nodes | sort > bitnet.routes\n\
-     namesfilter -sendmail < bitearn.nodes | sort > bitnet.routes\n\
-AT THE MOMENT, THE  -sendmail  IS NOT IMPLEMENTED!\n",progname);
+     namesfilter -sendmail < bitearn.nodes | sort > bitnet.routes\n",
+		progname);
 	exit(EX_USAGE);
 }
 
-extern char *strchr();
+extern char *strchr(), *strrchr();
+extern int strncmp();
 
 #define FMT_ZMAILER  1
 #define FMT_SENDMAIL 2
@@ -51,8 +55,13 @@ main(argc,argv)
 	char *argv[];
 {
 	char **np;
-	char *picklist[] = { "node.","internet.","servers1.",NULL };
-	char *selector   = ":type.NJE";
+	static char *picklist[] = { "node.","internet.",
+				      "servers1.", "servers2.", "servers3.",
+				      "servers4.", "servers5.", "servers6.",
+				      "servers7.", "servers8.", "servers9.",
+				      "servers10.","servers11.","servers12.",
+				      NULL };
+	static char *selector   = ":type.NJE";
 	char *node;
 	char *mailer;
 	char *internet;
@@ -69,7 +78,7 @@ main(argc,argv)
 	} else if (strcmp(argv[1],"-smail")==0) {
 	  outfmt = FMT_SMAIL;
 	} else if (strcmp(argv[1],"-sendmail")==0) {
-	  usage("'-sendmail' format is not implemented");
+	  outfmt = FMT_ZMAILER; /* At least P.Bryant uses this same format.. */
 	} else {
 	  usage("Unknown format specifier!  Valid ones: -zmailer, -sendmail, -smail");
 	}
@@ -94,8 +103,23 @@ main(argc,argv)
 	      node = np[i]+6;
 	    else if (strncmp(np[i],":internet.",10)==0)
 	      internet = np[i]+10;
-	    else if (strncmp(np[i],":servers1.",10)==0)
-	      mailer = np[i]+10;
+	    else if (strncmp(np[i],":servers",8)==0) {
+	      /* There can be a LOT of ":serversN." -tags */
+	      char *s = np[i]+8;
+	      while ((*s >= '0' && *s <= '9') || *s == '.') ++s;
+	      mailer = s;
+	      while (*s != 0) {
+		/* Server's that are OUTONLY shall not be used
+		   for destination.. */
+		if (*s == 'O') {
+		  if (strncmp("OUTONLY",s,7)==0) {
+		    mailer = NULL;
+		    break;
+		  }
+		}
+		++s;
+	      }
+	    }
 	  }
 	  strlower(node);
 	  printf("%s\t",node);

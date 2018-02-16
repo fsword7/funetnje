@@ -61,6 +61,17 @@ detach()
 	 *	because process is not a process group leader.
 	 *	(Must not do a subsequent setpgrp()!)
 	 */
+#ifdef	_POSIX_SOURCE
+	(void) setsid();
+	{
+	  int fd;			/* file descriptor */
+
+	  if ((fd = open("/dev/tty", O_RDWR, 0)) >= 0) {
+	    ioctl(fd, TIOCNOTTY, 0);	/* lose controlling terminal */
+	    close(fd);
+	  }
+	}
+#else	/* !_POSIX_SOURCE */
 #ifdef	USE_BSDSETPGRP
 #if	defined(__svr4__)
 	setpgrp();
@@ -83,6 +94,7 @@ detach()
 	  exit(0);	/* first child */
 	/* second child */
 #endif	/* USE_BSDSETPGRP */
+#endif	/* !_POSIX_SOURCE */
 
 out:
 	(void) close(0);

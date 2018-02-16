@@ -60,14 +60,14 @@ void add_gone()
 	char	UserName[128], CommandLine[128];
 	struct	passwd	*UserEntry, *getpwnam();
 
-	cuserid(UserName);
+	mcuserid(UserName);
 	if ((UserEntry = getpwnam(UserName)) == NULL) {
 	  perror("Getpwname"); exit(1);
 	}
 	LoginDirectory = UserEntry->pw_dir;
 
 	*CommandLine = CMD_GONE_ADD;
-	cuserid(&CommandLine[1]);	/* The username */
+	mcuserid(&CommandLine[1]);	/* The username */
 	strcat(CommandLine, " ");	/* A space to separate them */
 	strcat(CommandLine, LoginDirectory);	/* And the login directory */
 	strcat(CommandLine, "/");
@@ -84,7 +84,7 @@ void remove_gone()
 	char	CommandLine[128];
 
 	*CommandLine = CMD_GONE_DEL;
-	cuserid(&CommandLine[1]);	/* The username */
+	mcuserid(&CommandLine[1]);	/* The username */
 	/* And send it to emulator */
 	send_cmd_msg(CommandLine, strlen(&CommandLine[1]) + 1, 0); /* Must be ONLINE! */
 }
@@ -106,7 +106,7 @@ void display_file()
 	struct	passwd	*UserEntry, *getpwnam();
 	FILE	*fd;
 
-	cuserid(UserName);
+	mcuserid(UserName);
 	if ((UserEntry = getpwnam(UserName)) == NULL) {
 	  perror("Getpwname"); exit(1);
 	}

@@ -70,7 +70,7 @@ local_time()
 {
 	static	char	TimeBuff[80];
 	struct	tm	*tm, *localtime();
-	long	clock;
+	time_t	clock;
 
 	time(&clock);		/* Get the current time */
 	tm = localtime(&clock);

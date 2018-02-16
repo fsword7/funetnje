@@ -17,6 +17,24 @@
  |	GG22-9373-02 (older version)
  |
  */
+
+/* Some hard-ware dependencies */
+#ifndef __U_INT32
+#if	defined(__alpha__) /* 64 bit.. */
+#define __U_INT32
+typedef unsigned int u_int32;
+typedef int int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#else
+#define __U_INT32
+typedef unsigned long u_int32;
+typedef long int32;
+typedef unsigned short u_int16;
+typedef short int16;
+#endif
+#endif
+
 #include "ebcdic.h"
 
 /* The RSCS version we emulate (currently 1.3) --  [mea] 2.1 ! */
@@ -90,7 +108,7 @@ struct	JOB_HEADER {
 /* M */				NJHGUSID[8],	/* Userid (TSO,VM/SP)        */
 /* M */				NJHGPASS[8],	/* Password                  */
 /* M */				NJHGNPAS[8];	/* New Password              */
-/* M */		unsigned long	NJHGETS[2];	/* Entry Date/Time Stamp     */
+/* M */		u_int32		NJHGETS[2];	/* Entry Date/Time Stamp     */
 /* M */		unsigned char	NJHGORGN[8],	/* Origin node name          */
 /* M */				NJHGORGR[8],	/* Origin remote name        */
 /* M */				NJHGXEQN[8],	/* Execution node name       */
@@ -100,7 +118,7 @@ struct	JOB_HEADER {
 /* M */				NJHGPUNN[8],	/* Default punch node name   */
 /* M */				NJHGPUNR[8],	/* Default punch remote name */
 /* M */				NJHGFORM[8];	/* Job forms                 */
-		unsigned long	NJHGICRD,	/* Input card count          */
+		u_int32		NJHGICRD,	/* Input card count          */
 	 	 		NJHGETIM,	/* Estimated execution time  */
 				NJHGELIN,	/* Estimated output lines    */
 				NJHGECRD;	/* Estimated output cards    */
@@ -108,7 +126,7 @@ struct	JOB_HEADER {
 /* M */				NJHGROOM[8],	/* Programmers room number   */
 /* M */				NJHGDEPT[8],	/* Prgmr's dept. number      */
 /* M */				NJHGBLDG[8];	/* Prgmr's building number   */
-		unsigned long	NJHGNREC;	/* Record count on output    */
+		u_int32		NJHGNREC;	/* Record count on output    */
 		};
 
 struct	DATASET_HEADER_G {		/* General section */
@@ -123,7 +141,7 @@ struct	DATASET_HEADER_G {		/* General section */
 	/* 48*/	unsigned short	NDHDSNO;	/* Data set number	     */
 	/* 50*/	unsigned char	r1,		/* Reserved		     */
 	/* 51*/			NDHGCLAS;	/* Output class		     */
-/* M */	/* 52*/	unsigned long	NDHGNREC;	/* Record count		     */
+/* M */	/* 52*/	u_int32		NDHGNREC;	/* Record count		     */
 	/* 56*/	unsigned char	NDHGFLG1,	/* Flags		     */
 /*
    NDHGFLG1	0x80	spin dataset
@@ -208,7 +226,7 @@ struct	JOB_TRAILER {
 		unsigned char	NJTGFLG1,
 				NJTGXCLS,	/* Actual exec class         */
 				r1[2];
-		unsigned long	NJTGSTRT[2],	/* Exec start time/date      */
+		u_int32		NJTGSTRT[2],	/* Exec start time/date      */
 				NJTGSTOP[2],	/* Exec stop time/date       */
 				NJTGACPU,	/* Actual CPU time           */
 /* M */				NJTGALIN,	/* Actual output lines       */
@@ -227,14 +245,14 @@ struct	SIGNON {		/* Initial and response */
 				NCCIDL,		/* Length of logical rec.    */
 /* M */				NCCINODE[8],	/* Node ident.		     */
 				NCCIQUAL;	/* Qual if shared spool	     */
-		unsigned long	NCCIEVNT;	/* Event seq number	     */
+		u_int32		NCCIEVNT;	/* Event seq number	     */
 		unsigned short	NCCIREST,	/* Partial node to node 
 						   resistance		     */
 /* M */				NCCIBFSZ;	/* Max transmission blk size */
 /* M */		unsigned char	NCCILPAS[8],	/* Line password	     */
 /* M */				NCCINPAS[8],	/* Node password	     */
 				NCCIFLG;	/* Feature flags (X'80')     */
-		unsigned long	NCCIFEAT;
+		u_int32		NCCIFEAT;
 	};
 
 

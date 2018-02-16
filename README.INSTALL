@@ -1,36 +1,30 @@
 	Guide to install FUNET-NJE software into UNIX systems.
 
-		by Matti Aarnio <mea@funic.funet.fi>
+		by Matti Aarnio <mea@nic.funet.fi>
 
 
 		READ THE   README.FUNET   FILE!
 
-	This version of software does not support any kind of BISYNC
-adapters available for various systems.   Mainly because I didn't have
-such interface available for testing...
+	This version of software does not support any kind of
+BISYNC-adapters available for various systems.   Mainly because
+I didn't have such interface available for testing...
 
 	However:  TCP-IP interface works well (one of rare features
 that are ALMOAST identical among various UNIXes).
 
 
-	When starting to do installation, you must determine few system
-dependent features:
+	When starting to do installation, you must determine few
+system dependent features:
 
-In file  site_consts.h:
 
-	Depending upon how far your TCP/IP package differs from contemporary
-	BSD 4.3 system  (Some older SunOS and ULTRIX ?)
+In  Makefile:
 
-    #define s_addr S_un.S_addr		Should be defined in <netinet/in.h>.
+	Well, dependencies should be all right, some external defines
+	and route + install phases propably need an update.
 
-	Depending what is your systems view of directory scanning:
+	Usage of  `ranlib'  depends upon your system, same with  `install'
 
-    #define DIRENTFILE  <dirent.h>
-    #define DIRENTTYPE  struct dirent
-
-	Common are also: <sys/dir.h> + struct direct,
-	and:		 <dirent.h> + struct direct
-
+	Choise of group-name used on client-program installation.
 
 In  prototypes.h
 
@@ -41,15 +35,6 @@ In  file_queue.c
 
 	Usage of  lstat(2) system call depends upon your system.
 	Replace with  stat(2) if you don't have symlinks.
-
-In  Makefile:
-
-	Well, dependencies should be all right, some external defines
-	and route + install phases propably need an update.
-
-	Usage of  `ranlib'  depends upon your system, same with  `install'
-
-	Choise of group-name used on client-program installation.
 
 In  detach.c:
 
@@ -96,10 +81,10 @@ In  detach.c:
 		     CMDMAILBOX		/usr/spool/bitnet/.cmdpipe
 		     LOG		/usr/adm/bitnet.log
 		     # this table is DBM/NDBM/GDBM binary file.
-		     TABLE		/usr/lib/huji_nje.route
+		     TABLE		/usr/lib/funetnje.route
 		     INFORM		MEA@HAMSTER
-		     USEREXITS	/usr/local/lib/huji/file-exit.cf
-		     MSGEXITS	/usr/local/lib/huji/msg-exit.cf
+		     USEREXITS	/usr/local/lib/funetnje/file-exit.cf
+		     MSGEXITS	/usr/local/lib/funetnje/msg-exit.cf
 		     LLEVEL		2
 		     DEFAULT-ROUTE	FIGBOX
 

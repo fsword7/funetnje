@@ -51,6 +51,7 @@
 @c      - spool file format
 @c      - implemented NETDATA features
 @c      - emulator logics
+@c  - Literature
 @c
 
 @ifinfo
@@ -77,7 +78,7 @@ use without prior agreenment.
 Copyright @copyright{} 1994 Finnish University and Research Network,
 FUNET.
 
-Copyright @copyright{} 1994 IBiS Support OY
+Copyright @copyright{} 1994 IBiS Support/Matti Aarnio
 
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
@@ -90,7 +91,7 @@ use without prior agreenment.
 @comment node-name, next,       previous, up
 
 @menu
-* Support::		Source of support for FUNET-NJE
+* Support::             Source of support for FUNET-NJE
 * History::             History of the FUNET-NJE package
 * Introduction::        Introduction to NJE-networking
 * BITNET-II::           Structure of Second Generation BITNET on virtual links
@@ -100,6 +101,7 @@ use without prior agreenment.
 * System programs::     Documentation on system programs for NJE use
 * Interfacing mailer::  Interfacing  sendmail/smail/Zmailer to BITNET
 * Nuts and Bolts::      Technical documents about insides of things
+* Literature::          Some of the documents used while developing this system
 @end menu
 @c detailed menu for reaching all details ?
 
@@ -123,13 +125,23 @@ Like all Academic software, there might come up a bugfix, or
 improvement sometimes, but such effort being non-funded, and
 without any schedules, there is no guarantee of anything.
 
+User-community is welcomed to subscribe mailinglist:
+@example
+    $ Mail mailserver@@nic.funet.fi
+    Subject: xxxx
+    subscribe funetnje Your Name
+@end example
+Then corresponding via address: @emph{funetnje@@nic.funet.fi}
 
-Developement continues under the company  @emph{IBiS Support OY}
-founded by Matti Aarnio
-@c , and Gerald Hanusch,
-for producing customized editions of this software for parties
-who want to pay for the customization service, or just for timely
-implementation/bug-fixing something.
+@emph{Remember: LIST administrativia goes via mailserver!}
+
+
+@c Developement continues under the company  @emph{IBiS Support OY}
+@c founded by Matti Aarnio
+@c @c , and Gerald Hanusch,
+@c for producing customized editions of this software for parties
+@c who want to pay for the customization service, or just for timely
+@c implementation/bug-fixing something.
 
 
 @c ================================================================
@@ -218,7 +230,7 @@ other nodes.
 
 With these basic facilities it is possible to build extended services,
 like:
-@table @bullet
+@itemize @bullet
 @item
 Remote printing
 
@@ -236,7 +248,7 @@ Interactive discussion one line at the time via NMR-messages
 
 @item
 Interactive control of servers accepting NMR-messages
-@end table
+@end itemize
 
 
 This networking mechanism allows to have simple phone-line quality
@@ -457,7 +469,7 @@ Directories for your BITNET transmission spool, and user spool.
 @emph{Important: those must be on same partition!}
 
 Example configurations have them as: @file{/var/spool/bitnet}
-(@emph{QUEUEDIR}), and @hfill @file{/var/spool/bitspool} @hfill
+(@emph{QUEUEDIR}), and @file{/var/spool/bitspool}
 (@emph{USERSPOOL}).
 
 @item
@@ -488,6 +500,21 @@ This is a performace option, which @strong{might} help on busy systems
 The system can do a @code{connect(2)} on a socket, which has been flagged
 as non-blocking.  Without this connection to a system which is unreachable
 would cause system to hang for synchronous timeout...
+
+@item -DNBSTREAM
+This compilation option allows for more complete non-blocking operations,
+including actual @code{write(2)}s.
+@strong{This is recommended mode of operation!}
+
+@item -DNO_GETTIMEOFDAY
+System internal time retrieval for various delay/speed-analysis uses
+uses (per default) BSD-derived(?)  @code{gettimeofday(2)}-call, but
+if your system does not have it, define this, and  @code{time(2)}
+will be used.
+
+@item -DMAILERNAME="..."
+To override the default @var{MAILERNAME} (= "MAILER")
+in the @file{bmail.c} source.
 
 @item -DCONFIG_FILE=...
 Override @file{consts.h} definition of system config file name
@@ -543,6 +570,8 @@ out again..
 
 @item -DUSE_ZMAILER -I/usr/local/include
 For @file{mailify.c} -- for tight integration with Zmailer MTA.
+(Expects Zmailer's  @file{libzmailer.a}, and @file{zmailer.h} to be
+available.  See Zmailer's @code{zmailer(3)} for further information)
 
 @item -DUSE_OWN_PROTOS
 If the "prototypes.h" -function prototypes for various things can
@@ -585,12 +614,12 @@ LOG             /usr/adm/bitnet.log           @i{Emulator log-file}
 LLEVEL          1                             @i{Logging level.  Smaller==less}
 RSCSACCT        /usr/adm/bitnet.acct          @i{Define for IBM RSCS-like account file}
 * this table is a binary file.
-TABLE           /usr/local/lib/huji/finfiles.routes   @i{NJE route database}
+TABLE           /usr/local/lib/nje/finfiles.routes   @i{NJE route database}
 * @i{EBCDIC<->ASCII tables, (optional), see ebcdictbl(5)}
-*EBCDICTBL      /usr/local/lib/huji/ebcdictbl
+*EBCDICTBL      /usr/local/lib/nje/ebcdictbl
 INFORM          MEA@@FINFILES ROOT@@FINFILES    @i{1+ users monitoring line states}
-FILEEXITS       /usr/local/lib/huji/file-exit.cf      @i{Defines  FILE-EXITs}
-MSGEXITS        /usr/local/lib/huji/msg-exit.cf       @i{Defines  MSG-EXITs}
+FILEEXITS       /usr/local/lib/nje/file-exit.cf      @i{Defines  FILE-EXITs}
+MSGEXITS        /usr/local/lib/nje/msg-exit.cf       @i{Defines  MSG-EXITs}
 DEFFORM         STANDARD                      @i{NJE 'FORM' default}
 *DEFAULT-ROUTE  FINHUTC                       @i{Optional default route.  With this}
                                               @i{the @var{TABLE}-file can be left empty}
@@ -602,7 +631,7 @@ LINE 0 FIGBOX                           @i{Key-line starting link definition}
  BUFSIZE        4096                    @i{VMNET TTB size}
  TIMEOUT        3                       @i{3 is a good value..}
  IPPORT         500                     @i{Opposite end's VMNET's IP port}
-* TCPNAME       figbox.funet.fi         @i{Opposite end's name}
+* TCPNAME       figbox.funet.fi         @i{Opposite end's name - as a comment}
  TCPNAME        128.214.6.7             @i{ .. or IP number ..}
  TCP-SIZE       8192                    @i{How much to block before write}
  MAX-STREAMS    7                       @i{Number of parellel streams}
@@ -650,7 +679,6 @@ can be used to define what is done with various incoming files.
 Over-wide lines are wrapped @emph{in this document} with @code{\}-characters
 at the end of previous line, and at the begin of next line.
 Such wrapping is not allowed in the real configuration file!
-
 
 
 @example
@@ -703,27 +731,27 @@ Exit-Table:
 NOBODY   FINFILES *        *        *   *     *        *        *        \
 \ default                         DISCARD
 FOOBAT   FINFILES *        *        *   *     *        *        *        \
-\ default                         RUN   /usr/local/lib/huji/transfer \
+\ default                         RUN   /usr/local/lib/nje/transfer \
 \ MEA@@$TONODE $SPOOL
 ECHO     FINFILES *        *        *   *     *        *        *        \
-\ default                         RUN   /usr/local/lib/huji/transfer \
+\ default                         RUN   /usr/local/lib/nje/transfer \
 \ NOBODY@@$FRNODE $SPOOL
 #LPR     FINFILES *        *        *   *     *        *        *        \
-\ default                         RUN   /usr/local/lib/huji/rprint   \
+\ default                         RUN   /usr/local/lib/nje/rprint   \
 \ $SPOOL lpr $FRUSER $FRNODE $TOUSER $FID
 #
 #  Define what we do with the SYSINs
 #
 *        *        *        *        SYSIN *   *        *        *        \
-\ /usr/spool/bitnet/SYSIN-JOB/    RUN   /usr/local/lib/huji/sysin $SPOOL
+\ /usr/spool/bitnet/SYSIN-JOB/    RUN   /usr/local/lib/nje/sysin $SPOOL
 #
 #  Define a MAILER for our node!
 #  And also handle directly sent mail from nodes without mailers...
 #
 MAILER   FINFILES *        *        PUN M   *        *        *          \
-\ default                         RUN   /usr/local/lib/huji/mailify $SPOOL
+\ default                         RUN   /usr/local/lib/nje/mailify $SPOOL
 *        *        *        MAIL     PUN M   *        *        *          \
-\ default                         RUN   /usr/local/lib/huji/mailify $SPOOL
+\ default                         RUN   /usr/local/lib/nje/mailify $SPOOL
 #
 # NETINIT is pseudo id for automatically re-generating routing tables
 # This is done with  netinit.sh  which must be configured by hand.
@@ -769,7 +797,7 @@ Such wrapping is not allowed in the real configuration file!
 #      ANYSTRING -- copy it verbatim
 #
 
-CmdHelpFile: /usr/local/lib/huji/cmd-help.txt
+CmdHelpFile: /usr/local/lib/nje/cmd-help.txt
 
 #$TOUSER $TONODE  $FRUSER  $FRNODE  C pattern    ACTION args
 # Actually TOUSER is not tested on commands, it will be blank anyway..
@@ -805,7 +833,8 @@ CmdHelpFile: /usr/local/lib/huji/cmd-help.txt
 .        FINFILES *        *        C "**"       BUILTIN ERROR
 
 #$TOUSER $TONODE  $FRUSER  $FRNODE  M ACTION args
-#                 "." == FRUSER is blank, that is from some 'SYSTEM'..
+#                "." == FRUSER is blank, that is from some 'SYSTEM'..
+VMNET    *        *        *        M  DISCARD
 MAILER   *        *        *        M  DISCARD
 MAILSERV FINFILES .        *        M  DISCARD
 MAILSERV FINFILES *        *        M  \
@@ -819,13 +848,14 @@ ECHO     FINFILES *        *        M  \
 \ RUN  /usr/local/bin/send -u echo $FRUSER@@$FRNODE *Got Message: '$TEXT'
 FINGER   FINFILES .        *        M  DISCARD
 FINGER   FINFILES *        *        M  \
-\ RUN /usr/local/lib/huji/nje-finger $FRUSER $FRNODE $ARGS
+\ RUN /usr/local/lib/nje/nje-finger $FRUSER $FRNODE $ARGS
 
 # The default
 *        *        *        *        M  BRCAST
 @end example
 
 @c ----------------------------------------------------------------
+@page
 @node cmd-help.txt, routes, msg-exit.cf, Configuration
 @section Node NJE command 'HELP' response file: @file{cmd-help.txt}
 
@@ -833,6 +863,7 @@ Node help text can be changed with the @file{cmd-help.txt}-file,
 which paths is defined in the @file{msg-exit.cf}.
 
 @example
+@cartouche
 Commands available for FUNET-NJE emulator:
    Help / HILfe / SOS - Three commands to ask for this info 
    Query SYStem       - Show line status summary report, and activity
@@ -852,6 +883,7 @@ This system has also NMR responding servers at addresses:
    ECHO@@FINFILES       -- throws the NMRs back to you.
    MAILSERV@@FINFILES   -- ask for HELP
    FINGER@@FINFILES     -- Usage: tell finger@@finfiles address@@internet
+@end cartouche
 @end example
 
 @c ----------------------------------------------------------------
@@ -1032,7 +1064,7 @@ Debug outputs of the NJE spool file
 
 @item -asa
 Affects PRINT files which contain MCC carriage control codes
-(see bitspool(5)) by trsnlating them to FORTRAN-style carriage
+(see bitspool(5)) by translating them to FORTRAN-style carriage
 control.
 
 @item -rawpun
@@ -1147,7 +1179,17 @@ condition (Often created with `ctrl-D' from the keyboard.)
 @section Resend files from user's spool: @file{transfer}
 @c      - transfer
 
-@strong{**T.B.W.**}
+A special utility for transfering spoolfiles to another destination.
+@example
+@r{Usage:}
+.../transfer [-t] NEW@@DESTIN /absolute/path/to/spool/file
+@end example
+This is @emph{very special} program for very rare and special use.
+Super-user can use @strong{-t}-option to order ``transparent'' transfer,
+that is, transfer where original originator is @strong{not} altered.
+
+For normal users the originator address (FRM:) will get rewritten
+as the caller of this utility.
 
 @c ================================================================
 @node System programs, Interfacing mailer, User programs, Top
@@ -1224,7 +1266,7 @@ The @file{mailify} analyzes the incoming NJE-spool-file, and
 makes the necessary parsing/transformation of it into RFC-822
 format, and feeds it to the system mailer.
 
-In the C-program there is support for @file{Zmailer}'s mail(3) -library,
+In the C-program there is support for @file{Zmailer}'s zmailer(3) -library,
 which thus can bypass more generic use of @file{/usr/lib/sendmail}
 as a feeder to the system mailer.
 
@@ -1276,19 +1318,21 @@ supplementary group, which allows communication with the FUNET-NJE.
 @r{Synopsis:}
   namesfilter:  Filters @file{BITEARN.NODES} data to mailer databases
      namesfilter -zmailer  < bitearn.nodes > bitnet.routes
-     namesfilter -smail    < bitearn.nodes > bitnet.routes
      namesfilter -sendmail < bitearn.nodes > bitnet.routes
-  AT THE MOMENT, THE  -sendmail  IS NOT IMPLEMENTED!
+     namesfilter -smail    < bitearn.nodes > bitnet.routes
 @end example
 
 This utility parses @file{BITEARN.NODES}-file, and from it
 all the `@emph{:type.NJE}' entries are checked up for possible
-`@emph{:servers1.}'-entry, which defines mailer.
+`@emph{:servers*.}'-entries, which define mailers.
+Of those, only one can exist without ``OUTONLY''-tag, and
+it defines the receiving mailer.
 
-If no `@emph{:servers1.}' is defined, default `@strong{defrt1}'
-is used, othervice some smarter version is chosen.
+If no non-``OUTONLY'' `@emph{:servers*.}' are defined,
+default mode of ``@strong{defrt1}'' is used, othervice
+some smarter version is chosen.
 
-Originally this utility was written for Zmailer usage, other
+Originally this utility was written for ZMailer usage, other
 modes are ``afterthoughts''@dots{}
 
 @c ----------------------------------------------------------------
@@ -1412,7 +1456,7 @@ by use of @file{namesfilter} -program:
 Unlike the original Toronto @file{namesfilter}-package, this does not
 take @file{BITEARN DOMAINS}, or @file{XMAILER NAMES}.
 
-Channels are defined in @file{$MAILSHARE/scheduler.cf}, in which
+Channels are defined in @file{$MAILSHARE/scheduler.conf}, in which
 these five are defined as:
 @example
 @dots{}
@@ -1448,6 +1492,11 @@ defrt1      snS   /usr/local/lib/nje/bmail bmail $g $u
 @c ----------------------------------------------------------------
 @node    smail, sendmail, Zmailer, Interfacing mailer
 @section Interfacing Smail3.0 with FUNET-NJE
+
+@emph{This information is from Gerald Hanusch <root@@alijku65.edvz.uni-linz.ac.at>}
+
+@emph{Relevant files are on subdirectory @file{smail-configs/} of the source
+directory.}
 
 In order to get SMAIL3.1.28 working with the FUNET-NJE emulator,
 following steps are necessary:
@@ -1541,6 +1590,9 @@ Now it should be possible to deliver mail within BITNET using nje.
 Jukka Ukkonen of CSC.FI, translation to english is
 by Matti Aarnio}
 
+@emph{See source-tree subdirectory @file{sendmail-configs/} for
+the way how Paul Bryant <P.Bryant@@rl.ac.uk> did this.}
+
 
 Somewhere in the begin of the @file{sendmail.cf}:
 @example
@@ -1604,7 +1656,7 @@ R$*<@@$+.>      $@@$1<@@$(bitnetname $2$)>
 @end example
 
 In addition to those there is also a need for all the mailer entries,
-like: `@strong{Mbsmtp3}'
+like: `@strong{Mbsmtp3}'  (See ZMailer's ``sm''-defines for hints.)
 
 @emph{Non-translated email continues with an apology of being
 too tired to finish it ``tonight'', nor is `Jau' certain, that
@@ -1622,7 +1674,7 @@ these make any sense/are corrent -- early September-94.}
 
 
 @c ================================================================
-@node Nuts and Bolts,   , Interfacing mailer, Top
+@node Nuts and Bolts, Literature, Interfacing mailer, Top
 @chapter Technical documents about insides of things
 
 @c  - Technical documentation
@@ -1640,33 +1692,318 @@ these make any sense/are corrent -- early September-94.}
 @section Directory structure of the FUNET-NJE
 @c      - Directory structure
 
+@table @asis
+@item @file{/etc/funetnje.cf}
+Is the default location of the runtime system master configuration file.
+It defines all other files and directories used by this system.
 
+@item @file{/usr/local/funetnje/}
+A possible location to place system programs, which are used by the
+system only.
+
+@item @file{/usr/local/bin/}
+A possible location to place user-callable programs into.
+
+@item @file{/usr/local/sbin/}
+A possible location to place sysmanager-callable programs into.
+
+@item @file{/var/spool/bitnet/}
+Outgoing file spooling directory (and its subdirectories);
+defined on @file{/etc/funetnje.cf}.
+
+@item @file{/var/spool/bitspool/}
+Incoming file spooling directory -- each user has his/her own subdir;
+defined on @file{/etc/funetnje.cf}.
+@end table
 
 @c ----------------------------------------------------------------
 @node cmdpipe, iucvpipe, directories, Nuts and Bolts
 @section Client to Emulator messaging
 @c      - client -> emulator messaging
 
+There are multiple methods (depending upon your operating system)
+on how to use the client->emulator command channel.
+
+
 @c ----------------------------------------------------------------
 @node iucvpipe, spool format, cmdpipe, Nuts and Bolts
 @section IUCVTRAP <=> Emulator messaging
 @c      - iucvtrap <-> emulator messaging
+
+@strong{**T.B.W.**}
 
 @c ----------------------------------------------------------------
 @node spool format, netdata, iucvpipe, Nuts and Bolts
 @section FUNET-NJE Spool Format
 @c      - spool file format
 
+@emph{Straight copy of man-page: bitspool(5)}
+
+@emph{Bitspool} format consists of an @strong{ASCII}
+header, and a binary body containing length-tagged
+``records''.
+The length-tag is ``@emph{network byte order}''-ordered 16 bit short integer.
+This is to facilitate transfer of spool files in between systems, and
+to make it simpler to use non-homogenous hardware in clusters which
+share the same @strong{BITNET} node..
+
+Known @strong{ASCII} headers are:
+@table @asis
+@item @strong{FRM:} USERNAME@@HOSTNAME
+Mandatory (fall-back default: ``***@@****'').
+Uppercase-only data in fixed 17 chars wide field, left justified.
+
+@item @strong{TOA:} USERNAME@@HOSTNAME
+Mandatory (fall-back default: ``POSTMAST@@<localname>'').
+Uppercase-only data in fixed 17 chars wide field, left justified.
+
+@item @strong{FNM:} FILENAME
+Optional, default value: ``UNKNOWN''.
+Mixed-case alphanumeric data in fixed 12 chars wide field, left justified.
+
+@item @strong{EXT:} FILEEXTN
+Optional, default value: ``DATA''.
+Mixed-case alphanumeric data in fixed 12 chars wide field, left justified.
+
+@item @strong{TYP:} type
+Optional, defaults to ``PUNCH''.
+Controls physical device attribute on the outgoing NJE headers.
+When sending PRINT files, use @strong{TYP: PRINT}.
+When you want to send SYSIN jobs, use @strong{TYP: JOB},
+and if it is just a PUNCH something, use @strong{TYP: PUNCH}.
+
+Recognized obsolete keywords for the TYP are:
+MAIL, BSMTP, FILE, and FASA, which are in reality synonyms for PUNCH,
+and PASA, which is synonym for PRINT.
+
+@item @strong{CLS:} class
+Optional, defaulted by the @strong{TYP:}, if not defined.
+This is @strong{one} (1) uppercase alpha in range A-Z.
+
+@c .br
+Customary values are:
+MAIL, BSMTP files: M, NETDATA containing binary data: N,
+console printouts: O, all others: A.
+
+@item @strong{FOR:} FILEFORM
+Optional, recommended.
+If you don't want to see file-traversal notes from the network,
+BITNET style is to start the form name with two characters: "QU".
+That matches at "QUIET", "QUMAIL", ...
+
+System wide default is taken from
+@file{/etc/funetnje.cf DEFFORM}
+entry, and it often has value
+@strong{STANDARD}.
+
+@item @strong{FMT:} spool-format
+Mandatory (fall-back default: @strong{BINARY}).
+
+@c .br
+@strong{BINARY} for all locally generated files, and for cases
+where the @strong{ASCII} headers have been mungled after
+the file was received from the network.
+
+@c .br
+@strong{EBCDIC} denotes spool file which has been received
+from the network, and contains all possible data blocks in it.
+(Users will ignore all, but PUNCH, and PRINT records..)
+
+@item @strong{FID:} 9900
+Mandatory, sender original spoolid; A number between 1, and 9900.
+File submitter should put "0000" in there, and delivery facility
+will do something about it.. When system picks up this field, it
+will assign there next spoolid from file sender's store, however
+network delivery uses ``@strong{OID:}'', which it assigns..
+
+@item @strong{OID:} 0000
+Mandatory, for spool-id allocation at the first time it is queued
+for delivery to somewhere remote.
+
+@item @strong{TAG:} RSCS-TAG-STRING
+Optional.
+The IBM NJE TAG string of 136 characters.
+
+@item @strong{DIS:} RSCS-DIST
+Optional.
+Fixed width, left justified 8 characters field of RSCS DIST information.
+Default: 
+``@strong{SYSTEM}''.
+
+@item @strong{REC:}  nnnn
+Highly preferred (almoast mandatory!)
+Tells the number of records of data; necessary to get job-header
+right on file transmission, altough not really mandatory for
+successfull file sending.  As the count of records isn't
+known before all are written (in the usual case), this entry
+is written at first to reserve space for later seek, and rewite
+with correct information.
+
+@item @strong{JNM:} JOBNAME
+Optional.
+Contains NJE job name (8 characters).
+
+@item @strong{PRT:} prtfiles@@tonode
+Optional.
+For @strong{SYSIN} jobs this defines alternate address for sending
+the job PRINT outputs to. 
+Default is taken from ``@strong{FRM:}''.
+
+@item @strong{PUN:} punfiles@@tonode
+Optional.
+For @strong{SYSIN} jobs this defines alternate address for sending
+the job PUNCH outputs to.
+Default is taken from ``@strong{FRM:}''.
+
+@item @strong{END:}
+Mandatory.
+Ends the @strong{ASCII}-portion of the headers.
+Terminating newline must be immediately after the colon character.
+@end table
+
+With all (except @strong{END:}) above header tags there must be
+exactly one space (ASCII 32) after the colon, and before data.
+With the @strong{END:}, there must not be any extra blanks after
+the colon, and before terminating newline.
+
+Order of the @strong{ASCII} format headers is not fixed, except that
+@strong{END:} must be last.
+
+Binary format data follows syntax:
+@example
+    <16-bit length> <length number of bytes>
+@end example
+where the @strong{<16-bit length>} is encoded as
+@strong{network-byte-order} short integer.
+This is to facilitate easy copying of @emph{funetnje}(8)
+spool files from one machine to another.
+This also makes it possible to share common @strong{BITNET}
+pool between several machines independent
+of their native byte order.
+
+Sample data formats:
+@table @strong
+@item PUNCH
+@example
+(any content, like plain text, and  @strong{NETDATA})
+0x80, 80,                       0x80 = PUNCH, 80=content length
+<80 bytes of EBCDIC/whatever>   The PUNCH content, 80 bytes
+@end example
+
+@item PRINT
+Machine Carriage Control:
+@example
+0x90, 132, MCCbyte,             0x90 = PRINT MCC, 132=content length
+<132 bytes of EBCDIC/whatever>  The PRINT content, 132 bytes
+@end example
+
+@item PRINT ASA
+Carriage Control:
+@example
+0xA0, 132, ASAbyte,             0xA0 = PRINT ASA, 132=content length
+<132 bytes of EBCDIC/whatever>  The PRINT content, 132 bytes
+@end example
+
+@item PRINT CPDS
+@example
+Carriage Control:
+0xB0, 132, CPDSbyte,            0xB0 = PRINT CPDS, 132=content length
+<132 bytes of EBCDIC/whatever>  The PRINT content, 132 bytes
+@end example
+@end table
+
+Trailing @strong{EBCDIC}-spaces can be suppressed in the spool files,
+thus above are given ranges of lengths.  If the record content is shorter,
+than its defined size, receiver @emph{must} pad it with @strong{EBCDIC}-spaces.
+(Of course, this way spool-size of a megabyte of spaces will be
+13108 records of (2+)2 bytes + header, which makes circa 53kB.
+When received, it will expand by a fractionally filled last record.)
+The length-byte at each record @emph{must}
+be of its nominal value, record truncation is coded with
+the 16-bit-length value.
+
+The @emph{MCCbyte}, and @emph{ASAbyte} are two kinds of
+``@emph{carriage control}'' -mechanisms.
+The @emph{CPDSbyte} is third kind, however documenting it is left for
+further study.
+
+IBM printers are fixed 132 characters wide, and on overall those
+systems function on records, and a write in this respect means
+write of whole line.
+On overall the IO-operations on IBM mainframe happen on records, or
+preferrably chains of records on which single start-IO instruction
+can be used to start the IO-channel.
+
+Carriage-control mechanisms contain two kinds of controls, both
+pre-write, and post-write controls exist in MCC mode.
+In ASA-mode only pre-writes are defined.
+Pre-write controls happen before the printout line is written,
+for example `jump to nearest VFU channel 1 forward' (in plain
+english: Form-Feed..)
+
+@table @emph
+@item Jump to next page
+ASA: `1', Pre-MCC: X'8B'
+
+@item Overwrite; Defined only in pre-write.   
+ASA: `\+', MCC: X'01'
+
+@item Write and advance one line
+ASA: Space, Pre-MCC: X'0B', Post-MCC: X'09'
+
+@item Write and advance twolines
+ASA: `0', Pre-MCC: X'13', Post-MCC: X'11'
+
+@item Write and advance three lines
+ASA: `-', Pre-MCC: X'1B', Post-MCC: X'19'
+
+@end table
+
+
+Other formats, than  0x80, 0x90, 0xA0, 0xB0  of binary portion records
+should be ignored. (Received network transport layer headers are there, etc.)
+
+
 @c ----------------------------------------------------------------
 @node netdata, emulator logics, spool format, Nuts and Bolts
 @section Implemented NETDATA features
 @c      - implemented NETDATA features
 
+@strong{**T.B.W.**}
+
 @c ----------------------------------------------------------------
-@node emulator logics,   , netdata, Nuts and Bolts
+@node emulator logics,  , netdata, Nuts and Bolts
 @section Emulator logics
 @c      - emulator logics
 
+@strong{**T.B.W.**}
+
+
+@c ================================================================
+@node Literature, ,Nuts and Bolts, Top
+@c - Literature
+@chapter Literature
+
+Here is a partial list of things to read:
+@itemize @bullet
+@item IBM publication SC23-0070-02:
+@emph{Network Job Entry -- Formats and Protocols}
+
+@item IBM publication GG22-9373-02 @emph{(older version of previous)}
+
+@item @file{NEWTAGS DESCRIPT} from your nearest NETSERV.
+
+@item @file{NETDATA DESCRIPT} from your nearest NETSERV.
+
+@item @file{BRFC0002 TEXT} from BITNIC
+
+@item @file{TECOVER.LISTPS} from Princeton -- BITNET-II technical overview.
+(LISTSERV@@PUCC ??)
+
+@item @file{USRGUIDE.LISTPS} from Princeton -- VMNET users/operators guide.
+(LISTSERV@@PUCC ??)
+
+@end itemize
 
 @c ================================================================
 @contents

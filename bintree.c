@@ -41,10 +41,16 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 
+#ifndef __STDC__
+#define const
+#define void char
+#endif
+
 extern void *malloc();
 extern void *realloc();
 extern void free();
 extern void *memset();
+extern char *strrchr();
 
 struct Bintree {
 	FILE *treefile;
@@ -61,7 +67,9 @@ struct BTheader {
 	int	heapsize;
 	int	eltsize;
 	int	need_rebalance;
-	int	spare;
+#define BTHSIGN 0x12345678
+	int	bytesex_signature; /* 0x12345678 - for checkups */
+	char	dbname[16];	   /* Name of the DB - for checkups */
 };
 
 #define BT_ENTRY(index) (void*)(((char*)(BT->datastore))+((index)*BT->eltsize))
@@ -110,6 +118,12 @@ int (*eltcompare)();
 	struct BTheader BTH;
 	struct stat statbuf;
 	int fd = open(filename,O_RDWR|O_CREAT,0644);
+	char *db_basename = strrchr(filename,'/');
+
+	if (db_basename == NULL)
+	  db_basename = filename;
+	else
+	  ++db_basename;
 
 	if (fd < 0) return NULL;
 
@@ -139,6 +153,10 @@ int (*eltcompare)();
 	  BTH.heapsize       = BT->heapsize;
 	  BTH.eltsize        = BT->eltsize;
 	  BTH.need_rebalance = BT->need_rebalance;
+	  BTH.bytesex_signature = BTHSIGN;
+	  strncpy(BTH.dbname,db_basename,sizeof(BTH.dbname));
+
+	  fseek(BT->treefile,0,0);
 	  fwrite(&BTH,sizeof(BTH),1,BT->treefile);
 
 	  memset(BT->datastore,0, BT->heapsize * BT->eltsize);
@@ -150,7 +168,16 @@ int (*eltcompare)();
 	  BT->last     = BTH.last;
 	  BT->heapsize = BTH.heapsize;
 	  BT->eltsize  = BTH.eltsize;
-	  /* XX: Check eltsize match!  Check 'need_rebalance'!  */
+	  /* XX:  Check 'need_rebalance'!  */
+
+	  if (BT->eltsize != eltsize ||
+	      strncmp(BTH.dbname,db_basename,sizeof(BTH.dbname)) != 0 ||
+	      BTH.bytesex_signature != BTHSIGN) {
+	    /* Mismatch! */
+	    fclose(BT->treefile);
+	    free(BT);
+	    return NULL;
+	  }
 
 	  BT->datastore = malloc(BT->heapsize * BT->eltsize);
 	  if (BT->datastore == NULL) {
@@ -254,10 +281,15 @@ void *datum;
 	fwrite(BT_ENTRY(inspt), BT->eltsize, BT->last-1-inspt+1, BT->treefile);
 
 	fseek(BT->treefile,0,0);
+	fread(&BTH,sizeof(BTH),1,BT->treefile);
+
 	BTH.last           = BT->last;
 	BTH.heapsize       = BT->heapsize;
 	BTH.eltsize        = BT->eltsize;
 	BTH.need_rebalance = BT->need_rebalance;
+	BTH.bytesex_signature = BTHSIGN;
+
+	fseek(BT->treefile,0,0);
 	if (fwrite(&BTH, sizeof(BTH), 1, BT->treefile) != 1)
 	  rc = -1;
 	if (fflush(BT->treefile) != 0)
@@ -289,13 +321,18 @@ void *datum;
 	memcpy(ptr,ptr + BT->eltsize, count*BT->eltsize);
 	BT->last -= 1;
 
-	fseek(BT->treefile, 0, 0);
+	fseek(BT->treefile,0,0);
+	fread(&BTH,sizeof(BTH),1,BT->treefile);
 
 	BTH.last           = BT->last;
 	BTH.heapsize       = BT->heapsize;
 	BTH.eltsize        = BT->eltsize;
 	BTH.need_rebalance = BT->need_rebalance;
+	BTH.bytesex_signature = BTHSIGN;
+
+	fseek(BT->treefile, 0, 0);
 	fwrite(&BTH, sizeof(BTH), 1, BT->treefile);
+
 	fseek(BT->treefile, sizeof(struct BTheader)+offset, 0);
 	fwrite(ptr, BT->eltsize, count, BT->treefile);
 	fflush(BT->treefile);
@@ -323,7 +360,7 @@ bintree_update(BT, datumptr)
 struct Bintree *BT;
 void *datumptr;
 {
-	long offset = sizeof(struct BTheader) + (datumptr - BT->datastore);
+	long offset = sizeof(struct BTheader) + ((char*)datumptr - (char*)(BT->datastore));
 	int rc = 0;
 
 	fseek(BT->treefile,offset,0);

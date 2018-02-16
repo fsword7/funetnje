@@ -27,7 +27,7 @@ int  send_cmd_msg(cmdbuf,cmdlen,offlineok)
 const void *cmdbuf;
 const int cmdlen, offlineok;
 {
-	long	accesskey;
+	u_int32	accesskey;
 	int	oldgid, rc = 0, fd;
 	char	buf[LINESIZE];
 	char	buflen = cmdlen+4;
@@ -39,7 +39,8 @@ const int cmdlen, offlineok;
 	struct	sockaddr_un	SocketName;
 #endif
 #ifdef	COMMAND_MAILBOX_UDP
-	int	Socket, i;
+	int	Socket;
+	u_int32 ui;
 	struct	sockaddr_in	SocketName;
 #endif
 
@@ -69,7 +70,7 @@ const int cmdlen, offlineok;
 	  logger(1,"NJECLIENTLIB: Can't read access key, errno=%s\n",PRINT_ERRNO);
 	  /* DON'T QUIT QUITE YET! */
 	}
-	*(long*)&buf[0] = accesskey;
+	*(u_int32*)&buf[0] = accesskey;
 	memcpy(buf+4,cmdbuf,cmdlen);
 
 #if	defined(COMMAND_MAILBOX_FIFO)
@@ -151,9 +152,9 @@ const int cmdlen, offlineok;
 	memset((void *) &SocketName, 0, sizeof(SocketName));
 	SocketName.sin_family = AF_INET;
 	SocketName.sin_port   = htons(175);	/* The VMNET PORT */
-	i = inet_addr(COMMAND_MAILBOX);
-	if (i == -1) i = INADDR_LOOPBACK;
-	SocketName.sin_addr.s_addr   = (u_long) i;	/* Configure if you can */
+	ui = inet_addr(COMMAND_MAILBOX);
+	if (ui == 0xFFFFFFFF)  ui = INADDR_LOOPBACK;
+	SocketName.sin_addr.s_addr = ui;	/* Configure if you can */
 	
 	rc = 0;
 	if (sendto(Socket, buf, buflen, 0,
