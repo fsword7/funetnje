@@ -3,14 +3,15 @@
 - TeXinfo manual is in the begin -- docs are not complete
   Once it is done, release 3.0 is done.
 
-- Message exits need to be implemented
-   25-Jan-93: "first cut"..
-
 - Line-oriented operator-commands should be per link NAME,
-  not its number!
+  not its number! ("Wasn't that link number 5 ?  Aargh...")
 
 - bmail.c, et.al.: Have common library routine that will ensure
   that BITNET addresses follow strict 8+8 rule.
+  (10 or so lines of code on each program now.)
+
+- Message exits need to be implemented
+   25-Jan-93: "first cut"..
 
 - An "IUCVTRAP" mechanism is needed
 
@@ -22,6 +23,16 @@
 - send.c/io.c: need more complete tests on what user (even SU) has put
   on the 'sender address'..  A "send -u @ addr@somenode text" should not
   produce totally void NMR..
+
+- bitsend/bitrcv to be brought up to date
+
+- We need a transit-file trapping mechanism, not only for 1986 XMAS EXEC
+  like things, but also for transit node processing in places which
+  have for example one public NJE node, and a bunch of private ones..
+
+- A tool to edit/create user ASCII <-> EBCDIC tables
+
+- SYSIN exit program (even a sample one) needs to be written
 
 - Better queue management -- when primary link to system X
   goes down, all files destined to it should be redirected
@@ -40,17 +51,7 @@
   but loops in the database must be avoided -- or detected.
   A generic spanning-tree problem ?
 
-- SYSIN exit program (even a sample one) needs to be written
-
 - sendfile's usage() needs to be rewritten !  (about done, now man-pages..)
-
-- bitsend/bitrcv to be brought up to date
-
-- A tool to edit/create user ASCII <-> EBCDIC tables
-
-- We need a transit-file trapping mechanism, not only for 1986 XMAS EXEC
-  like things, but also for transit node processing in places which
-  have for example one public NJE node, and a bunch of private ones..
 
 - Native Solaris 2.3 has no "select()" -- or rather the  select(2) is
   replaced with a select(3n) wrapper which calls  poll(2), later one is

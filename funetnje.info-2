@@ -6,10 +6,46 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 
    Copyright (C) 1994 Finnish University and Research Network, FUNET.
 
-   Copyright (C) 1994 IBiS Support OY
+   Copyright (C) 1994 IBiS Support/Matti Aarnio
 
    Permission is granted to copy and use this material for
 non-commercial use without prior agreenment.
+
+
+File: funetnje.info,  Node: namesfilter,  Next: njeroutes,  Prev: ucp,  Up: System programs
+
+`namesfilter' - Mailer route extractor from `BITEARN.NODES' file
+================================================================
+
+     Synopsis:
+       namesfilter:  Filters `BITEARN.NODES' data to mailer databases
+          namesfilter -zmailer  < bitearn.nodes > bitnet.routes
+          namesfilter -sendmail < bitearn.nodes > bitnet.routes
+          namesfilter -smail    < bitearn.nodes > bitnet.routes
+
+   This utility parses `BITEARN.NODES'-file, and from it all the
+`*:type.NJE*' entries are checked up for possible
+`*:servers*.*'-entries, which define mailers.  Of those, only one can
+exist without "OUTONLY"-tag, and it defines the receiving mailer.
+
+   If no non-"OUTONLY" `*:servers*.*' are defined, default mode of
+"*defrt1*" is used, othervice some smarter version is chosen.
+
+   Originally this utility was written for ZMailer usage, other modes
+are "afterthoughts"...
+
+
+File: funetnje.info,  Node: njeroutes,  Next: netinit,  Prev: namesfilter,  Up: System programs
+
+`njeroutes' - Route-database generator program
+==============================================
+
+     Synopsis:
+       njeroutes  header.file routes.file output.file
+
+   This program generates local *BINTREE* copy of the route database
+from couple input files.  Runtime system uses the produced file to look
+up the NJE routes.
 
 
 File: funetnje.info,  Node: netinit,  Next: acctcat,  Prev: njeroutes,  Up: System programs
@@ -26,6 +62,7 @@ them for routes (NETINIT), and ZMailer BITNET email routing database
 (ROUTES).
 
    Sample output below (May-1995 route-db)
+
      FINFILES.NETINIT: .../bitspool/NETINIT/0001 NETDATA NETSERV@FINHUTC   \
                                           NETINIT@FINFILES FINFILES.NETINIT N
      Ndparse ok, generating routes..
@@ -247,7 +284,11 @@ Interfacing BSD-sendmail with FUNET-NJE
 CSC.FI, translation to english is by Matti Aarnio*
 
    *See source-tree subdirectory `sendmail-configs/' for the way how
-Paul Bryant <P.Bryant@rl.ac.uk> did this.*
+Paul Bryant <P.Bryant@rl.ac.uk> did this.
+
+   Note also from ZMailer's bsmtp3* et.al. entry definitions how you
+can change the local "MAILER"-name.  (The "-u"-option for the
+bmail-program.)*
 
    Somewhere in the begin of the `sendmail.cf':
      # Bitnet route table (overriding default routes)
@@ -369,7 +410,7 @@ File: funetnje.info,  Node: iucvpipe,  Next: spool format,  Prev: cmdpipe,  Up: 
 IUCVTRAP <=> Emulator messaging
 ===============================
 
-   ***T.B.W.***
+   ***T.B.W.*** - whole thing needs to be created
 
 
 File: funetnje.info,  Node: spool format,  Next: netdata,  Prev: iucvpipe,  Up: Nuts and Bolts
@@ -566,13 +607,132 @@ File: funetnje.info,  Node: netdata,  Next: emulator logics,  Prev: spool format
 Implemented NETDATA features
 ============================
 
-   ***T.B.W.***
+   The *parser* understands following NETDATA keys:
+*INMDSORG
+     Only SEQUENTIAL is understood (others generate complaint, but
+       do not abort.)
+
+*INMRECFM
+     No special record-contents are supported, nor flagged!
+
+     Carriage-control information is checked against MCC.
+
+     Blocking info is ignored.
+
+     Record-kind info is ignored.
+
+*INMLRECL
+     If LRECL exceeds 65534, it is complained, but not aborted.
+
+*INMSIZE
+     SIZE (in XXX units) is ignored.
+
+*INMNUMF
+     NUMF (what??) is ignored.
+
+*INMFACK
+     Request for ACK of reception is analyzed, and provided for
+     user for possible action.
+
+*INMTERM
+     This flag of PROFS NOTE message is noted, but ignored.
+
+*INMFTIME
+     This file creation(?) timestamp is analyzed, and provided for
+       user for possible action.
+
+*INMCREAT
+     This file creation(?) timestamp is analyzed, and provided for
+       user for possible action.
+
+*INMDSNAM
+     The originating system dataset name (esp. on MVS systems)
+     is saved for possible user action.
+
+*INMMEMBR
+     The originating system dataset member name ("file name")
+     is saved for possible user action.
+
+*All others are silently ignored
+   NETDATA producing systems (`sendfile'-command mainly) create
+following datas:
+*On INMR01 -record:*
+    *INMFUID
+          Sending user's username is stored into the file.
+          Actually this *should* be the owner name of the         sent
+          file.
+
+    *INMFNODE
+          Sending system name is stored into the file.          (In
+          theory this should be file's originating node name.)
+
+    *INMTUID
+          File senders username
+
+    *INMTNODE
+          File senders nodename
+
+    *INMFTIME
+          If the sent file is a regular file, this is its last-modify
+               timestamp.  Othervice a 0-size date is stored (so the
+          INMFTIME         key is stored, but with void data.)
+
+    *INMLRECL
+          On INMR01-record the LRECL is fixed 80.
+
+    *INMNUMF
+          Fixed value of "1".
+
+    *INMFACK
+          If an acknowledge is wanted, this key is generated.
+
+*On INMR02 -record:*
+    *INMUTILN
+          A fixed value of "INMCOPY" (7 chars) is stored.
+
+    *INMDSORG
+          A fixed value of "PHYSICAL" (0x4000) is stored.
+
+    *INMLRECL
+          A *true* LRECL (user supplied) is stored onto INMR02-record.
+
+    *INMRECFM
+          A true RECFM (user supplied) is stored onto INMR02-record.
+
+    *INMSIZE
+          File size in bytes is stored.
+
+    *IBMDSNAM
+          Here a dataset name is stored in style of: "A Filename
+          Fileext"
+
+          The first letter is always "A", and then comes one or two
+             at most 8-chars long tokens.  One space separates each
+          token.
+
+    *INMCREAT
+          If file creation time is supplied, it is stored.
+
+*On INMR03-record:*
+    *INMRECFM*
+          Fixed value of 0x0001.
+
+    *INMLRECL*
+          Fixed value of 80.
+
+    *INMDSORG*
+          Fixed value of 0x4000.
+
+    *INMSIZE*
+          Sent file's size in bytes.
 
 
 File: funetnje.info,  Node: emulator logics,  Prev: netdata,  Up: Nuts and Bolts
 
 Emulator logics
 ===============
+
+   Documenting how the emulator works internally...
 
    ***T.B.W.***
 

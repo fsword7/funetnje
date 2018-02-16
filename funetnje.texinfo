@@ -42,7 +42,7 @@
 @c	- netinit
 @c      - acctcat
 @c  - Interfacing system mailer and BITNET
-@c      - Zmailer
+@c      - ZMailer
 @c      - smail 3.0
 @c      - sendmail
 @c  - Technical documentation
@@ -62,7 +62,7 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 Copyright @copyright{} 1994 Finnish University and Research Network,
 FUNET.
 
-Copyright @copyright{} 1994 IBiS Support OY
+Copyright @copyright{} 1994 IBiS Support/Matti Aarnio
 
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
@@ -100,7 +100,7 @@ use without prior agreenment.
 * Configuration::       Configuration of FUNET-NJE package
 * User programs::       Documentation on user programs for NJE use
 * System programs::     Documentation on system programs for NJE use
-* Interfacing mailer::  Interfacing  sendmail/smail/Zmailer to BITNET
+* Interfacing mailer::  Interfacing  sendmail/smail/ZMailer to BITNET
 * Nuts and Bolts::      Technical documents about insides of things
 * Literature::          Some of the documents used while developing this system
 @end menu
@@ -124,7 +124,7 @@ Academic version of this software is available from:
 
 Like all Academic software, there might come up a bugfix, or
 improvement sometimes, but such effort being non-funded, and
-without any schedules, there is no guarantee of anything.
+without any schedules, there are no guarantees of anything.
 
 User-community is welcomed to subscribe mailinglist:
 @example
@@ -139,13 +139,6 @@ Then corresponding via address: @emph{funetnje@@nic.funet.fi}
 When registering this software to your @emph{BITNET}-node,
 I request that you use name: @strong{FUNETNJE}
 
-
-@c Developement continues under the company  @emph{IBiS Support OY}
-@c founded by Matti Aarnio
-@c @c , and Gerald Hanusch,
-@c for producing customized editions of this software for parties
-@c who want to pay for the customization service, or just for timely
-@c implementation/bug-fixing something.
 
 If you want to pay for hand-holding service/timely bugfixing,
 special customizations, etc. please contact author:
@@ -168,18 +161,18 @@ BISYNC modes of the NJE network.
 It was made at the @emph{Hebrew University of Jerusalem} (HUJI),
 by Mr. @emph{Yehavi Bourvine} over the years 1988-1993.
 
-Sometime around 1990-1991 FUNET archive server was decided to
-connect to the EARN, and the best (= free in source form) technology
+Sometime around 1990-1991 FUNET archive server was decided to be
+connected to the EARN, and the best (= free in source form) technology
 for it turned to be HUJI-NJE.
 
 The original HUJI-NJE is monsterous monolithic program which has
 built-in processing of incoming email, and translation of files
 (in and out) in between ASCII and EBCDIC.
 
-At first Matti Aarnio <mea@@nic.funet.fi> did minor porting of the
-program to get it to work on a Sun4/630 server (nic.funet.fi),
-which did surface several problems in between VAX, and other
-architectures.
+At first Matti Aarnio <mea@@nic.funet.fi> did minor porting
+of the program to get it to work on a Sun4/330 server (such as
+@emph{nic.funet.fi} was back then), which did surface several
+problems in between VAX, and other architectures.
 
 Latter the HUJI-people lost their interest on the system, and when
 no radical improvements were on sight, begun the more serious porting
@@ -312,6 +305,8 @@ recommended method, if receiver system can accept it.
 Like @strong{bsmtp3nd}, but addresses in RFC-822 format instead of
 BITNET node style.
 @end table
+
+For more information about these tags, see below about mailer configuration.
 
 To familiarize him-/herself with NJE-networking,  the reader should
 also have access to the IBM  manual
@@ -523,6 +518,10 @@ This compilation option allows for more complete non-blocking operations,
 including actual @code{write(2)}s.
 @strong{This is recommended mode of operation!}
 
+@item -DUSE_XMIT_QUEUE
+Another flag which is necessary for successfull operation of NBSTREAM-code.
+(Without it the NBSTREAM-code causes bug_check()s..)
+
 @item -DNO_GETTIMEOFDAY
 System internal time retrieval for various delay/speed-analysis uses
 uses (per default) BSD-derived(?)  @code{gettimeofday(2)}-call, but
@@ -532,6 +531,8 @@ will be used.
 @item -DMAILERNAME="..."
 To override the default @var{MAILERNAME} (= "MAILER")
 in the @file{bmail.c} source.
+
+For normal use the @code{bmail}'s ``-u''-option does the same
 
 @item -DCONFIG_FILE=...
 Override @file{consts.h} definition of system config file name
@@ -583,12 +584,12 @@ is decreasing all the time, and frankly we haven't compiled the code
 with `-DDEBUG' for last 100 or so versions, we have just added
 `logger()'-calls into it at places needing it, and adjusted @var{LOGLEVEL}
 to get them into @var{LOGFILE}, and then commented or removed those loggers
-out again..
+out again..  (Or used debuggers to get into the business..)
 
 @item -DUSE_ZMAILER -I/usr/local/include
-For @file{mailify.c} -- for tight integration with Zmailer MTA.
-(Expects Zmailer's  @file{libzmailer.a}, and @file{zmailer.h} to be
-available.  See Zmailer's @code{zmailer(3)} for further information)
+For @file{mailify.c} -- for tight integration with ZMailer MTA.
+(Expects ZMailer's  @file{libzmailer.a}, and @file{zmailer.h} to be
+available.  See ZMailer's @code{zmailer(3)} for further information)
 
 @item -DUSE_OWN_PROTOS
 If the "prototypes.h" -function prototypes for various things can
@@ -1132,7 +1133,7 @@ transmission to a remote batch facility for further processing.
 @end table
 
 Actual usage details are on the man-page.
-@strong{**T.B.W.**}
+@strong{**T.B.W. ? **}
 
 @c ----------------------------------------------------------------
 @node send, bitsend, sendfile, User programs
@@ -1169,12 +1170,16 @@ condition (Often created with `ctrl-D' from the keyboard.)
 @section Send file in multiple parts along with `table of contents': @file{bitsend}
 @c      - bitsend
 
+This program has been built years back, but not updated
+
 @strong{**T.B.W.**}
 
 @c ----------------------------------------------------------------
 @node bitreceive, ygone, bitsend, User programs
 @section Receive `bitsent' files: @file{bitreceive}
 @c      - bitreceive
+
+This program has been built years back, but not updated
 
 @strong{**T.B.W.**}
 
@@ -1183,14 +1188,21 @@ condition (Often created with `ctrl-D' from the keyboard.)
 @section Register to the running Emulator to be `gone': @file{ygone}
 @c      - ygone
 
-@strong{**T.B.W.**}
+The @code{ygone}-command instructs the emulator that the user is
+going away, and that all NMR-messages to him/her should be stored
+to file @file{.ygone.message}.
+
+When user returns, and issues command @code{ygone -d}, the flag
+is turned off, and all accumulated messages are displayed.
+
+More information on: @emph{man ygone}
 
 @c ----------------------------------------------------------------
 @node iucvtrap, transfer, ygone, User programs
 @section Trap, and pipe out incoming NMR messages from the Emulator: @file{iucvtrap}
 @c      - iucvtrap
 
-@strong{**T.B.W.**}
+@strong{**T.B.W.**} -- whole thing needs to be created
 
 @c ----------------------------------------------------------------
 @node transfer,   , iucvtrap, User programs
@@ -1285,7 +1297,7 @@ The @file{mailify} analyzes the incoming NJE-spool-file, and
 makes the necessary parsing/transformation of it into RFC-822
 format, and feeds it to the system mailer.
 
-In the C-program there is support for @file{Zmailer}'s zmailer(3) -library,
+In the C-program there is support for @file{ZMailer}'s zmailer(3) -library,
 which thus can bypass more generic use of @file{/usr/lib/sendmail}
 as a feeder to the system mailer.
 
@@ -1410,9 +1422,13 @@ UNIX-program that is able to dump VM/CMS RSCS-accounting records into
 ASCII format. (For various reasons that format was chosen as the
 accounting format of the FUNET-NJE as well.)
 
+
+See file @file{rscsacct.format}  for the log-file format.
+The ASCII-dump via @code{acctcat} is almoast identical.
+
 @c ================================================================
 @node Interfacing mailer, Nuts and Bolts, System programs, Top
-@chapter Interfacing Zmailer/smail/sendmail with FUNET-NJE
+@chapter Interfacing ZMailer/smail/sendmail with FUNET-NJE
 
 Here are some instructions on how to interface various MTA-systems
 into the @emph{FUNET-NJE} package.
@@ -1424,7 +1440,7 @@ for generating the necessary  @emph{nodename->route}  mapping
 (@emph{namesfilter}).
 
 @menu
-* Zmailer::     Interfacing Toronto/FUNET Zmailer
+* ZMailer::     Interfacing Toronto/FUNET ZMailer
 * smail::       Interfacing smail3.0
 * sendmail::    Interfacing BSD sendmail
 @end menu
@@ -1432,32 +1448,32 @@ for generating the necessary  @emph{nodename->route}  mapping
 
 
 @c ----------------------------------------------------------------
-@node    Zmailer, smail, , Interfacing mailer
-@section Interfacing Toronto/FUNET Zmailer with FUNET-NJE
+@node    ZMailer, smail, , Interfacing mailer
+@section Interfacing Toronto/FUNET ZMailer with FUNET-NJE
 
 Doing this interface was easy due to vast amounts of easy
-to understand configurability of the @emph{Zmailer}@footnote{
-Zmailer is a mailer running in two modes with multiple programs
+to understand configurability of the @emph{ZMailer}@footnote{
+ZMailer is a mailer running in two modes with multiple programs
 doing their parts; @file{router} (1 to many) doing email address
 routing, @file{scheduler} running transport channels, like
 @file{smtp}, @file{mailbox} (local delivery), etc.
 There are also incoming channel programs @file{smtpserver}, and
 compability interface @file{/usr/lib/sendmail}.
 
-The Zmailer is available from
+The ZMailer is available from
 ftp://ftp.funet.fi/pub/unix/mail/zmailer/zmailer-@emph{vers}-@emph{datecode}.tar.gz,
 via anonymous FTP.
 } system.
 
 Depending on if the system is to be a smart-mailer, or not,
-Zmailer's @file{router.cf} shall contain transport preference definition:
+ZMailer's @file{router.cf} shall contain transport preference definition:
 @example
 # The transport preference order
 protocols='routes smtp usenet bitnet'
 @end example
 which instructs it to include those four protocols into the
 route-analysis. The protocols are attempted in given order!
-Host BITNET name must be defined in @file{/etc/name.bitnet} for Zmailer's
+Host BITNET name must be defined in @file{/etc/name.bitnet} for ZMailer's
 BITNET-protocol.
 
 If it is desirable @strong{not to} have smart BITNET routing at the
@@ -1537,7 +1553,7 @@ defrt1      snS   /usr/local/lib/nje/bmail bmail $g $u
 
 
 @c ----------------------------------------------------------------
-@node    smail, sendmail, Zmailer, Interfacing mailer
+@node    smail, sendmail, ZMailer, Interfacing mailer
 @section Interfacing Smail3.0 with FUNET-NJE
 
 @emph{This information is from Gerald Hanusch <root@@alijku65.edvz.uni-linz.ac.at>}
@@ -1639,6 +1655,10 @@ by Matti Aarnio}
 
 @emph{See source-tree subdirectory @file{sendmail-configs/} for
 the way how Paul Bryant <P.Bryant@@rl.ac.uk> did this.}
+
+@emph{Note also from ZMailer's bsmtp3* et.al. entry definitions
+how you can change the local ``MAILER''-name.
+(The ``-u''-option for the bmail-program.)}
 
 
 Somewhere in the begin of the @file{sendmail.cf}:
@@ -1777,7 +1797,7 @@ on how to use the client->emulator command channel.
 @section IUCVTRAP <=> Emulator messaging
 @c      - iucvtrap <-> emulator messaging
 
-@strong{**T.B.W.**}
+@strong{**T.B.W.**} -- whole thing needs to be created
 
 @c ----------------------------------------------------------------
 @node spool format, netdata, iucvpipe, Nuts and Bolts
@@ -2016,12 +2036,114 @@ should be ignored. (Received network transport layer headers are there, etc.)
 @section Implemented NETDATA features
 @c      - implemented NETDATA features
 
-@strong{**T.B.W.**}
+The @emph{parser} understands following NETDATA keys:
+@table @bullet
+@item INMDSORG
+        Only SEQUENTIAL is understood (others generate complaint, but
+        do not abort.)
+@item INMRECFM
+        No special record-contents are supported, nor flagged!
+
+        Carriage-control information is checked against MCC.
+
+        Blocking info is ignored.
+
+        Record-kind info is ignored.
+@item INMLRECL
+        If LRECL exceeds 65534, it is complained, but not aborted.
+@item INMSIZE
+        SIZE (in XXX units) is ignored.
+@item INMNUMF
+        NUMF (what??) is ignored.
+@item INMFACK
+        Request for ACK of reception is analyzed, and provided for
+        user for possible action.
+@item INMTERM
+        This flag of PROFS NOTE message is noted, but ignored.
+@item INMFTIME
+        This file creation(?) timestamp is analyzed, and provided for
+        user for possible action.
+@item INMCREAT
+        This file creation(?) timestamp is analyzed, and provided for
+        user for possible action.
+@item INMDSNAM
+        The originating system dataset name (esp. on MVS systems)
+        is saved for possible user action.
+@item INMMEMBR
+        The originating system dataset member name ("file name")
+        is saved for possible user action.
+@item All others are silently ignored
+@end table
+
+NETDATA producing systems (@file{sendfile}-command mainly) create
+following datas:
+@table @strong
+@item On INMR01 -record:
+@table @bullet
+@item INMFUID
+        Sending user's username is stored into the file.
+        Actually this @emph{should} be the owner name of the
+        sent file.
+@item INMFNODE
+        Sending system name is stored into the file.
+        (In theory this should be file's originating node name.)
+@item INMTUID
+        File senders username
+@item INMTNODE
+        File senders nodename
+@item INMFTIME
+        If the sent file is a regular file, this is its last-modify
+        timestamp.  Othervice a 0-size date is stored (so the INMFTIME
+        key is stored, but with void data.)
+@item INMLRECL
+        On INMR01-record the LRECL is fixed 80.
+@item INMNUMF
+        Fixed value of "1".
+@item INMFACK
+        If an acknowledge is wanted, this key is generated.
+@end table
+
+@item On INMR02 -record:
+@table @bullet
+@item INMUTILN
+        A fixed value of "INMCOPY" (7 chars) is stored.
+@item INMDSORG
+        A fixed value of "PHYSICAL" (0x4000) is stored.
+@item INMLRECL
+        A @emph{true} LRECL (user supplied) is stored onto INMR02-record.
+@item INMRECFM
+        A true RECFM (user supplied) is stored onto INMR02-record.
+@item INMSIZE
+        File size in bytes is stored.
+@item IBMDSNAM
+        Here a dataset name is stored in style of: "A Filename Fileext"
+
+        The first letter is always "A", and then comes one or two
+        at most 8-chars long tokens.  One space separates each token.
+@item INMCREAT
+        If file creation time is supplied, it is stored.
+@end table
+
+@item On INMR03-record:
+@table @strong
+@item INMRECFM
+        Fixed value of 0x0001.
+@item INMLRECL
+        Fixed value of 80.
+@item INMDSORG
+        Fixed value of 0x4000.
+@item INMSIZE
+        Sent file's size in bytes.
+@end table
+@c --- outer table..
+@end table
 
 @c ----------------------------------------------------------------
 @node emulator logics,  , netdata, Nuts and Bolts
 @section Emulator logics
 @c      - emulator logics
+
+Documenting how the emulator works internally...
 
 @strong{**T.B.W.**}
 

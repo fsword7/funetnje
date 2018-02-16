@@ -2,6 +2,7 @@ file-exit.cf  #############################################################
 #
 #  By Paul Bryant <P.Bryant@rl.ac.uk>
 #
+# ( Note: Alternate way is to run  netinit.sh from CRON )
 
 part of
 

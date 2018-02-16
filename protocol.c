@@ -481,6 +481,9 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	   and free streams to initiate it */
 
 	if ((Line->QueuedFilesWaiting > 0) && (Line->FreeStreams > 0) &&
+#ifdef NBSTREAM
+	    (Line->WritePending == NULL) &&
+#endif
 	    ((Line->flags & F_SHUT_PENDING) == 0))
 	  if (request_to_send_file(Index, Line) != 0)
 	    return;	/* If 0 - we have to send an ACK */
@@ -733,11 +736,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	      logger(3, "PROTOCOL: EOF sent and confirmed by ACK. ACKED back. Line=%s:%d\n",
 		     Line->HostName, CurStream);
 	      (void) dequeue_file_entry_ok(Index,Line,1);
-	      delete_file(Index, F_INPUT_FILE, Line->CurrentStream);
+	      delete_file(Index, F_INPUT_FILE, CurStream);
 	      Line->OutStreamState[CurStream] = S_INACTIVE;
 	      Line->FreeStreams += 1;
 	      /* Clear its bit */
-	      Line->ActiveStreams &= ~(1 << Line->CurrentStream);
+	      Line->ActiveStreams &= ~(1 << CurStream);
 	      rscsacct_log(&Line->OutFileParams[CurStream],1);
 	      SEND_ACK();
 	      return;

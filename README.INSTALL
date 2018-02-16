@@ -4,17 +4,24 @@
 
 
 		READ THE   README.FUNET   FILE!
+		READ THE  funetnje.info / funetnje.ps  DOCUMENT!
+
+	The configuration and installation is covered on the
+	funetnje.info/funetnje.ps -document, this file is from
+	the older era...
+
+
 
 	This version of software does not support any kind of
-BISYNC-adapters available for various systems.   Mainly because
-I didn't have such interface available for testing...
+	BISYNC-adapters available for various systems.   Mainly
+	because I didn't have such interface available for testing...
 
 	However:  TCP-IP interface works well (one of rare features
-that are ALMOAST identical among various UNIXes).
+	that are ALMOAST identical among various UNIXes).
 
 
 	When starting to do installation, you must determine few
-system dependent features:
+	system dependent features:
 
 
 In  Makefile:
@@ -25,16 +32,6 @@ In  Makefile:
 	Usage of  `ranlib'  depends upon your system, same with  `install'
 
 	Choise of group-name used on client-program installation.
-
-In  prototypes.h
-
-	See if your system has proper library prototypes available, or not.
-	SunOS 4.1 needs them, Linux does not.
-
-In  file_queue.c
-
-	Usage of  lstat(2) system call depends upon your system.
-	Replace with  stat(2) if you don't have symlinks.
 
 In  detach.c:
 

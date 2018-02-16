@@ -58,6 +58,9 @@ const char	 cmd;
 	  lines = 0;
 	  while (read(fd,(void*)&Utmp,sizeof Utmp) == sizeof Utmp) {
 	    char uname[9];
+#ifdef __linux__
+	    if (Utmp.ut_type == DEAD_PROCESS) continue;
+#endif
 	    if (*Utmp.ut_name == 0) continue; /* Try next */
 	    strncpy(uname,Utmp.ut_name,8);
 	    uname[8] = 0;

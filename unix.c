@@ -333,6 +333,13 @@ timer_ast()
 		case T_VMNET_MONITOR:
 		    vmnet_monitor();
 		    break;
+#ifdef USE_XMIT_QUEUE
+		case T_XMIT_DEQUEUE:
+		    if (dequeue_xmit_queue(TimerQueue[i].index))
+		      queue_timer(T_XMIT_INTERVAL, TimerQueue[i].index,
+				  T_XMIT_DEQUEUE);
+		    break;
+#endif
 		default:
 		    logger(1, "UNIX, No timer routine, code=d^%d\n",
 			   TimerQueue[i].action);
@@ -383,6 +390,29 @@ int		Index;			/* Index in IoLines array */
 	return 0;	/* To make LINT quiet... */
 }
 
+void
+queue_timer_reset(expiration, Index, WhatToDo)
+int		expiration;
+TimerType	WhatToDo;
+int		Index;			/* Index in IoLines array */
+{
+	int	i;
+	time_t	now;
+
+	time(&now);
+
+	for (i = 0; i < MAX_QUEUE_ENTRIES; ++i) {
+	  if (TimerQueue[i].index == Index &&
+	      TimerQueue[i].action == WhatToDo) {
+	    TimerQueue[i].expire     = expiration;
+	    TimerQueue[i].expiration = expiration+now;
+	    TimerQueue[i].index      = Index;
+	    TimerQueue[i].action     = WhatToDo;
+	    return;
+	  }
+	}
+	queue_timer(expiration, Index, WhatToDo);
+}
 
 /*
  | Dequeue a timer element (I/O completed ok, so we don't need this timeout).
@@ -469,6 +499,7 @@ poll_sockets()
 	static	int passiv_reinit = 0;
 	int	has_pending_connects = 0;
 	int	done_only_implicitic_ack = 1;
+	int	againcount = 0;
 	extern  int file_queuer_pipe;
 
 #ifdef AIX
@@ -573,14 +604,23 @@ poll_sockets()
 	      if (IoLines[j].WritePending)
 		/* We have a write pedning */
 		_FD_SET(IoLines[j].socket, writefds);
-#if 0
-/* FIXME: WE SHOULD NOT WRITE-WAIT F_CALL_ACK HERE!
-          INSTEAD WE SHOULD WRITE-TEST THEM ON TIMEOUT CASE! */
-	      else if ((IoLines[j].flags & F_CALL_ACK) /* &&
-		       IoLines[j].ActiveStreams != 0 */ )
+
+	      /*
+		 Now THIS is hairy (as if you didn't know it..)
+		 We do accelerated (not waiting timeout) implicitic
+		 ack, when there the  call-ack-flag is set, AND there
+		 are active streams, OR the flag is set, AND shutdown
+		 is not imminent, AND there are files in queue.
+
+	       */
+
+	      else if ((IoLines[j].flags & F_CALL_ACK) != 0	&&
+		       ((IoLines[j].ActiveStreams != 0)		||
+			((IoLines[j].flags & F_SHUT_PENDING) == 0 &&
+			 (IoLines[j].QueuedFilesWaiting > 0))))
 		/* Or we are expected to call ACK */
 		_FD_SET(IoLines[j].socket, writefds);
-#endif
+
 	    }
 #endif	/* NBSTREAM */
 	  }
@@ -647,14 +687,20 @@ poll_sockets()
 	    if (IoLines[j].HostName[0] != 0	&&
 		IoLines[j].socket >= 0		&&
 		_FD_ISSET(IoLines[j].socket, writefds)) {
-	      IoLines[j].flags &= ~F_CALL_ACK;
+	      IoLines[j].flags &= ~ F_CALL_ACK;
+#ifdef USE_XMIT_QUEUE
+	      dequeue_xmit_queue(j);
+#endif
 	      handle_ack(j, EXPLICIT_ACK);
 	    }
 	  }
 #else	/* Not NBSTREAM */
 	  for (j = 0; j < MAX_LINES; ++j) {
 	    if ((IoLines[j].flags & F_CALL_ACK) != 0) {
-	      IoLines[j].flags &= ~F_CALL_ACK;
+	      IoLines[j].flags &= ~ F_CALL_ACK;
+#ifdef USE_XMIT_QUEUE
+	      dequeue_xmit_queue(j);
+#endif
 	      handle_ack(j, EXPLICIT_ACK);
 	    }
 	  }
@@ -723,6 +769,9 @@ poll_sockets()
 #ifdef	NBSTREAM
 	      if (IoLines[j].WritePending != NULL) {
 		tcp_partial_write(j, 0);
+#ifdef USE_XMIT_QUEUE
+		dequeue_xmit_queue(j);
+#endif
 		done_only_implicitic_ack = 0;
 	      } else
 #endif /* NBSTREAM */
@@ -731,13 +780,18 @@ poll_sockets()
 		   F_CALL_ACK -flag set */
 
 		if ((IoLines[j].flags & F_CALL_ACK) != 0) {
-		  IoLines[j].flags &= ~F_CALL_ACK;
+		  IoLines[j].flags &= ~ F_CALL_ACK;
+#ifdef USE_XMIT_QUEUE
+		  dequeue_xmit_queue(j);
+#endif
 		  handle_ack(j, EXPLICIT_ACK);
 		}
 	    }
 	  }
-	if (!done_only_implicitic_ack)
-	  goto again;
+	/* Loop here for a moment if there is work, however no more
+	   than 20 rounds before going to the main-program. */
+	if (++againcount < 20) goto again;
+	/* if (!done_only_implicitic_ack) goto again; */
 }
 
 /* ================================================================ */
@@ -1305,15 +1359,19 @@ int	Index, direction, Stream;
 
 	if (direction == F_INPUT_FILE) {
 	  fd = IoLines[Index].InFds[Stream];
+	  IoLines[Index].InFds[Stream] = NULL;
 	  FileName = IoLines[Index].OutFileParams[Stream].SpoolFileName;
 	  if (fd)
 	    IoLines[Index].InFilePos[Stream] = ftell(fd);
 	} else {
 	  fd = IoLines[Index].OutFds[Stream];
+	  IoLines[Index].OutFds[Stream] = NULL;
 	  FileName = IoLines[Index].InFileParams[Stream].SpoolFileName;
 	  if (fd)
 	    IoLines[Index].OutFilePos[Stream] = ftell(fd);
 	}
+
+	if (!fd) return; /* Already closed */
 
 	if (fclose(fd) == -1)
 	  logger(1, "UNIX: Can't close file, error: %s\n", PRINT_ERRNO);

@@ -282,16 +282,18 @@ typedef enum {
 #define	T_DECNET_TIMEOUT 11	/* Timeout to keep DECnet pseudo-Ack	*/
 #define	T_DMF_RESTART	13	/* Restart a DMF/DMB line		*/
 #define T_VMNET_MONITOR	14	/* "VMNET MONITOR"-process		*/
+#define T_XMIT_DEQUEUE  15	/* USE_XMIT_QUEUE in use.. 		*/
 typedef unsigned short TimerType;
 #else
 typedef enum {
   T_DMF_CLEAN, T_CANCEL, T_SEND_ACK, T_AUTO_RESTART, T_TCP_TIMEOUT,
   T_POLL, T_STATS, T_ASYNC_TIMEOUT, T_DECNET_TIMEOUT, T_DMF_RESTART,
-  T_VMNET_MONITOR } TimerType;
+  T_VMNET_MONITOR, T_XMIT_DEQUEUE } TimerType;
 #endif
 #define	T_STATS_INTERVAL 3600	/* Compute each T_STATS_INT seconds.	*/
 #define	T_AUTO_RESTART_INTERVAL 60 /* Retry granularity is 1 minute.	*/
 #define T_VMNET_INTERVAL	60 /* "VMNET MONITOR" interval.         */
+#define T_XMIT_INTERVAL		 2 /* Be rather snappy to dequeue.. 	*/
 
 /* General status */
 #define	G_INACTIVE	0	/* Not active or not allowed */

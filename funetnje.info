@@ -6,59 +6,59 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 
    Copyright (C) 1994 Finnish University and Research Network, FUNET.
 
-   Copyright (C) 1994 IBiS Support OY
+   Copyright (C) 1994 IBiS Support/Matti Aarnio
 
    Permission is granted to copy and use this material for
 non-commercial use without prior agreenment.
 
 
 Indirect:
-funetnje.info-1: 443
-funetnje.info-2: 50310
+funetnje.info-1: 453
+funetnje.info-2: 49761
 
 Tag Table:
 (Indirect)
-Node: Top443
-Node: Support1248
-Node: History2506
-Node: Introduction4439
-Node: BITNET-II8204
-Node: Installation13919
-Node: Configuration19820
-Node: funetnje.cf20322
-Node: file-exit.cf23788
-Node: msg-exit.cf28465
-Node: cmd-help.txt33176
-Node: routes34690
-Node: User programs36685
-Node: qrdr37454
-Node: receive39488
-Node: sendfile41002
-Node: send41900
-Node: bitsend43107
-Node: bitreceive43356
-Node: ygone43542
-Node: iucvtrap43763
-Node: transfer44014
-Node: System programs44618
-Node: bmail45312
-Node: mailify46493
-Node: ucp47375
-Node: namesfilter48905
-Node: njeroutes49885
-Node: netinit50310
-Node: acctcat51272
-Node: Interfacing mailer51701
-Node: Zmailer52405
-Node: smail55963
-Node: sendmail58973
-Node: Nuts and Bolts62115
-Node: directories62641
-Node: cmdpipe63511
-Node: iucvpipe63789
-Node: spool format63969
-Node: netdata71558
-Node: emulator logics71739
-Node: Literature71873
+Node: Top453
+Node: Support1258
+Node: History2518
+Node: Introduction4480
+Node: BITNET-II8326
+Node: Installation14041
+Node: Configuration20221
+Node: funetnje.cf20723
+Node: file-exit.cf24189
+Node: msg-exit.cf28866
+Node: cmd-help.txt33577
+Node: routes35091
+Node: User programs37086
+Node: qrdr37855
+Node: receive39889
+Node: sendfile41403
+Node: send42304
+Node: bitsend43511
+Node: bitreceive43820
+Node: ygone44066
+Node: iucvtrap44585
+Node: transfer44870
+Node: System programs45474
+Node: bmail46168
+Node: mailify47349
+Node: ucp48231
+Node: namesfilter49761
+Node: njeroutes50741
+Node: netinit51166
+Node: acctcat52129
+Node: Interfacing mailer52558
+Node: Zmailer53262
+Node: smail56820
+Node: sendmail59830
+Node: Nuts and Bolts63120
+Node: directories63646
+Node: cmdpipe64516
+Node: iucvpipe64794
+Node: spool format65008
+Node: netdata72597
+Node: emulator logics75766
+Node: Literature75953
 
 End Tag Table

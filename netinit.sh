@@ -5,6 +5,8 @@
 #  This is run once a day, and when new data is available,
 #  it is processed straight away.
 #
+#  Part of FUNETNJE software package
+#
 
 #N=-n		# Don't remove the file from the reader
 N=		# Remove the file from the reader

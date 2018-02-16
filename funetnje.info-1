@@ -6,7 +6,7 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 
    Copyright (C) 1994 Finnish University and Research Network, FUNET.
 
-   Copyright (C) 1994 IBiS Support OY
+   Copyright (C) 1994 IBiS Support/Matti Aarnio
 
    Permission is granted to copy and use this material for
 non-commercial use without prior agreenment.
@@ -44,7 +44,7 @@ data, etc. - for short, you are         essentially on your own.*
 
    Like all Academic software, there might come up a bugfix, or
 improvement sometimes, but such effort being non-funded, and without
-any schedules, there is no guarantee of anything.
+any schedules, there are no guarantees of anything.
 
    User-community is welcomed to subscribe mailinglist:
          $ Mail mailserver@nic.funet.fi
@@ -74,8 +74,8 @@ VAX-VMS software for implementing BITNET-II, and several BISYNC modes
 of the NJE network.  It was made at the *Hebrew University of
 Jerusalem* (HUJI), by Mr. *Yehavi Bourvine* over the years 1988-1993.
 
-   Sometime around 1990-1991 FUNET archive server was decided to
-connect to the EARN, and the best (= free in source form) technology
+   Sometime around 1990-1991 FUNET archive server was decided to be
+connected to the EARN, and the best (= free in source form) technology
 for it turned to be HUJI-NJE.
 
    The original HUJI-NJE is monsterous monolithic program which has
@@ -83,8 +83,9 @@ built-in processing of incoming email, and translation of files (in and
 out) in between ASCII and EBCDIC.
 
    At first Matti Aarnio <mea@nic.funet.fi> did minor porting of the
-program to get it to work on a Sun4/630 server (nic.funet.fi), which
-did surface several problems in between VAX, and other architectures.
+program to get it to work on a Sun4/330 server (such as *nic.funet.fi*
+was back then), which did surface several problems in between VAX, and
+other architectures.
 
    Latter the HUJI-people lost their interest on the system, and when
 no radical improvements were on sight, begun the more serious porting
@@ -203,6 +204,9 @@ world.  Email is transported inside the BITNET with five methods:
 *bsmtp3ndrfc*
      Like *bsmtp3nd*, but addresses in RFC-822 format instead of BITNET
      node style.
+
+   For more information about these tags, see below about mailer
+configuration.
 
    To familiarize him-/herself with NJE-networking,  the reader should
 also have access to the IBM  manual `*Network Job Entry Formats and
@@ -390,6 +394,11 @@ your platform dependent pre-processor constants:
      operations, including actual `write(2)'s.  *This is recommended
      mode of operation!*
 
+*-DUSE_XMIT_QUEUE*
+     Another flag which is necessary for successfull operation of
+     NBSTREAM-code.  (Without it the NBSTREAM-code causes
+     bug_check()s..)
+
 *-DNO_GETTIMEOFDAY*
      System internal time retrieval for various delay/speed-analysis
      uses uses (per default) BSD-derived(?)  `gettimeofday(2)'-call, but
@@ -399,6 +408,8 @@ your platform dependent pre-processor constants:
 *-DMAILERNAME="..."*
      To override the default MAILERNAME (= "MAILER") in the `bmail.c'
      source.
+
+     For normal use the `bmail''s "-u"-option does the same
 
 *-DCONFIG_FILE=...*
      Override `consts.h' definition of system config file name
@@ -450,12 +461,13 @@ your platform dependent pre-processor constants:
      code with `-DDEBUG' for last 100 or so versions, we have just added
      `logger()'-calls into it at places needing it, and adjusted
      LOGLEVEL to get them into LOGFILE, and then commented or removed
-     those loggers out again..
+     those loggers out again..  (Or used debuggers to get into the
+     business..)
 
 *-DUSE_ZMAILER -I/usr/local/include*
-     For `mailify.c' - for tight integration with Zmailer MTA.
-     (Expects Zmailer's  `libzmailer.a', and `zmailer.h' to be
-     available.  See Zmailer's `zmailer(3)' for further information)
+     For `mailify.c' - for tight integration with ZMailer MTA.
+     (Expects ZMailer's  `libzmailer.a', and `zmailer.h' to be
+     available.  See ZMailer's `zmailer(3)' for further information)
 
 *-DUSE_OWN_PROTOS*
      If the "prototypes.h" -function prototypes for various things can
@@ -970,7 +982,7 @@ names.  It behaves slightly differently with each name:
      Generates *SYSIN* batch job spool file, and submits it to
      transmission to a remote batch facility for further processing.
 
-   Actual usage details are on the man-page.  ***T.B.W.***
+   Actual usage details are on the man-page.  ***T.B.W. ? ***
 
 
 File: funetnje.info,  Node: send,  Next: bitsend,  Prev: sendfile,  Up: User programs
@@ -1006,6 +1018,8 @@ File: funetnje.info,  Node: bitsend,  Next: bitreceive,  Prev: send,  Up: User p
 Send file in multiple parts along with `table of contents': `bitsend'
 =====================================================================
 
+   This program has been built years back, but not updated
+
    ***T.B.W.***
 
 
@@ -1013,6 +1027,8 @@ File: funetnje.info,  Node: bitreceive,  Next: ygone,  Prev: bitsend,  Up: User 
 
 Receive `bitsent' files: `bitreceive'
 =====================================
+
+   This program has been built years back, but not updated
 
    ***T.B.W.***
 
@@ -1022,7 +1038,14 @@ File: funetnje.info,  Node: ygone,  Next: iucvtrap,  Prev: bitreceive,  Up: User
 Register to the running Emulator to be `gone': `ygone'
 ======================================================
 
-   ***T.B.W.***
+   The `ygone'-command instructs the emulator that the user is going
+away, and that all NMR-messages to him/her should be stored to file
+`.ygone.message'.
+
+   When user returns, and issues command `ygone -d', the flag is turned
+off, and all accumulated messages are displayed.
+
+   More information on: *man ygone*
 
 
 File: funetnje.info,  Node: iucvtrap,  Next: transfer,  Prev: ygone,  Up: User programs
@@ -1030,7 +1053,7 @@ File: funetnje.info,  Node: iucvtrap,  Next: transfer,  Prev: ygone,  Up: User p
 Trap, and pipe out incoming NMR messages from the Emulator: `iucvtrap'
 ======================================================================
 
-   ***T.B.W.***
+   ***T.B.W.*** - whole thing needs to be created
 
 
 File: funetnje.info,  Node: transfer,  Prev: iucvtrap,  Up: User programs
@@ -1159,40 +1182,4 @@ File: funetnje.info,  Node: ucp,  Next: namesfilter,  Prev: mailify,  Up: System
    Program for commanding the FUNET-NJE emulator to do various things.
 Successfull usage of this utility *requires* that the user has
 supplementary group, which allows communication with the FUNET-NJE.
-
-
-File: funetnje.info,  Node: namesfilter,  Next: njeroutes,  Prev: ucp,  Up: System programs
-
-`namesfilter' - Mailer route extractor from `BITEARN.NODES' file
-================================================================
-
-     Synopsis:
-       namesfilter:  Filters `BITEARN.NODES' data to mailer databases
-          namesfilter -zmailer  < bitearn.nodes > bitnet.routes
-          namesfilter -sendmail < bitearn.nodes > bitnet.routes
-          namesfilter -smail    < bitearn.nodes > bitnet.routes
-
-   This utility parses `BITEARN.NODES'-file, and from it all the
-`*:type.NJE*' entries are checked up for possible
-`*:servers*.*'-entries, which define mailers.  Of those, only one can
-exist without "OUTONLY"-tag, and it defines the receiving mailer.
-
-   If no non-"OUTONLY" `*:servers*.*' are defined, default mode of
-"*defrt1*" is used, othervice some smarter version is chosen.
-
-   Originally this utility was written for ZMailer usage, other modes
-are "afterthoughts"...
-
-
-File: funetnje.info,  Node: njeroutes,  Next: netinit,  Prev: namesfilter,  Up: System programs
-
-`njeroutes' - Route-database generator program
-==============================================
-
-     Synopsis:
-       njeroutes  header.file routes.file output.file
-
-   This program generates local *BINTREE* copy of the route database
-from couple input files.  Runtime system uses the produced file to look
-up the NJE routes.
 

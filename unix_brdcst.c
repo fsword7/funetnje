@@ -64,11 +64,16 @@ char *msg;
 	while ((m = read(fdutmp, buf, bufsiz)) > 0)  {
 	  m /= sizeof(struct utmp);
 	  for (i = 0; i < m; i++)   {
-	    if (((struct utmp *)buf)[i].ut_name[0] == 0)
+	    struct utmp *utp = &((struct utmp*)buf)[i];
+#ifdef __linux__
+	    if (utp->ut_type == DEAD_PROCESS)
 	      continue;
-	    if (strncasecmp(user, ((struct utmp *)buf)[i].ut_name,8) != 0)
+#endif
+	    if (utp->ut_name[0] == 0)
 	      continue;
-	    sprintf(tty, "/dev/%s", ((struct utmp *)buf)[i].ut_line);
+	    if (strncasecmp(user, utp->ut_name,8) != 0)
+	      continue;
+	    sprintf(tty, "/dev/%s", utp->ut_line);
 	    alarm_happened = 0;
 	    alarm(10); /* We are fast ? */
 	    if ((ftty = open(tty, O_WRONLY,0600)) < 0)  {

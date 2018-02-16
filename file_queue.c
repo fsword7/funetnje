@@ -653,8 +653,10 @@ struct LINE	*Line;
 	struct	FILE_PARAMS *FP = & Line->OutFileParams[Line->CurrentStream];
 
 	if (FP->FileEntry == NULL) {
-	  logger(1,"FILE_QUEUE: dequeue_file_entry_ok(%s:%d) Non-active stream dequeued!\n",
-		 Line->HostName,Line->CurrentStream);
+	  /* We can be called from  requeue_file_entry()  when aborting and
+	     requeueing all files on a link -> the queue can be empty! */
+	  /* logger(1,"FILE_QUEUE: dequeue_file_entry_ok(%s:%d) Non-active stream dequeued!\n",
+	     Line->HostName,Line->CurrentStream); */
 	  return NULL; /* Will propably cause SIGSEGV.. */
 	}
 

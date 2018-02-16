@@ -30,7 +30,7 @@
 #include "headers.h"
 #include "prototypes.h"
 
-static int   add_VMnet_block __(( const int Index, const int flag, const void *buffer, const int size, void *NewLine, const int BCBcount ));
+static int   add_VMnet_block __(( struct LINE *Line, const int flag, const void *buffer, const int size, void *NewLine, const int BCBcount ));
 static void  debug_dump_buffers __(( const char *UserName ));
 
 EXTERNAL int	MustShutDown;
@@ -395,11 +395,13 @@ int Index;
 	  if ((Line->OutStreamState[i] != S_INACTIVE) &&
 	      (Line->OutStreamState[i] != S_REFUSED)) { /* File active */
 	    close_file(Index, F_INPUT_FILE, i);
+	    Line->OutStreamState[i] = S_INACTIVE;
 	    requeue_file_entry(Index,Line);
 	  }
 	  if ((Line->InStreamState[i] != S_INACTIVE) &&
 	      (Line->InStreamState[i] != S_REFUSED)) { /* File active */
 	    delete_file(Index, F_OUTPUT_FILE, i);
+	    Line->InStreamState[i] = S_INACTIVE;
 	  }
 	}
 
@@ -444,6 +446,9 @@ const int Index;
 	if (Line->socketpending >= 0)
 	  close(Line->socketpending);
 	Line->socketpending = -1;
+#ifdef NBSTREAM
+	Line->WritePending = NULL;
+#endif
 
 	oldstate = Line->state;
 	Line->state = INACTIVE;
@@ -467,9 +472,10 @@ const int Index;
 	/* After all files closed, restart the line */
 	Line->errors = 0;	/* We start again... */
 	Line->InBCB  = 0;
-	Line->OutBCB = 0;
-	Line->flags &= ~(F_RESET_BCB    | F_WAIT_A_BIT | F_WAIT_V_A_BIT |
-			 F_WAIT_V_A_BIT | F_SENDING    | F_CALL_ACK     |
+	/* Line->OutBCB = 0; */
+	Line->flags &= ~(F_RESET_BCB    |
+			 F_WAIT_A_BIT   | F_WAIT_V_A_BIT |
+			 F_SENDING      | F_CALL_ACK     |
 			 F_XMIT_CAN_WAIT| F_SLOW_INTERLEAVE);
 	Line->CurrentStream = 0;
 	Line->ActiveStreams = 0;
@@ -502,8 +508,7 @@ const int Index;
 	  return;
 	}
 
-	Line->flags &= ~F_SHUT_PENDING; /* Remove the shutdown
-						    pending flag. */
+	Line->flags &= ~F_SHUT_PENDING; /* Remove the shutdown pending flag. */
 
 	switch (Line->state) {
 	  case INACTIVE:
@@ -719,13 +724,20 @@ const void	*buffer;
 	NewSize    = size;
 	i = Line->OutBCB;
 	flag = (Line->flags & F_RESET_BCB);
+/* if (flag)
+   logger(1,"IO: send_data(), F_RESET_BCB, line=%s\n",Line->HostName); */
 
-#ifdef	USE_XMIT_QUEUE  /* Obsolete ? */
+#ifdef	USE_XMIT_QUEUE
 	/* Test whether the link is already transmitting.
 	   If so, queue the message only if the link supports so.
 	   If not, ignore this transmission.			  */
 
-	if ((Line->flags & F_SENDING) != 0) { /* Yes - it is occupied */
+	if (
+#ifdef NBSTREAM
+	    Line->WritePending != NULL ||
+#endif
+	    Line->LastXmitEntry != Line->FirstXmitEntry || /* Something in queue */
+	    (Line->flags & F_SENDING) != 0) { /* Yes - it is occupied */
 	  if ((Line->flags & F_RELIABLE) == 0) {
 	    logger(1, "IO: Line %s doesn't support queueing\n",
 		   Line->HostName);
@@ -759,8 +771,8 @@ const void	*buffer;
 	    bug_check("IO, Can't malloc() memory\n");
 	  }
 
-	  NewSize = add_VMnet_block(Index, AddEnvelope,
-				    buffer, size, &p[TTB_SIZE], i);
+	  NewSize = add_VMnet_block(Line, AddEnvelope,
+				    buffer, size, p + TTB_SIZE, i);
 	  SendBuffer = p;
 	  if (AddEnvelope == ADD_BCB_CRC)
 	    if (flag != 0)	/* If we had to reset BCB, don't increment */
@@ -784,6 +796,12 @@ const void	*buffer;
 	  Line->XmitQueue[Line->LastXmitEntry] = (char *)p;
 	  Line->XmitQueueSize[Line->LastXmitEntry] = NewSize;
 	  Line->LastXmitEntry = NextEntry;
+
+	  /* Put a timer there waiting for us.. */
+
+logger(2,"IO: XMIT-Queued %d bytes to line %s\n",NewSize,Line->HostName);
+
+	  queue_timer_reset(T_XMIT_INTERVAL, Index, T_XMIT_DEQUEUE);
 	  return;
 	}
 #endif
@@ -798,9 +816,8 @@ const void	*buffer;
 	  if (Line->XmitSize == 0)
 	    Line->XmitSize = TTB_SIZE;
 	  /* First block - leave space for TTB */
-	  NewSize = add_VMnet_block(Index, AddEnvelope,
-				    buffer, size,
-				    &Line->XmitBuffer[Line->XmitSize], i);
+	  NewSize = add_VMnet_block(Line, AddEnvelope, buffer, size,
+				    Line->XmitBuffer + Line->XmitSize, i);
 	  Line->XmitSize += NewSize;
 	  if (AddEnvelope == ADD_BCB_CRC)
 	    if (flag != 0)	/* If we had to reset BCB, don't increment */
@@ -854,7 +871,7 @@ const void	*buffer;
 	if ((Line->flags & F_RELIABLE) != 0) {
 	  NewSize = Line->XmitSize;
 	  ttb = (void *)Line->XmitBuffer;
-	  ttr = (void *)(&(Line->XmitBuffer[NewSize]));
+	  ttr = (void *)(Line->XmitBuffer + NewSize);
 	  Ttr.F = Ttr.U = 0;
 	  Ttr.LN = 0;		/* Last TTR */
 	  memcpy(ttr, &Ttr, TTR_SIZE);
@@ -922,8 +939,9 @@ const void	*buffer;
  | it.
  */
 static int
-add_VMnet_block(Index, flag, buffer, size, NewLine, BCBcount)
-const int	Index, flag, size, BCBcount;
+add_VMnet_block(Line, flag, buffer, size, NewLine, BCBcount)
+const int	flag, size, BCBcount;
+struct LINE	*Line;
 const void	*buffer;
 void		*NewLine;
 {
@@ -952,8 +970,8 @@ void		*NewLine;
 	   If BCB is zero, send a "reset" BCB.	*/
 	if (flag == ADD_BCB_CRC) {
 	  *p++ = DLE; *p++ = STX;
-	  if ((BCBcount == 0) && ((IoLines[Index].flags & F_RESET_BCB) == 0)) {
-	    IoLines[Index].flags |= F_RESET_BCB;
+	  if ((BCBcount == 0) && ((Line->flags & F_RESET_BCB) == 0)) {
+	    Line->flags |= F_RESET_BCB;
 	    *p++ = 0xa0;	/* Reset BCB count to zero */
 	  } else
 	    *p++ = 0x80 + (BCBcount & 0xf); /* Normal block */

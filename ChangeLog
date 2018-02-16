@@ -1,3 +1,25 @@
+Thu Jun  8 15:48:14 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* funetnje.texinfo:
+	    Some additional chapters
+
+	* unix_tcp.c:
+	    FINALLY realized why sometimes file sending from
+	    queue does not start on some lines.  Reason was
+	    that PASSIVE VMNET open didn't clear all multi-
+	    stream bookkeeping bits -> all lines were "in use",
+	    when line started often enough in passive mode :-(
+	    (That is, on PASSIVE start, if previous shutdown
+	     had happened with all streams sending something..)
+
+	* protocol.c, consts.h, unix.c, unix_tcp.c, io.c:
+	    Serious Hacking -- NBSTREAM does not work without
+	    USE_XMIT_QUEUE - had to implement it properly.
+
+	* unix_brdcst.c, nmr_unix.c:
+	    Linux feature(s) of UTMP usage caused some surprises,
+	    now created necessary "#ifdef __linux__" "fix".
+
 Tue Jun  6 12:28:31 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* unix_tcp.c, protocol.c:

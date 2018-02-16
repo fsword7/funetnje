@@ -206,7 +206,8 @@ const int	Index, finalize;
 	Line->XmitSize = 0;
 	Line->WritePending = NULL;
 	Line->InBCB  = 0;
-	Line->OutBCB = 0;
+	/* Line->OutBCB = 0;
+	   Line->flags |= F_RESET_BCB; */
 
 	/* Send the first control block */
 	ASCII_TO_EBCDIC("OPEN    ", ControlBlock.type, 8);
@@ -504,15 +505,16 @@ read_passive_tcp_connection()
 	    /* Copy the parameters from the Accept block,
 	       so we can post a new one */
 	    ASCII_TO_EBCDIC("ACK     ", ControlBlock.type, 8);
+	    Line->socket = -1;
+	    Line->socketpending = -1;
+	    init_link_state(Index);	/* Previous settings so that
+					   init_link_state() won't close
+					   the link right away, but will
+					   init all bits/flags		*/
 	    Line->socket = PassiveReadChannel;
-	    PassiveReadChannel = -1; /* We've moved it... */
-	    Line->state    = DRAIN;
-	    Line->RecvSize = 0;
-	    Line->TcpState = 0;
-	    Line->InBCB    = 0;
-	    Line->OutBCB   = 0;
-	    Line->WritePending = NULL;
-	    Line->XmitSize = 0;
+	    PassiveReadChannel = -1;	/* We've moved it...		*/
+	    Line->state    = DRAIN;	/* Starting in DRAINed state	*/
+
 	    /* Send and ACK block - transpose the fields */
 	    memcpy(Exchange, ControlBlock.Rhost, 8);
 	    memcpy(ControlBlock.Rhost, ControlBlock.Ohost, 8);
@@ -602,8 +604,10 @@ struct	LINE *line;
 	      return;		/* Well, come back later.. */
 	    }
 #ifdef NBSTREAM
-	    if (errno == EWOULDBLOCK || errno == EAGAIN)
+	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
+	      queue_receive(Index); /* Requeue the read request */
 	      return;
+	    }
 #endif
 
 	    logger(1, "UNIX_TCP: Error reading, line %s, error: %s\n",
@@ -813,6 +817,14 @@ struct	LINE *line;
 	  }
 	}
 
+
+	if (Line->TcpState > sizeof(Line->InBuffer)) {
+	  logger(1,"UNIX_TCP: unix_tcp_receive(%s): Line->TcpState=%d, which is oversize!\n",
+		 Line->HostName,Line->TcpState);
+	  restart_channel(Index);
+	  return;
+	}
+
 	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) left over RecvSize=%d\n",
 	   Line->HostName,Line->RecvSize); */
 
@@ -872,6 +884,41 @@ const int flg;
 	Line->flags &= ~F_WAIT_V_A_BIT;
 	if (Line->state == ACTIVE)
 	  Line->flags |= F_CALL_ACK;	/* Main loop will call Handle-Ack */
+}
+#endif
+
+#ifdef USE_XMIT_QUEUE
+int
+dequeue_xmit_queue(Index)
+const int Index;
+{
+	struct LINE	*Line = &IoLines[Index];
+
+	/* Test whether we have a queue of pending transmissions.
+	   If so, send them */
+
+	if (Line->FirstXmitEntry != Line->LastXmitEntry
+#ifdef NBSTREAM
+	    && Line->WritePending == NULL
+#endif
+	    ) {
+		int size;
+		char *p, *q;
+		Line->flags &= ~F_XMIT_CAN_WAIT;
+		Line->flags &= ~F_XMIT_MORE;
+		size = Line->XmitSize =
+			(Line->XmitQueueSize)[Line->FirstXmitEntry];
+		p = Line->XmitBuffer;
+		q = (Line->XmitQueue)[Line->FirstXmitEntry];
+		memcpy(p, q, size);
+		free(q);	/* Free the memory allocated for it */
+		Line->FirstXmitEntry = ++(Line->FirstXmitEntry) % MAX_XMIT_QUEUE;
+logger(2,"UNIX_TCP: Dequeued XMIT buffer of size %d on line %s\n",
+       size,Line->HostName);
+		send_unix_tcp(Index, p, size);
+	}
+	/* Return a flag about the queue status */
+	return (Line->FirstXmitEntry != Line->LastXmitEntry);
 }
 #endif
 

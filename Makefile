@@ -21,6 +21,7 @@
 #			wait, and timeout synchronously for some dead system..
 #	-DNBSTREAM	Does whole TCP stream in Non-blocking mode!
 #			(This contains NBCONNECT in it -- ** RECOMMENDED **)
+#	-DUSE_XMIT_QUEUE  Necessary for NBSTREAM (!?)
 #	-DUSE_SOCKOPT	Does  setsockopt() for SO_RCVBUF, and SO_SNDBUF to
 #			set them to 256k instead of the default whatever (4k?)
 #	-DSOCKBUFSIZE	(Alter the default to be something.. Value in bytes)
@@ -29,7 +30,6 @@
 #	-DBSD_SIGCHLDS	Do SIGC(H)LD handling via a signal trapper.
 #			Some (most?) SYSV's can safely ignore the child, but
 #			BSDs (SunOS 4.1.3) can't.
-#	-DUSE_XMIT_QUEUE  Propably obsolete code;  never used on TCP/IP lines ?
 #	-DUSE_ENUM_TYPES  If your compiler allows it, do it!
 #			  Debugging is smarter..  (Not finished thing!)
 #
@@ -79,7 +79,7 @@
 # Convex OS V10.2 -- very POSIX.1 beast indeed..
 #CC     = gcc -fno-builtin -fpcc-struct-return
 #CPP    = gcc -E
-#CDEFS  = -O -D_POSIX_SOURCE -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DNBSTREAM
+#CDEFS  = -O -D_POSIX_SOURCE -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DNBSTREAM -DUSE_XMIT_QUEUE
 #     Using  -DCOMMAND_MAILBOX_FIFO  didn't work..
 #CFLAGS = -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
@@ -116,7 +116,7 @@ INSTALL=installbsd
 #   for compilation to succeed without pains..
 #CC=gcc -Wall -D__STDC__=0
 #CPP=gcc -E
-#CDEFS=  -O -I. -DUSG -DUSE_POLL -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_SOCKOPT #-DDEBUG
+#CDEFS=  -O -I. -DUSG -DUSE_POLL -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE -DUSE_SOCKOPT #-DDEBUG
 #CFLAGS= -g $(CDEFS)
 ## Have MAILIFY compiled by uncommenting following ones:
 ##MAILIFY=mailify
@@ -133,7 +133,7 @@ INSTALL=installbsd
 # SunOS --  GNU-CC 2.4.5 on SPARC SunOS 4.1.3
 #CC=gcc -Wall #-fno-builtin
 #CPP=gcc -E
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_SOCKOPT #-DDEBUG
+#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE -DUSE_SOCKOPT #-DDEBUG
 #CFLAGS= -g $(CDEFS)
 ## Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -149,7 +149,7 @@ INSTALL=installbsd
 # SunOS -- SunOS 4.1.3 bundled cc
 #CC=cc
 #CPP=/lib/cpp
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM #-DDEBUG
+#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE #-DDEBUG
 #CFLAGS=  $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -163,7 +163,7 @@ INSTALL=installbsd
 #INSTALL=install
 
 # Linux 0.99pl13  (w/o using -D_POSIX_SOURCE)
-#CDEFS= -O6 -DCOMMAND_MAILBOX_SOCKET -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM
+#CDEFS= -O6 -DCOMMAND_MAILBOX_SOCKET -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE
 #CC=gcc
 #CPP=gcc -E
 #CFLAGS= -g $(CDEFS)
