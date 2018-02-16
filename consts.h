@@ -504,6 +504,10 @@ struct	MESSAGE {			/* For outgoing interactive messages */
 	struct MESSAGE	*next;		/* Next in chain		*/
 	int		length;		/* Message's length		*/
 	char	text[LINESIZE];		/* The message's text		*/
+	char	Faddress[20];		/* From address			*/
+	char	node[10];		/* Target node			*/
+	char	type;			/* CMD_CMD / CMD_MSG		*/
+	char	candiscard;		/* non-zero if can discard	*/
 };
 
 #ifdef VMS

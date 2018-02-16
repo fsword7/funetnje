@@ -54,7 +54,7 @@ const int cmdlen, offlineok;
 	  fscanf(pidfile,"%d",&hujipid);
 	  fclose(pidfile);
 	}
-	if (hujipid && kill(hujipid,0) && errno == ESRCH) {
+	if (!hujipid ||( kill(hujipid,0) && errno == ESRCH)) {
 	    if (offlineok) return 0;
 	    logger(1,"NJECLIENTLIB: NJE transport module not online!\n");
 	    return EX_CANTCREAT;

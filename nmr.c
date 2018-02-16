@@ -187,17 +187,13 @@ const	char	*Faddress, *Taddress;
 void		*Text;
 {
 	char	*text = (char *)Text;
-	char	*p, line[LINESIZE], LineName[20], FromName[20],
-		NodeKey[20], TempLine[LINESIZE],
-		CharacterSet[16];	/* Not needed but returned
-					   by Find_line_index() */
-	int	PrimLine,  AltLine;
+	char	*p, line[LINESIZE], FromName[20], NodeKey[20];
 	char FrName[20],*FrNode,ToName[20],*ToNode;
 	unsigned char	*up;
 	struct	NMR_MESSAGE	NmrRecord;
-	struct	MESSAGE	*Message;
+	struct	MESSAGE Msg;
 	int	MessageSize = 0;
-	int	i, AddUserName = 0;	/* Do we include Username when
+	int	AddUserName = 0;	/* Do we include Username when
 					   sending a message? */
 
 	if (size > LINESIZE) {	/* We don't have room for longer message */
@@ -289,8 +285,8 @@ void		*Text;
 	    AddUserName = 0;
 	}
 	if (Cflag == CMD_MSG) {
-	  /* Message - If we put the username before, then we have to skip
-	     now over it (it occipies the first 8 characters of the
+	  /* Message - If we put the username before, then we have to
+	     skip now over it (it occipies the first 8 characters of the
 	     message's text) */
 	  if (AddUserName == 0) {	/* No username is there */
 	    size = strlen(text);
@@ -389,47 +385,75 @@ void		*Text;
 	/* Convert the nodename to uppercase */
 	upperstr(NodeKey);
 
+
+	Msg.length = size;
+	/* For debugging and safety checks */
+	if (size > sizeof(Msg.text)) {
+	  logger(1, "NMR, Too long Message. Malloc will overflow!\n");
+	  size = sizeof(Msg.text);
+	}
+	memcpy(Msg.text, line, size);
+	strcpy(Msg.Faddress, Faddress);
+	strcpy(Msg.node,NodeKey);
+	Msg.type = Cflag;
+	Msg.candiscard = 0;
+	if (text[0] == '*' || Faddress[0] == '@')
+	  Msg.candiscard = 1;
+
+	nmr_queue_msg(&Msg);
+}
+
+void nmr_queue_msg(Msg)
+struct MESSAGE *Msg;
+{
+	char	TempLine[LINESIZE], LineName[20], line[LINESIZE];
+	char	CharacterSet[16];	/* Not needed but returned
+					   by Find_line_index() */
+	int	PrimLine,  AltLine, i;
+	struct MESSAGE *Message;
+
 	/* look for the line number we need - it returns the link to
 	   send the NMR on (the direct link or alternate route): */
 
-	switch ((i = find_line_index(NodeKey, LineName, CharacterSet,
+	switch ((i = find_line_index(Msg->node, LineName, CharacterSet,
 				     &PrimLine, &AltLine))) {
 	  case NO_SUCH_NODE:	/* Does not exist at all */
-	      logger(2, "NMR, Node '%s' unknown\n", NodeKey);
-	      if (text[0] != '*' && *Faddress != '@') {
+	      logger(2, "NMR, Node '%s' unknown\n", Msg->node);
+	      if (!Msg->candiscard) {
 		/* It isn't a comment, and sender is not some system:
 		   Return a message to the sender */
-		sprintf(line, "Node %s not recognised.", NodeKey);
+		sprintf(line, "Node %s not recognised.", Msg->node);
 		sprintf(TempLine, "@%s", LOCAL_NAME);	/* Sender */
-		send_nmr(TempLine, Faddress, line, strlen(line),
+		send_nmr(TempLine, Msg->Faddress, line, strlen(line),
 			 ASCII, CMD_MSG);
 	      }
 	      break;
 	  case ROUTE_VIA_LOCAL_NODE:	/* Not connected via NJE */
-	      if (*text != '*' && *Faddress != '@') {
+	      if (!Msg->candiscard) {
 		/* It isn't a comment, and sender is not some system:
 		   Return a message to the sender */
-		sprintf(line, "Node %s can't receive commands/msgs", NodeKey);
+		sprintf(line, "Node %s can't receive commands/msgs",
+			Msg->node);
 		sprintf(TempLine, "@%s", LOCAL_NAME);	/* Sender */
-		send_nmr(TempLine, Faddress, line, strlen(line),
+		send_nmr(TempLine, Msg->Faddress, line, strlen(line),
 			 ASCII, CMD_MSG);
 	      }
 	      break;
 	  case LINK_INACTIVE:	/* Both link and alternate routes inactives */
-	      if (*text != '*' && *Faddress != '@') {
+	      if (!Msg->candiscard) {
 		/* It isn't a comment, and sender is not some system:
 		   Return a message to the sender */
 		sprintf(line, "Link %s to node %s inactive", LineName,
-			NodeKey);
+			Msg->node);
 		sprintf(TempLine, "@%s", LOCAL_NAME);	/* Sender */
-		send_nmr(TempLine, Faddress, line, strlen(line),
+		send_nmr(TempLine, Msg->Faddress, line, strlen(line),
 			 ASCII, CMD_MSG);
 	      }
 	      break;
 	  default:	/* All other values are index values
 			   of line to queue on */
 	      if ((i < 0) || (i >= MAX_LINES)) {
-		logger(1, "NMR, Illegal line number #%d returned by find_file_index() for node %s\n", i, NodeKey);
+		logger(1, "NMR, Illegal line number #%d returned by find_file_index() for node %s\n", i, Msg->node);
 		break;
 	      }
 	      /* OK - get memory and queue for line */
@@ -443,8 +467,8 @@ void		*Text;
 		IoLines[i].MessageQend->next =  Message;
 		IoLines[i].MessageQend   = Message;
 	      }
-	      /* logger(2,"NMR: *DEBUG* struct MESSAGE * -> 0x%x, size=%d, line %s(%d)\n",
-		 Message, size, IoLines[i].HostName, i); */
+/* logger(2,"NMR: *DEBUG* struct MESSAGE * -> 0x%x, size=%d, line %s(%d)\n",
+   Message, size, IoLines[i].HostName, i); */
 
 	      if (Message == NULL) {
 #ifdef VMS
@@ -456,14 +480,8 @@ void		*Text;
 #endif
 		bug_check("NMR, Can't Malloc for message queue.");
 	      }
+	      memcpy(Message,Msg,sizeof(*Msg));
 	      Message->next = NULL;
-	      Message->length = size;
-	      /* For debugging and safety checks */
-	      if (size > sizeof(Message->text)) {
-		logger(1, "NMR, Too long message. Malloc will overflow!\n");
-		size = sizeof(Message->text);
-	      }
-	      memcpy(Message->text, line, size);
 #ifdef DEBUG
 	      logger(3, "NMR, queued message to address %s, size=%d.\n",
 		     Taddress, size);

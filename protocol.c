@@ -133,6 +133,8 @@ const int	Index;
 					   state change */
 	register int	i;	/* Stream index */
 
+	extern void abort_streams_and_requeue();
+
 	Line = &(IoLines[Index]);
 	if (Index > MAX_LINES || Line->HostName[0] == 0) {
 	  logger(1,"PROTOCOL: restart_channel(%d) - Bad line number!\n",Index);
@@ -142,28 +144,7 @@ const int	Index;
 	/* Init_link_state() will reset the line TCP line */
 	/* init_link_state(Index); --- NOT IN USE! */
 
-	/* CHANGE STATES OF FILES ON ACTIVE STREAMS! */
-
-	/* Close active file, and delete of output file. */
-	for (i = 0; i < MAX_STREAMS; i++) {
-	  Line->CurrentStream = i;
-	  if ((Line->OutStreamState[i] != S_INACTIVE) &&
-	      (Line->OutStreamState[i] != S_REFUSED)) { /* File active */
-	    close_file(Index, F_INPUT_FILE, i);
-	    requeue_file_entry(Index,Line);
-	  }
-	  if ((Line->InStreamState[i] != S_INACTIVE) &&
-	      (Line->InStreamState[i] != S_REFUSED)) { /* File active */
-	    delete_file(Index, F_OUTPUT_FILE, i);
-	  }
-	}
-
-	i = requeue_file_queue(Line);
-	if (i != 0)
-	  logger(1,"IO: init_link_state() calling requeue_file_queue() got an activecount of %d!  Should be 0!\n",i); 
-	/* Line->QueuedFiles = i; */
-	/* Line->QueuedFilesWaiting = 0; */
-
+	abort_streams_and_requeue(Index); /* core of  init_link_state() */
 
 	/* Send the ENQ block again, only if the line was before in
 	   some active state.    If it wasn't, then this call is
@@ -459,14 +440,6 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	   WAIT_A_BIT is from the NJE block header.
 	   WAIT_V_A_BIT is from VMnet.			*/
 
-#if 0
-#ifdef	NBSTREAM	/* Do nothing while write is pending.. */
-	if (Line->WritePending) {
-	  queue_timer(1,Index,T_SEND_ACK);
-	  return;
-	}
-#endif
-#endif
 	if ((Line->flags & F_WAIT_A_BIT) ||
 	    (Line->flags & F_WAIT_V_A_BIT)) {
 	  if (flag != EXPLICIT_ACK) {
@@ -555,8 +528,7 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 		    break;
 		if (i < 0) {
 		  /* Can shut */
-		  send_data(Index, &SignOff,
-			    sizeof(struct SIGN_OFF),
+		  send_data(Index, &SignOff, sizeof(struct SIGN_OFF), 
 			    ADD_BCB_CRC);
 		  Line->state = SIGNOFF;
 		  logger(1, "PROTOCOL, Line  %s signed off due to operator request\n",

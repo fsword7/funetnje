@@ -21,4 +21,5 @@ char *from;
 	} else {
 	  cuserid(from);
 	}
+	return from;
 }

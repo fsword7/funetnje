@@ -56,7 +56,7 @@ struct	TIMER	{			/* The timer queue		*/
 #define	DELAYED_ACK	2		/* In accordance with PROTOOCL */
 
 static void  auto_restart_lines __(( void ));
-static void  parse_op_command __(( void ));
+static void  parse_op_command __(( const int *fd ));
 static void  parse_file_queue __(( const int fd ));
 
 extern int	sys_nerr;	/* Maximum error number recognised */
@@ -463,11 +463,12 @@ auto_restart_lines()
 void
 poll_sockets()
 {
-	int	i, j, nfds;
+	int	j, nfds;
 	struct	timeval	timeout;
 	int	FdWidth = 0;
 	static	int passiv_reinit = 0;
 	int	has_pending_connects = 0;
+	int	done_only_implicitic_ack = 1;
 	extern  int file_queuer_pipe;
 
 #ifdef AIX
@@ -510,13 +511,10 @@ poll_sockets()
 	  --passiv_reinit;
 	}
 
-again:
+    again:
+
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;	/* 1 second timeout */
-#if 0 /* If 0.25 sec timeout is too fast ? */
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 250000;	/* 0.25 second timeout */
-#endif
 
 	_FD_ZERO(readfds);
  	_FD_ZERO(writefds);
@@ -544,48 +542,45 @@ again:
 	}
 
 /* Add the sockets used for NJE communication */
-	for (i = 0; i < MAX_LINES; i++) {
-	  if (IoLines[i].HostName[0] == 0) continue; /* No defined line */
+	for (j = 0; j < MAX_LINES; ++j) {
+	  if (IoLines[j].HostName[0] == 0) continue; /* No defined line */
 
-	  if (IoLines[i].socket >= FdWidth)
-	    FdWidth = IoLines[i].socket+1;
-	  if ((IoLines[i].state != INACTIVE) &&
-	      (IoLines[i].state != SIGNOFF) &&
-	      (IoLines[i].state != RETRYING) &&
-	      (IoLines[i].state != LISTEN) &&
-	      (IoLines[i].socket >= 0)) {
+	  if (IoLines[j].socket >= FdWidth)
+	    FdWidth = IoLines[j].socket+1;
+	  if ((IoLines[j].state != INACTIVE) &&
+	      (IoLines[j].state != SIGNOFF) &&
+	      (IoLines[j].state != RETRYING) &&
+	      (IoLines[j].state != LISTEN) &&
+	      (IoLines[j].socket >= 0)) {
+
 #if	defined(NBCONNECT) || defined(NBSTREAM)
-
 	    /* Can't do connects which take time to finish.. */
 
-	    if (IoLines[i].socketpending >= 0) {
+	    if (IoLines[j].socketpending >= 0) {
 	      /* A pending open.. */
 
-	      _FD_SET(IoLines[i].socket, writefds);
+	      _FD_SET(IoLines[j].socket, writefds);
 
 	      has_pending_connects = 1;
 	    } else 
 #endif
 	    {
 	      /* Normal stream, already open */
-	      _FD_SET(IoLines[i].socket, readfds);
+	      _FD_SET(IoLines[j].socket, readfds);
 	    }
 #if	NBSTREAM
-	    if (IoLines[i].state == ACTIVE) {
-	      if (IoLines[i].WritePending)
+	    if (IoLines[j].state == ACTIVE) {
+	      if (IoLines[j].WritePending)
 		/* We have a write pedning */
-		_FD_SET(IoLines[i].socket, writefds);
-	      else if ((IoLines[i].flags & F_CALL_ACK) &&
-		       IoLines[i].ActiveStreams != 0)
+		_FD_SET(IoLines[j].socket, writefds);
+#if 0
+/* FIXME: WE SHOULD NOT WRITE-WAIT F_CALL_ACK HERE!
+          INSTEAD WE SHOULD WRITE-TEST THEM ON TIMEOUT CASE! */
+	      else if ((IoLines[j].flags & F_CALL_ACK) /* &&
+		       IoLines[j].ActiveStreams != 0 */ )
 		/* Or we are expected to call ACK */
-		_FD_SET(IoLines[i].socket, writefds);
-	    }
-#else
-	    if (IoLines[i].state == ACTIVE &&
-		IoLines[i].ActiveStreams != 0 &&
-		(IoLines[i].flags & F_CALL_ACK) != 0) {
-	      /* We are expected to call ACK */
-	      _FD_SET(IoLines[i].socket, writefds);
+		_FD_SET(IoLines[j].socket, writefds);
+#endif
 	    }
 #endif	/* NBSTREAM */
 	  }
@@ -633,16 +628,37 @@ again:
 	     it sets the F_CALL_ACK flag, so we need to call
 	     handle-Ack from here.
 	   */
-	  for (i = 0; i < MAX_LINES; i++) {
-	    if (
 #ifdef NBSTREAM
-		IoLines[i].WritePending == NULL &&
-#endif
-		(IoLines[i].flags & F_CALL_ACK) != 0) {
-	      IoLines[i].flags &= ~F_CALL_ACK;
-	      handle_ack(i, EXPLICIT_ACK);
+	  timeout.tv_sec = 0;
+	  timeout.tv_usec = 0;
+	  _FD_ZERO(writefds);
+	  FdWidth = 0;
+	  for (j = 0; j < MAX_LINES; ++j)
+	    if (IoLines[j].HostName[0] != 0	&&
+		IoLines[j].socket >= 0		&&
+		IoLines[j].WritePending == NULL	&&
+		(IoLines[j].flags & F_CALL_ACK)) {
+	      _FD_SET(IoLines[j].socket, writefds);
+	      if (IoLines[j].socket >= FdWidth)
+		FdWidth = IoLines[j].socket;
+	    }
+	  nfds = select(FdWidth+1,NULL,&writefds,NULL,&timeout);
+	  for (j = 0; j < MAX_LINES; ++j) {
+	    if (IoLines[j].HostName[0] != 0	&&
+		IoLines[j].socket >= 0		&&
+		_FD_ISSET(IoLines[j].socket, writefds)) {
+	      IoLines[j].flags &= ~F_CALL_ACK;
+	      handle_ack(j, EXPLICIT_ACK);
 	    }
 	  }
+#else	/* Not NBSTREAM */
+	  for (j = 0; j < MAX_LINES; ++j) {
+	    if ((IoLines[j].flags & F_CALL_ACK) != 0) {
+	      IoLines[j].flags &= ~F_CALL_ACK;
+	      handle_ack(j, EXPLICIT_ACK);
+	    }
+	  }
+#endif
 	  return;
 	}
 
@@ -651,97 +667,77 @@ again:
 	   - the command socket and,
 	   - NJE/TCP channels.				*/
 
-#if	defined(NBSTREAM)||defined(NBCONNECT)
-	if (has_pending_connects)
-	  for (j = 0; j < MAX_LINES; ++j) {
-	    if (IoLines[j].HostName[0] == 0 ||
-		IoLines[j].socketpending < 0)
-	      continue; /* No line, or not pending */
-	    i = IoLines[j].socket;
-
-	    if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
-
-	      /* Look for the line that corresponds to that FD */
-	      init_active_tcp_connection(j,1); /* Finalize that open */
-
-	      /* Turn off this bit from delayed writes.. */
-	      _FD_CLR(i, writefds);
-	    }
-	  } /* for (..j..) */
-#endif /* NB-connect/stream */
-
-
-	/* Handle all read-streams -- well, most.. */
-
-	for (i = 0; i < FdWidth; ++i)
-	  if ( _FD_ISSET(i, readfds) /* Something is there */ ) {
-
-	    if (i == CommandSocket)	/* Handle it */
-	      parse_op_command();
-	    else if (i == file_queuer_pipe)
-	      parse_file_queue(i);
-	    else {
-
-	      /* Look for the line that corresponds to that FD */
-
-	      for (j = 0; j < MAX_LINES; j++)
-		if ((IoLines[j].socket == i) &&
-		    (*IoLines[j].HostName != '\0'))
-		  unix_tcp_receive(j, &IoLines[j]);
-	    }
-	  }
-
-#ifdef	NBSTREAM
-	/* Check write-pending */
-
-	for (j = 0; j < MAX_LINES; ++j) {
-	  if (IoLines[j].HostName[0] == 0 ||
-	      !IoLines[j].WritePending ||
-	      IoLines[j].state != ACTIVE)
-	    continue; /* No line, or no */
-	  i = IoLines[j].socket;
-
-
-	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
-	    tcp_partial_write(j, 0);
-	  }
+	if (CommandSocket >= 0 &&
+	    _FD_ISSET(CommandSocket, readfds)) {
+	  parse_op_command(&CommandSocket);
+	  done_only_implicitic_ack = 0;
 	}
-#endif	/* NBSTREAM */
 
-	/* Check if the socket is free to write, and we have
-	   F_CALL_ACK -flag set */
-
-	for (j = 0; j < MAX_LINES; ++j) {
-	  if (IoLines[j].HostName[0] == 0   ||
-	      IoLines[j].ActiveStreams == 0 ||
-#ifdef NBSTREAM
-	      IoLines[j].WritePending != NULL ||
-#endif
-	      IoLines[j].state != ACTIVE    ||
-	      (IoLines[j].flags & F_CALL_ACK) == 0)
-	    continue; /* No line, or no activity here */
-	  i = IoLines[j].socket;
-
-	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
-	    handle_ack(j, EXPLICIT_ACK);
-	  }
+	if (file_queuer_pipe >= 0 &&
+	    _FD_ISSET(file_queuer_pipe, readfds)) {
+	  parse_file_queue(file_queuer_pipe);
+	  done_only_implicitic_ack = 0;
 	}
 
 	/* Check if there is a connection to be accepted */
-
-	if (PassiveSocketChannel >= 0) {
-	  if ( _FD_ISSET(PassiveSocketChannel, readfds))
-	    accept_tcp_connection();
+	if (PassiveSocketChannel >= 0 &&
+	    _FD_ISSET(PassiveSocketChannel, readfds)) {
+	  accept_tcp_connection();
+	  done_only_implicitic_ack = 0;
 	}
 
 	/* We've accepted some connection;
 	   now see whether there is something to read there */
-
-	if (PassiveReadChannel >= 0) {
-	  if (_FD_ISSET(PassiveReadChannel, readfds))
-	    read_passive_tcp_connection();
+	if (PassiveReadChannel >= 0 &&
+	    _FD_ISSET(PassiveReadChannel, readfds)) {
+	  read_passive_tcp_connection();
+	  done_only_implicitic_ack = 0;
 	}
-	goto again;	/* Retry operation */
+
+
+	for (j = 0; j < MAX_LINES; ++j)
+	  if (IoLines[j].HostName[0] != 0	&&
+	      IoLines[j].socket >= 0) {
+
+	    /* Handle all read-streams -- well, most.. */
+
+	    if (_FD_ISSET(IoLines[j].socket, readfds)) {
+	      unix_tcp_receive(j, &IoLines[j]);
+	      done_only_implicitic_ack = 0;
+	    }
+
+	    /* Handle all write-streams */
+
+	    if (IoLines[j].socket >= 0 && /* we may done read() on it and
+					     got zero-size packet -> eof.. */
+		_FD_ISSET(IoLines[j].socket, writefds)) {
+
+#if	defined(NBSTREAM)||defined(NBCONNECT)
+	      /* Check possible pending sockets.. */
+	      if (IoLines[j].socketpending >= 0) {
+		init_active_tcp_connection(j,1); /* Finalize that open */
+		done_only_implicitic_ack = 0;
+	      } else
+#endif /* NB-connect/stream */
+	      /* now handle writes */
+#ifdef	NBSTREAM
+	      if (IoLines[j].WritePending != NULL) {
+		tcp_partial_write(j, 0);
+		done_only_implicitic_ack = 0;
+	      } else
+#endif /* NBSTREAM */
+
+		/* Check if the socket is free to write, and we have
+		   F_CALL_ACK -flag set */
+
+		if ((IoLines[j].flags & F_CALL_ACK) != 0) {
+		  IoLines[j].flags &= ~F_CALL_ACK;
+		  handle_ack(j, EXPLICIT_ACK);
+		}
+	    }
+	  }
+	if (!done_only_implicitic_ack)
+	  goto again;
 }
 
 /* ================================================================ */
@@ -780,7 +776,8 @@ logger(1, "parse_file_queuer() cnt=%d\n", file_queuer_cnt);
  | Read from the socket and parse the command.
  */
 static void
-parse_op_command()
+parse_op_command(CommandSocket)
+const int *CommandSocket;
 {
 	char	*p, line[LINESIZE];
 	int	size;
@@ -788,15 +785,15 @@ parse_op_command()
 
 #if	defined(COMMAND_MAILBOX_FIFO)
 
-	if ((size = read(CommandSocket, line, sizeof line)) < 0) {
+	if ((size = read(*CommandSocket, line, sizeof line)) < 0) {
 	  logger(1,"UNIX: CommandSocket read failed: %s\n",PRINT_ERRNO);
 	  return;
 	}
 
 #ifdef	FIFO_0_READ
 	if (size == 0) {
-	  close(CommandSocket);
-	  CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
+	  close(*CommandSocket);
+	  *CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
 	  return;
 	}
 #endif
@@ -809,7 +806,7 @@ parse_op_command()
 
 	i = sizeof(cli_addr);	
 
-	if ((NewSock = accept(CommandSocket,
+	if ((NewSock = accept(*CommandSocket,
 			     (struct sockaddr *)&cli_addr, &i)) < 0) {
 	  logger(1,"UNIX: Can't Accept control connection !\n");
 	  return;
@@ -824,7 +821,7 @@ parse_op_command()
 #else
 #if	defined(COMMAND_MAILBOX_UDP)
 
-	if ((size = recv(CommandSocket, line, sizeof line, 0)) <= 0) {
+	if ((size = recv(*CommandSocket, line, sizeof line, 0)) <= 0) {
 	  perror("Recv");
 	  return;
 	}

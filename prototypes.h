@@ -329,6 +329,7 @@ extern void	handle_NMR __(( struct NMR_MESSAGE *NmrRecord, const int size ));
 extern void	send_nmr __(( const char *Faddress, const char *Taddress, void *text, int size, const MSGCODES format, const int Cflag ));
 extern int	find_line_index __(( char *NodeName, char *LinkName, char *characterSet, int *primline, int *altline ));
 extern void	handle_local_command __(( const char *OriginNode, const char *UserName, const char *MessageText ));
+extern void	nmr_queue_msg __(( struct MESSAGE *Msg ));
 
 /* bcb_crc.c -shrunk*/
 extern int	check_crc __(( void *buffer, int *size ));

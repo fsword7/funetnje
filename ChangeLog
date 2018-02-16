@@ -1,3 +1,15 @@
+Tue Jun  6 12:28:31 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* file_queue.c, io.c:
+	    Revised slightly the queue handling - when restarting a link,
+	    ALWAYS tear apart the current state.
+	    ("debug rescan" must not destroy the current queue state,
+	     however genuine link restart can do it - while requeueing.)
+
+	* nmr.c, io.c, consts.h:
+	    Requeue NMR-messages ("struct MESSAGE" changed a bit)
+	    when a link restarts.
+
 Wed May 24 13:19:13 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* unix.c, unix_tcp.c, protocol.c, prototypes.h:

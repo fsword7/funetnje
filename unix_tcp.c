@@ -245,7 +245,7 @@ const int	Index, finalize;
 #ifdef	USE_SOCKOPT
 	{
 #ifndef SOCKBUFSIZE
-# define SOCKBUFSIZE 256*1024
+# define SOCKBUFSIZE 32*1024
 #endif
 
 	  int ssize = SOCKBUFSIZE, rsize = SOCKBUFSIZE;

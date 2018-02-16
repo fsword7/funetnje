@@ -378,34 +378,13 @@ init_communication_lines()
 }
 
 
-/*
- | Reset various link state variables, make sure all open files
- | get closed, queue states get reset, etc..
- */
 void
-init_link_state(Index)
-const int Index;
+abort_streams_and_requeue(Index)
+int Index;
 {
-	struct	LINE	*Line;
+	int i;
+	struct	LINE	*Line = &IoLines[Index];
 	struct	MESSAGE	*MessageEntry;
-	register int	i;	/* Stream index */
-	int	oldstate;
-
-	Line = &(IoLines[Index]);
-	if (Index > MAX_LINES || Line->HostName[0] == 0) {
-	  logger(1,"IO: init_link_state(%d) - Bad line number!\n",Index);
-	  return;
-	}
-
-	if (Line->socket >= 0)
-	  close(Line->socket);
-	Line->socket = -1;
-	if (Line->socketpending >= 0)
-	  close(Line->socketpending);
-	Line->socketpending = -1;
-
-	oldstate = Line->state;
-	Line->state = INACTIVE;
 
 	logger(2, "IO: init_link_state(%s/%d) type=%d (Q=%d)\n",
 	       Line->HostName,  Index,  Line->type, Line->QueuedFiles);
@@ -430,15 +409,48 @@ const int Index;
 	/* Line->QueuedFiles = i; */
 	/* Line->QueuedFilesWaiting = 0; */
 
-	Line->state = oldstate;
-
-	/* Dequeue all messages and commands waiting on it */
+	/* Requeue all messages and commands waiting on it */
 	MessageEntry = Line->MessageQstart;
+	Line->MessageQstart = NULL;
+	Line->MessageQend   = NULL;
 	while (MessageEntry != NULL) {
 	  struct MESSAGE *NextEntry = MessageEntry->next;
+	  nmr_queue_msg(MessageEntry);
 	  free(MessageEntry);
 	  MessageEntry = NextEntry;
 	}
+}
+/*
+ | Reset various link state variables, make sure all open files
+ | get closed, queue states get reset, etc..
+ */
+void
+init_link_state(Index)
+const int Index;
+{
+	struct	LINE	*Line;
+	register int	i;	/* Stream index */
+	int	oldstate;
+
+	Line = &(IoLines[Index]);
+	if (Index > MAX_LINES || Line->HostName[0] == 0) {
+	  logger(1,"IO: init_link_state(%d) - Bad line number!\n",Index);
+	  return;
+	}
+
+	if (Line->socket >= 0)
+	  close(Line->socket);
+	Line->socket = -1;
+	if (Line->socketpending >= 0)
+	  close(Line->socketpending);
+	Line->socketpending = -1;
+
+	oldstate = Line->state;
+	Line->state = INACTIVE;
+
+	abort_streams_and_requeue(Index);
+
+	Line->state = oldstate;
 
 #ifdef	USE_XMIT_QUEUE
 	/* Clear all queued transmit buffers */
@@ -466,8 +478,6 @@ const int Index;
 	  Line->InStreamState[i] = S_INACTIVE;
 	  Line->OutStreamState[i] = S_INACTIVE;
 	}
-	Line->MessageQstart = NULL;
-	Line->MessageQend   = NULL;
 	Line->RecvSize = 0;
 	Line->XmitSize = 0;
 	Line->WritePending = NULL;
@@ -1165,7 +1175,6 @@ const int length;
 {
 	unsigned char	Faddress[SHORTLINE],	/* Sender for NMR messages */
 			Taddress[SHORTLINE];	/* Receiver for NMR */
-	EXTERNAL struct SIGN_OFF SignOff;
 	int	i = 0;
 
 	switch (*line) {	/* The first byte is the command code. */
@@ -1177,10 +1186,10 @@ const int length;
 	      MustShutDown = 1;
 	      for (i = 0; i < MAX_LINES; i++)
 		if (IoLines[i].HostName[0] != 0 &&
-		    IoLines[i].state == ACTIVE)
-		  send_data(i, &SignOff,
-			    sizeof(struct SIGN_OFF),
-			    ADD_BCB_CRC);
+		    IoLines[i].state == ACTIVE) {
+		  abort_streams_and_requeue(i);
+		  IoLines[i].flags |= F_SHUT_PENDING;
+		}
 	      shut_gone_users();	/* Inform them */
 #ifdef VMS
 	      sys$wake(0,0);	/* Wakeup the main module */
@@ -1276,11 +1285,10 @@ const int length;
 	      i = (line[1] & 0xff);
 	      if ((i >= 0) && (i < MAX_LINES) &&
 		  IoLines[i].HostName[0] != 0) {
-		logger(1, "IO: Line #%d forced by operator request\n", i);
+		logger(1, "IO: Line #%d  (%s) forced by operator request\n",
+		       i, IoLines[i].HostName);
 		if (IoLines[i].state == ACTIVE)
-		  send_data(i, &SignOff, sizeof(struct SIGN_OFF),
-			    ADD_BCB_CRC);
-		IoLines[i].state = SIGNOFF;
+		  IoLines[i].flags |= F_SHUT_PENDING;
 		/* Requeue all files back: */
 		restart_channel(i);
 	      }

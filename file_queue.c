@@ -183,11 +183,6 @@ init_files_queue()
 	file_queuer_pipe = pipes[0];
 	file_queuer_cnt = 0;
 
-#if 0
-	setsockblocking(pipes[0],1); /* Set it blocking */
-	setsockblocking(pipes[1],1); /* Set it blocking */
-#endif
-
 	if (!sync_mode) {
 
 	  extern FILE *LogFd;
@@ -770,8 +765,13 @@ struct LINE *Line;
 	Line->QueueEnd   = NULL;
 	
 	while (Entry != NULL) {
+	  /* Separate the entries */
 	  NextEntry = Entry->next;
 	  Entry->next = NULL;
+
+	  if (Line->state != ACTIVE)
+	    Entry->state = 0;		/* Reset it in every case if
+					   the link is not active */
 
 	  /* States are: 0: Waiting, -1: held, +1: active */
 	  if (Entry->state < 1) {	/* Don't free active files! */
@@ -814,6 +814,11 @@ struct LINE *Line;
 	while (Entry != NULL) {
 	  NextEntry = Entry->next;
 	  Entry->next = NULL;
+
+
+	  if (Line->state != ACTIVE)
+	    Entry->state = 0;		/* Reset it in every case if
+					   the link is not active */
 
 	  /* States are: 0: Waiting, -1: held, +1: active */
 	  if (Entry->state < 1) {	/* Don't free active files! */
