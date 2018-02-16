@@ -1,3 +1,11 @@
+Mon Jul 24 14:29:59 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* bmail.c, sendfile.c:
+	    Sometimes   mktemp()  fails when there are a LOT of
+	    files being sent at the same time.  Changed now to
+	    more classical  ".MaiL.%05d"-format with  getpid()
+	    result as integer data..
+
 Wed Jun 21 22:42:39 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* unix_brcst.c, nmr_unix.c:

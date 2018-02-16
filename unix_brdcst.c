@@ -65,9 +65,9 @@ char *msg;
 	  m /= sizeof(struct utmp);
 	  for (i = 0; i < m; i++)   {
 	    struct utmp *utp = &((struct utmp*)buf)[i];
-#ifdef DEAD_PROCESS /* POSIX or what ?? */
-	    if (utp->ut_type == DEAD_PROCESS)
-	      continue;
+#ifdef LOGIN_PROCESS /* POSIX or what ?? */
+	    if (Utmp.ut_type != LOGIN_PROCESS &&
+		Utmp.ut_type != USER_PROCESS) continue;
 #endif
 	    if (utp->ut_name[0] == 0)
 	      continue;

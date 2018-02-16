@@ -58,8 +58,9 @@ const char	 cmd;
 	  lines = 0;
 	  while (read(fd,(void*)&Utmp,sizeof Utmp) == sizeof Utmp) {
 	    char uname[9];
-#ifdef DEAD_PROCESS /* POSIX or what ?? */
-	    if (Utmp.ut_type == DEAD_PROCESS) continue;
+#ifdef LOGIN_PROCESS /* POSIX or what ?? */
+	    if (Utmp.ut_type != LOGIN_PROCESS &&
+		Utmp.ut_type != USER_PROCESS) continue;
 #endif
 	    if (*Utmp.ut_name == 0) continue; /* Try next */
 	    strncpy(uname,Utmp.ut_name,8);

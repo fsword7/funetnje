@@ -152,9 +152,8 @@ char	*argv[];
 	/* A SGID program.. */
 	setgid(getegid());
 
-	sprintf(tFileName, "%s/.MaiLXXXXXX", BITNET_QUEUE);
-	mktemp(tFileName);
-	if(*tFileName == '\0') {
+	sprintf(tFileName, "%s/.MaiL%05d", BITNET_QUEUE,getpid());
+	if (*tFileName == '\0') {
 		fprintf(stderr, "Can't create unique filename\n");
 		exit(1);
 	}

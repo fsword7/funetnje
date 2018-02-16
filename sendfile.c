@@ -393,15 +393,14 @@ fprintf(stderr," figuring source file,  *argv='%s'\n",*argv);
 	setgid(getegid());
 
 
-	sprintf(tFileName, "%s/.BITXXXXXX", BITNET_QUEUE);
-	mktemp(tFileName);
-	if(*tFileName == '\0') {
+	sprintf(tFileName, "%s/.BIT_%05d", BITNET_QUEUE, getpid());
+	if (*tFileName == '\0') {
 		fprintf(stderr, "Can't create unique filename\n");
 		exit(1);
 	}
 
 	umask(077); /* THIS IS NOT A PUBLIC FILE! */
-	if((fd = fopen(tFileName, "w")) == NULL) {
+	if ((fd = fopen(tFileName, "w")) == NULL) {
 		perror(tFileName); exit(1);
 	}
 	fstat(fileno(fd),&stats);
