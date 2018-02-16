@@ -393,8 +393,10 @@ void		*Text;
 	  size = sizeof(Msg.text);
 	}
 	memcpy(Msg.text, line, size);
-	strcpy(Msg.Faddress, Faddress);
-	strcpy(Msg.node,NodeKey);
+	strncpy(Msg.Faddress, Faddress, sizeof(Msg.Faddress));
+	Msg.Faddress[sizeof(Msg.Faddress)-1] = 0;
+	strncpy(Msg.node,NodeKey,sizeof(Msg.node));
+	Msg.node[sizeof(Msg.node)-1] = 0;
 	Msg.type = Cflag;
 	Msg.candiscard = 0;
 	if (text[0] == '*' || Faddress[0] == '@')

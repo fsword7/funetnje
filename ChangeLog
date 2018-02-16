@@ -1,3 +1,15 @@
+Mon Jun 19 15:17:55 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* send.c, sendfile.c, bmail.c:
+	    Some additional tests to trap various forms of bad
+	    addresses -- accepts only  user@node format with
+	    no '.' in the address, nor either component longer
+	    than 8 chars.
+
+	* nmr.c:
+	    Made sure not to overwrite allocated string spaces on
+	    Msg-queue entry.  (Did cause a crash with it..)
+
 Tue Jun 13 09:13:18 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* qrdr.c:

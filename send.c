@@ -31,10 +31,16 @@
 #define CMD_CMD 1
 
 void
-usage()
+usage(explanation)
+char *explanation;
 {
-	printf("Usage: send [-u fromuser|-s] [-c{ommand}] [@]node [command string]\n");
-	printf("       send [-u fromuser|-s] [-m{essage}] user@node [message text]\n");
+	if (!explanation) {
+	  fprintf(stderr,"Usage: send [-u fromuser|-s] [-c{ommand}] [@]node [command string]\n");
+	  fprintf(stderr,"       send [-u fromuser|-s] [-m{essage}] user@node [message text]\n");
+	} else {
+	  fprintf(stderr,"SEND: %s\n",explanation);
+	}
+	exit(9);
 }
 
 
@@ -75,7 +81,7 @@ int	cc;
 
 	/* Get the command line and command parameters.*/
 	if (cc < 2) {	/* No /Mode or no address.. - tell user and exit */
-	  usage();
+	  usage(NULL);
 	  exit(1);
 	}
 
@@ -84,11 +90,20 @@ int	cc;
 	if (strcasecmp(*vv,"-u") == 0) {
 	  ++vv;
 	  cc -= 2;
-	  if (*vv)
+	  if (*vv) {
 	    strncpy(from,*vv,sizeof(from)-1);
-	  else {
-	    fprintf(stderr,"SEND: -u option requires one parameter!\n");
-	    exit(9);
+	    from[sizeof(from)-1] = 0;
+	    if ((p = strchr(from,'@')) != NULL) {
+	      if ((p - from) > 8 || strlen(p+1) > 8) {
+	    fromaddrerror:
+		usage("Defined sender address (-u) components may not exceed 8 chars in size");
+	      }
+	    } else {
+	      if (strlen(from) > 8)
+		goto fromaddrerror;
+	    }
+	  } else {
+	    usage("-u option requires one parameter!");
 	  }
 	  ++vv;
 	}
@@ -98,8 +113,7 @@ int	cc;
 	  sprintf(from,"@%s",LOCAL_NAME);
 	  if (getuid() >= LuserUidLevel) {
 	    type = -1;
-	    fprintf(stderr,"SEND: -s option requires priviledges!\n");
-	    exit(10);
+	    usage("-s option requires priviledges!");
 	  }
 	  type = CMD_MSG;
 	} else if ((strcasecmp(*vv, "/message") == 0) ||
@@ -115,8 +129,7 @@ int	cc;
 	  --cc;
 	  ++vv;
 	} else if (**vv == '/' || **vv == '-') {
-	  printf("Valid qualifiers are `-c{ommand}' and `-m{essage}' only\n");
-	  exit(1);
+	  usage("Valid qualifiers are `-c{ommand}' and `-m{essage}' only");
 	} else
 	  type = -1;	/* No qualified defined.. */
 
@@ -137,23 +150,29 @@ int	cc;
 	    if (*address == 0) continue;	/* Blank address.. */
 	    if (*address == '@') {
 	      strcpy(address,address+1);
+	      if (strlen(address) > 8) {
+	    addresserror:
+		usage("target address may not have components longer than 8 chars");
+	      }
 	      type = CMD_CMD;
 	      break;
 	    } else if ((p = strchr(address,'@')) != NULL) {
+	      if ((p - address) > 8 || strlen(p+1) > 8)
+		goto addresserror;
 	      type = CMD_MSG;
 	      break;
 	    } else if (type == -1) { /* Not defined! */
+	      if (strlen(vv[-1]) > 8)
+		goto addresserror;
 	      type = CMD_MSG;
 	      break;
 	    }
 	    break;
 	  }
 	} else {		/* Get the available parameters */
-	  if (!*vv) {
-	    fprintf(stderr,
-		    "Mandatory parameter (target address) is missing!\n");
-	    exit(9);
-	  }
+
+	  if (!*vv)
+	    usage("Mandatory parameter (target address) is missing!");
 
 	  strncpy(address, *vv, sizeof(address)); /* We have at least
 						     the address there */
@@ -164,18 +183,23 @@ int	cc;
 
 	  if (*address == '@') {
 	    strcpy(address,address+1);
+	    if (strlen(address) > 8)
+	      goto addresserror;
 	    type = CMD_CMD;
-	  } else if ((p = strchr(address,'@')) != NULL)
+	  } else if ((p = strchr(address,'@')) != NULL) {
+	    if ((p - address) > 8 || strlen(p+1) > 8)
+	      goto addresserror;
 	    type = CMD_MSG;
-	  else if (type == -1) {
-	    sprintf(address,"%s@%s",vv[-1],LOCAL_NAME);
+	  } else if (type == -1) {
+	    if (strlen(vv[-1]) > 8)
+	      goto addresserror;
+	    sprintf(address,"%.8s@%.8s",vv[-1],LOCAL_NAME);
 	    type = CMD_MSG;
 	  }
-	  
-	  if (cc <= 1) {		/* Nothing more than it */
-	    mode = 1;		/* Interactive mode */
-	  }
-	  else {		/* Reconstruct the parameters as the text */
+
+	  if (cc <= 1) {	/* Nothing more than it		*/
+	    mode = 1;		/* Interactive mode		*/
+	  } else {		/* Reconstruct the parameters as the text */
 	    char *tout = text;
 	    int  charspace = sizeof(text)-2;
 	    *text = '\0';
@@ -201,6 +225,11 @@ int	cc;
 	if (*from == 0)
 	  mcuserid(from);
 
+	if (strchr(address,'.') != NULL)
+	  usage("target address may not contain '.' chars in it!");
+	if (strchr(from,'.') != NULL)
+	  usage("source address may not contain '.' chars in it!");
+
 	if (mode == 0) {		/* Batch mode */
 	  send_nje(type, from, address, text);	/* Send it to the daemon */
 	  exit(0);
@@ -208,7 +237,8 @@ int	cc;
 
 /* We have to read it interactively. Loop until blank line */
 	if (!noprompt)
-	  printf("Hit your message/command. End with EOF (usually Ctrl-D)\n");
+	  fprintf(stderr,
+		  "Hit your message/command. End with EOF (usually Ctrl-D)\n");
 	while (!feof(stdin) && !ferror(stdin)) {	/* [mea] */
 	  if (!noprompt)
 	    printf("%s: ", address);

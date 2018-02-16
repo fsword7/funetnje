@@ -179,7 +179,7 @@ char	*argv[];
 	if (!origuser && (ForcedMailer || Bsmtp))
 	  origuser = mailername;
 	if (Bsmtp || ForcedMailer || origuser)
-	  sprintf(NjeFrom, "%s@%s", origuser, LOCAL_NAME);
+	  sprintf(NjeFrom, "%.8s@%.8s", origuser, LOCAL_NAME);
 	else
 	  strncpy(NjeFrom, From, 19);
 	NjeFrom[20] = 0;

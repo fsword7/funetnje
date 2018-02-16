@@ -227,16 +227,29 @@ char	*argv[];
 
 	  } else if (strcmp(*argv,"-u")==0) {
 
+	    char *s;
+
 	    if (!*++argv)
 	      usage("  -u  option requires one parameter!");
 	    --argc;
 	    strncpy(From,*argv,sizeof(From)-1);
 	    From[sizeof(From)-1] = 0;
-	    if (strchr(From,'@')==NULL) {
+	    if ((s = strchr(From,'@')) == NULL) {
+	      if (strlen(From) > 8)
+	    fromaddrerror:
+		usage("  -u option defined username components must be at most 8 chars long!");
 	      strcat(From,"@");
 	      strcat(From,LOCAL_NAME);
+	    } else {
+	      *s = 0;
+	      if (strlen(From) > 8)
+		goto fromaddrerror;
+	      *s = '@';
+	      if (strlen(s+1) > 8)
+		goto fromaddrerror;
 	    }
-
+	    if (strchr(From,'.') != NULL)
+	      usage(" -u -defined source address may not contain '.' chars in it");
 	  } else if (strcmp(*argv,"-lrecl")==0) {
 
 	    if (OpMode != Sendfile)
@@ -262,14 +275,22 @@ char	*argv[];
 	    char *s;
 	    strncpy(To, *argv, sizeof(To)-1);
 	    if ((s = strchr(To,'@'))==NULL) {
-	      To[8] = 0;
-	      sprintf(To+strlen(To),"@%s",LOCAL_NAME);
+	      if (strlen(To) > 8) {
+	    targetaddrerror:
+		usage(" Target address has components of more than 8 chars long");
+	      }
+	      /* To[8] = 0; */
+	      sprintf(To+strlen(To),"@%.8s",LOCAL_NAME);
 	    } else {
-	      *s++ = 0;
+	      *s = 0;
 	      if (strlen(To) > 8)
-		To[8] = 0;
-	      sprintf(To+strlen(To),"@%s",s);
+		goto targetaddrerror;
+	      *s = '@';
+	      if (strlen(s+1) > 8)
+		goto targetaddrerror;
 	    }
+	    if (strchr(To,'.') != NULL)
+	      usage(" Target address may not contain '.' in its components");
 	  } else
 	    break;
 
@@ -286,7 +307,7 @@ char	*argv[];
 
 	infile = stdin;
 #if 0 /* Some ARGV processing debug code */
-fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
+fprintf(stderr," figuring source file,  *argv='%s'\n",*argv);
 #endif
 	if (*argv) { /* extra file path... ? */
 	  if ((infile = fopen(*argv,"r")) == NULL) {
@@ -330,12 +351,12 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 	  }
 	  ++argv;
 	}
-	if (*argv) usage("SENDFILE: extra arguments/unknown options?");
+	if (*argv) usage(" extra arguments/unknown options?");
 	
 
 	if (getuid() >= LuserUidLevel) {
 	  if (*From) {
-	    fprintf(stderr,"SENDFILE: -u option can't be used unless sufficiently priviledged!\nYour UID=%d\n",(int)getuid());
+	    fprintf(stderr," -u option can't be used unless sufficiently priviledged!\nYour UID=%d\n",(int)getuid());
 	    exit(9);
 	  }
 	  *From = 0;
@@ -437,7 +458,7 @@ fprintf(stderr,"sendfile: figuring source file,  *argv='%s'\n",*argv);
 			  fname,ftype,lrecl,recfm,
 			  binary,AskAck)) {
 	    unlink(tFileName);
-	    fprintf(stderr,"SENDFILE: write of bitnet spool file failed!\n");
+	    fprintf(stderr," write of bitnet spool file failed!\n");
 	    exit(EX_TEMPFAIL);
 	  }
 
