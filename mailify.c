@@ -300,8 +300,12 @@ MailifyParam *mfp;
 	      fprintf(mfp->mailout,"rcvdfrom %s\n",mfp->heloaddr);
 	    if (!ferror(mfp->mailout))
 	      fprintf(mfp->mailout,"with BSMTP\n");
-	    if (!ferror(mfp->mailout))
-	      fprintf(mfp->mailout,"from <%s>\n",mfp->mailfrom);
+	    if (!ferror(mfp->mailout)) {
+	      if (*mfp->mailfrom == 0)
+		fprintf(mfp->mailout,"channel error\n");
+	      else
+		fprintf(mfp->mailout,"from <%s>\n",mfp->mailfrom);
+	    }
 	    for (i = 0; i < mfp->rcptcnt; ++i)
 	      if (!ferror(mfp->mailout))
 		fprintf(mfp->mailout,"to <%s>\n",mfp->rcptto[i]);

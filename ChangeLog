@@ -1,3 +1,11 @@
+Fri Aug 25 09:02:55 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* mailify.c:
+	    Handling error-messages (where "MAIL FROM:" address
+	    is "<>", that is, empty) was done improperly.  Now
+	    it does flag input as from "channel error" in that
+	    case.
+
 Mon Jul 24 14:29:59 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* bmail.c, sendfile.c:
