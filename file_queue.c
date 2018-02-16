@@ -392,6 +392,8 @@ struct QUEUE	*Entry;
 	      break;
 	  case ROUTE_VIA_LOCAL_NODE:
 	      inform_filearrival( FileName,&FileParams,auxline );
+	      /* Log a receive */
+	      rscsacct_log(&FileParams,0);
 	      sprintf(MessageSender, "@%s", LOCAL_NAME);
 	      /* Send message back only if not found the QUIET option. */
 	      if (((FileParams.type & F_NOQUIET) != 0) &&

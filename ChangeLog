@@ -1,3 +1,16 @@
+Mon Nov 13 17:48:52 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* libsendcmd.c, unix.c:
+	    A bit more relaxed approach on parametrizing
+	    CMDMAILBOX config parameter (FIFO/SOCKET case)
+
+	* file_queue.c:
+	    Do RSCS-accounting on locally sent files, that
+	    wind up to local recipients
+
+	* unix_brcst.c:
+	    Re-enter the SysVR4 UTMP weirdos..  Now fixed ?
+
 Fri Aug 25 09:02:55 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* mailify.c:

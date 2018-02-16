@@ -600,9 +600,9 @@ NAME            FINFILES                      @i{Node primary name}
 *IPADDRESS      nic.funet.fi                  @i{Node primary IP address}
 IPADDRESS       128.214.6.100                 @i{used on link signon msgs}
 QUEUE           /usr/spool/bitnet             @i{Emulator spool directory}
-CMDMAILBOX      F /usr/spool/bitnet/.cmdpipe  @i{IPC Fifo -path}
-#CMDMAILBOX     S /usr/spool/bitnet/.cmdpipe  @i{IPC Socket -path}
-#CMDMAILBOX     U 128.214.6.100 175           @i{IPC IP-address + port number}
+CMDMAILBOX      FIFO /usr/spool/bitnet/.cmdpipe  @i{IPC Fifo -path}
+#CMDMAILBOX     SOCK /usr/spool/bitnet/.cmdpipe  @i{IPC Socket -path}
+#CMDMAILBOX     UDP 128.214.6.100 175            @i{IPC IP-address + port number}
 LOG             /usr/adm/bitnet.log           @i{Emulator log-file}
 LLEVEL          1                             @i{Logging level.  Smaller==less}
 RSCSACCT        /usr/adm/bitnet.acct          @i{Define for IBM RSCS-like account file}
@@ -1776,7 +1776,7 @@ The coded alternatives are:
 
 Example:
 @example
-CMDMAILBOX  U 127.0.0.1 175
+CMDMAILBOX  UDP 127.0.0.1 175
 @end example
 
 @item FIFO
@@ -1787,7 +1787,7 @@ CMDMAILBOX  U 127.0.0.1 175
 
 Example:
 @example
-CMDMAILBOX  F /var/spool/bitnet/.cmdfifo
+CMDMAILBOX  FIFO /var/spool/bitnet/.cmdfifo
 @end example
 
 @item SOCKET
@@ -1799,11 +1799,13 @@ CMDMAILBOX  F /var/spool/bitnet/.cmdfifo
 
 Example:
 @example
-CMDMAILBOX  S /var/spool/bitnet/.cmdsocket
+CMDMAILBOX  SOCKET /var/spool/bitnet/.cmdsocket
 @end example
 
 @end table
 
+Only the first character of the type identifier (UDP/FIFO/SOCKET) is used,
+and the scan proceeds over the token, and to the next argument.
 
 All methods will need a 4-byte magic token with which they will prefix
 each communicated message with the server.  If the token does not match,

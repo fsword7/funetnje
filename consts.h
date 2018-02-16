@@ -170,7 +170,7 @@ EXTERNAL char	DefaultForm[9];
 EXTERNAL char	ClusterNode[16];
 #endif
 
-#define	VERSION		"3.1."	/* Major.Minor.Edition			*/
+#define	VERSION		"3.2."	/* Major.Minor.Edition			*/
 #define	SERIAL_NUMBER	"mea"	/* Don't touch it !!!			*/
 #define	LICENSED_TO	"  *** From sources of FINFILES origin ***"
 
