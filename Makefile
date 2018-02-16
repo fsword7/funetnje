@@ -22,6 +22,9 @@
 #			(This contains NBCONNECT in it -- DOES NOT WORK YET!)
 #	-DUSE_SOCKOPT	Does  setsockopt() for SO_RCVBUF, and SO_SNDBUF to
 #			set them to 32k instead of the default whatever (4k?)
+#	-DBSD_SIGCHLDS	Do SIGC(H)LD handling via a signal trapper.
+#			Some (most?) SYSV's can safely ignore the child, but
+#			BSDs (SunOS 4.1.3) can't.
 #	-DUSE_XMIT_QUEUE  Propably obsolete code;  never used on TCP/IP lines..
 #	-DUSE_ENUM_TYPES  If your compiler allows it, do it!
 #			  Debugging is smarter..  (Not finished thing!)
@@ -100,7 +103,7 @@
 # SunOS --  GNU-CC 2.4.5 on SPARC SunOS 4.1.3
 CC=gcc -Wall #-fno-builtin
 CPP=gcc -E
-CDEFS=  -O -DUSG -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT -DUSE_SOCKOPT #-DNBSTREAM #-DDEBUG
+CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT -DUSE_SOCKOPT #-DNBSTREAM #-DDEBUG
 CFLAGS= -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -116,7 +119,7 @@ INSTALL=install
 # SunOS -- SunOS 4.1.3 bundled cc
 #CC=cc
 #CPP=/lib/cpp
-#CDEFS=  -O -DUSG -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT #-DDEBUG
+#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT #-DDEBUG
 #CFLAGS=  $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify

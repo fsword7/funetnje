@@ -810,8 +810,7 @@ parse_op_command()
 /* ================================================================
    handle_*() routines by Matti Aarnio <mea@nic.funet.fi>
  */
-#if 0
-#ifndef linux /* POSIX signaling is somewhat different.. */
+#ifdef BSD_SIGCHLDS
 
 void
 handle_childs(n)  /* signal(SIGCHLD,handle_childs); */
@@ -867,8 +866,8 @@ const int n;
 		 status.w_retcode);
 #endif /* !_POSIX_SOURCE */
 }
-#endif /* !linux */
-#endif /* 0 */
+#endif /* BSD_SIGCHLDS */
+
 
 void
 handle_sighup(n) /* signal(SIGHUP,handle_sighup); */

@@ -214,16 +214,12 @@ int cc;
 	queue_timer(T_STATS_INTERVAL, -1, T_STATS);
 
 #ifdef UNIX
-#if 0
-#  ifndef	linux
-#   ifdef	SIGCHLD
+#ifdef	BSD_SIGCHLDS
+# ifdef	SIGCHLD
 	signal(SIGCHLD,handle_childs);
-#   else
+# else
 	signal(SIGCLD,handle_childs);
-#   endif
-#  else /* Linux -- maybe all SYSV ?? */
-	signal(SIGCLD,SIG_IGN);
-#  endif
+# endif
 #else
 	signal(SIGCLD,SIG_IGN);
 #endif

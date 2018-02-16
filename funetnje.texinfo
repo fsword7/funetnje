@@ -425,12 +425,20 @@ Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
 entry (numeric), and it naturally must be on same machine, as the emulator
 runs.  This is only choise for cluster nodes
 
+@item -DBSD_SIGCHLDS
+Uses {@tt BSD}-style {@tt SIGCLD/SIGCHLD} handling where an signal
+trapper program is required to process the exited child information.
+On {@tt SysV}-systems it is safe (it seems) to just ignore {@tt SIGCLD}
+and that way to get rid of the zombied child.
+
 @item @emph{Some compiler switches:}
 @item -fno-builtin
 A GNU-CC option telling it, that builtin accelerated operations should not
 be used. (Alignment may cause problems on some cases!) However we have
 a fairly high confidence that we have eliminated every case, where inlining
 a {@tt memcpy(3)} could cause problems.  Try without it!
+(Possible problems manifest themselves as coredrops due to SIGBUS, as
+ some memory accesses may become unaligned..)
 
 @item @emph{Some more esoteric tricks:}
 @item -DDEBUG
@@ -438,7 +446,8 @@ If you really want to see what goes on...  The amount of DEBUG-code
 is decreasing all the time, and frankly we haven't compiled the code
 with `-DDEBUG' for last 100 or so versions, we have just added
 `logger()'-calls into it at places needing it, and adjusted @var{LOGLEVEL}
-to get them into @var{LOGFILE}...
+to get them into @var{LOGFILE}, and then commented or removed those loggers
+out again..
 
 @item -DUSE_ZMAILER -I/usr/local/include
 For @file{mailify.c} -- for tight integration with Zmailer MTA.
