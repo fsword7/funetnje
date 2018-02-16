@@ -297,7 +297,7 @@ extern int	writen __(( const int fd, const void *buf, const int len ));
 extern int	readn __(( const int fd, void *buf, const int len ));
 
 /* file_queue.c */
-extern void	init_files_queue __(( void ));
+extern int	init_files_queue __(( void ));
 extern void	queue_file __(( const char *FileName, const int FileSize, const char *ToAddr, struct QUEUE *Entry ));
 extern struct QUEUE *build_queue_entry __((const char *, const int, const int, const char *, struct FILE_PARAMS *));
 extern void	add_to_file_queue __(( struct LINE *, const int, struct QUEUE *));

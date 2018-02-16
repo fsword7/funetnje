@@ -1,7 +1,7 @@
 \input texinfo	@c -*-texinfo-*-  Use TeXinfo 2.100 or later
 @comment %**start of header (This is for running Texinfo on a region.)
 @setfilename funetnje.info
-@settitle FUNET-NJE 3.0 manual
+@settitle FUNETNJE 3.x manual
 @setchapternewpage odd
 @comment %**end of header (This is for running Texinfo on a region.)
 
@@ -56,30 +56,30 @@
 @c
 
 @ifinfo
-This file documents FUNET-NJE version 3.0, which implements
+This file documents FUNETNJE version 3.x, which implements
 BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 
-Copyright @copyright{} 1994 Finnish University and Research Network,
+Copyright @copyright{} 1994-1995 Finnish University and Research Network,
 FUNET.
 
-Copyright @copyright{} 1994 IBiS Support/Matti Aarnio
+Copyright @copyright{} 1994-1995 IBiS Support/Matti Aarnio
 
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
 @end ifinfo
 
 @titlepage
-@title FUNET-NJE 3.0
+@title FUNETNJE 3.x
 @subtitle @titlefont{NJE-emulator for UNIX systems}
 @subtitle **DRAFT**DRAFT**DRAFT**DRAFT**DRAFT**DRAFT**DRAFT**DRAFT**
 @author Matti Aarnio
 @author Finnish University and Research Network, FUNET
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1994 Finnish University and Research Network,
+Copyright @copyright{} 1994-1995 Finnish University and Research Network,
 FUNET.
 
-Copyright @copyright{} 1994 IBiS Support/Matti Aarnio
+Copyright @copyright{} 1994-1995 IBiS Support/Matti Aarnio
 
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
@@ -92,12 +92,12 @@ use without prior agreenment.
 @comment node-name, next,       previous, up
 
 @menu
-* Support::             Source of support for FUNET-NJE
-* History::             History of the FUNET-NJE package
+* Support::             Source of support for FUNETNJE
+* History::             History of the FUNETNJE package
 * Introduction::        Introduction to NJE-networking
 * BITNET-II::           Structure of Second Generation BITNET on virtual links
-* Installation::        Installation of FUNET-NJE package
-* Configuration::       Configuration of FUNET-NJE package
+* Installation::        Installation of FUNETNJE package
+* Configuration::       Configuration of FUNETNJE package
 * User programs::       Documentation on user programs for NJE use
 * System programs::     Documentation on system programs for NJE use
 * Interfacing mailer::  Interfacing  sendmail/smail/ZMailer to BITNET
@@ -109,7 +109,7 @@ use without prior agreenment.
 
 @c ================================================================
 @node Support, History, Top, Top
-@chapter Support of the FUNET-NJE package
+@chapter Support of the FUNETNJE package
 
 Academic version of this software is available from:
 @example
@@ -151,7 +151,7 @@ special customizations, etc. please contact author:
 
 @c ================================================================
 @node History, Introduction, Support, Top
-@chapter History of the FUNET-NJE package
+@chapter History of the FUNETNJE package
 
 @emph{``Credit where the credit is due to''}
 
@@ -179,7 +179,7 @@ no radical improvements were on sight, begun the more serious porting
 of the system to Sun4 machine.
 
 Then on Summer-93 came a contact from Mr. Gerald Hanusch <K000165@@ALIJKU65>,
-who wanted to improve the then-present version of FUNET-NJE to be more
+who wanted to improve the then-present version of FUNETNJE to be more
 complete in respect of its emulation of the RSCS for replacing their
 aging VM/XA CMS machine -- they had administrative systems on another
 MVS machine, and communication to it was to be preserved, although the
@@ -214,45 +214,41 @@ they send over the wire.
 Things that are possible with NJE-network are:
 @table @strong
 @item Unsolicited file transfer
-Sending files to the recipients without
-them being aware of files coming to them, nor in fact asking any
-authorization prior sending it to them.
+        Sending files to the recipients without
+        them being aware of files coming to them, nor in fact asking any
+        authorization prior sending it to them.
 
-Especially this contradicts the way how the FTP works.
+        Especially this contradicts the way how the FTP works.
 
-This happens in @emph{Store-and-Forward}-manner, that is, when the file
-is sent over one link, responsibility for it is transferred to the
-next node, and link-sender can delete it from its own spool.
+        This happens in @emph{Store-and-Forward}-manner, that is, when
+        the file is sent over one link, responsibility for it is
+        transferred to the next node, and link-sender can delete it
+        from its own spool.
 
 @item Remote Job Entry
-Sending batch-jobs to remote machine for execution, especially to
-MVS systems.
+        Sending batch-jobs to remote machine for execution, especially to
+        MVS systems.    
 
 @item Nodal Messaging
-Sending short (max 120 chars) lines of messages to recipients at
-other nodes.
+        Sending short (max 120 chars) lines of messages to recipients at
+        other nodes.
 @end table
 
 With these basic facilities it is possible to build extended services,
 like:
 @itemize @bullet
 @item
-Remote printing
-
+        Remote printing
 @item
-Email
-
+        Email
 @item
-File transfer
-
+        File transfer
 @item
-Remote Job Execution (Batch processing)
-
+        Remote Job Execution (Batch processing)
 @item
-Interactive discussion one line at the time via NMR-messages
-
+        Interactive discussion one line at the time via NMR-messages
 @item
-Interactive control of servers accepting NMR-messages
+        Interactive control of servers accepting NMR-messages
 @end itemize
 
 
@@ -266,7 +262,7 @@ has largely surplanted it.  See on next chapter.
 
 There exists even ASYNC NJE, although that is more like experimental
 kludge for hackers, than serious production tool. (Not supported by
-the FUNET-NJE.)
+the FUNETNJE.)
 
 Names in the BITNET  are at most 8 characters long.
 This applies both to the users, and the machines (@emph{nodes}).
@@ -277,33 +273,34 @@ information up to date.
 
 Full routing updates are done in semi-monthly manner, which updates
 can usually be incorporated into the system with minimal fuzz, or in
-case of FUNET-NJE, automatically.
+case of FUNETNJE, automatically.
 
 
 There are email-gateways in between the BITNET, and the rest of the world.
 Email is transported inside the BITNET with five methods:
 @table @strong
 @item defrt1
-Target system has no mailer, all email must be sent to the users directly.
-Normally a mail-file is sent in PUNCH-80 format.
+        Target system has no mailer, all email must be sent to the users
+        directly.  Normally a mail-file is sent in PUNCH-80 format.
 
 @item bsmtp3
-Target system has a mailer, which can receive Batch-SMTP-file containing
-the email.  Format of the file is PUNCH-80.
+        Target system has a mailer, which can receive Batch-SMTP-file
+        containing the email.  Format of the file is PUNCH-80.
 
 @item bsmtp3rfc
-Like @strong{bsmtp3}, but addresses in RFC-822 format instead of
-BITNET node style.
+        Like @strong{bsmtp3}, but addresses in RFC-822 format instead of
+        BITNET node style.
 
 @item bsmtp3nd
-Target system has a mailer, which can receive Batch-SMTP-file containing
-the email.  Format of the file can be PUNCH-80, or NETDATA.
-In case the email contains longer lines, than 80 characters, this is
-recommended method, if receiver system can accept it.
+        Target system has a mailer, which can receive Batch-SMTP-file
+        containing the email.  Format of the file can be PUNCH-80, or
+        NETDATA.
+        In case the email contains longer lines, than 80 characters, this is
+        recommended method, if receiver system can accept it.
 
 @item bsmtp3ndrfc
-Like @strong{bsmtp3nd}, but addresses in RFC-822 format instead of
-BITNET node style.
+        Like @strong{bsmtp3nd}, but addresses in RFC-822 format instead of
+        BITNET node style.
 @end table
 
 For more information about these tags, see below about mailer configuration.
@@ -434,7 +431,7 @@ Revised September 21, 1990
 
 @c ================================================================
 @node Installation, Configuration, BITNET-II, Top
-@chapter Installation of FUNET-NJE package
+@chapter Installation of FUNETNJE package
 
 Installation of this package is fairly straight-forward by
 editing proper parts from to be activated from the @file{Makefile},
@@ -444,9 +441,9 @@ This system has two hard-wired files, which can be overridden
 by editing @file{site_consts.h}-file, or defined in @file{Makefile}:
 @table @strong
 @item /etc/funetnje.cf
-Main configuration file telling where rest of the system resides
+        Main configuration file telling where rest of the system resides
 @item /etc/funetnje.pid
-The "pid file" giving easy pointer to the running emulator program
+        The "pid file" giving easy pointer to the running emulator program
 @end table
 
 Via @file{/etc/funetnje.cf}, and its extensions
@@ -468,141 +465,116 @@ and also without a need to set-gid the control-panel (@file{ucp}).
 Things to decide:
 @itemize @bullet
 @item
-Name and number of the `bitnet' programs group (into your @file{/etc/group}).
-The @file{Makefile} has variable @var{NJEGRP} for it.
-
+        Name and number of the `bitnet' programs group
+        (into your @file{/etc/group}).
+        The @file{Makefile} has variable @var{NJEGRP} for it.
 @item
-Directories for your BITNET transmission spool, and user spool.
-@emph{Important: those must be on same partition!}
+        Directories for your BITNET transmission spool, and user spool.
+        @emph{Important: those must be on same partition!}
 
-Example configurations have them as:
+        Example configurations have them as:
 @itemize
 @item @emph{QUEUEDIR}
-@file{/var/spool/bitnet}
-
+        @file{/var/spool/bitnet}
 @item @emph{USERSPOOL}
-@file{/var/spool/bitspool}
+        @file{/var/spool/bitspool}
 @end itemize
 
 @item
-Location of various programs, @file{Makefile} has variables:
-@var{MANDIR}, @var{LIBDIR}, @var{BINDIR}, and @var{ETCDIR}.
+        Location of various programs, @file{Makefile} has variables:
+        @var{MANDIR}, @var{LIBDIR}, @var{BINDIR}, and @var{ETCDIR}.
 @end itemize
 
 Choosing proper defines for the compile of the software, especially
 your platform dependent pre-processor constants:
+
 @table @strong
 @item -D_POSIX_SOURCE
-Use on true @code{POSIX.1} systems
-
+        Use on true @code{POSIX.1} systems
 @item -DHAS_PUTENV
-If your system has SysV-like  @code{putenv(3)} to set environment variable.
-When this is not defined, a BSD-like @code{setenv(3)} is assumed
-
+        If your system has SysV-like  @code{putenv(3)} to set environment
+        variable.  When this is not defined, a BSD-like @code{setenv(3)}
+        is assumed
 @item -DHAS_LSTAT
-Use when your system has  @code{lstat(2)} in addition to the usual @code{stat(2)}
-
+        Use when your system has  @code{lstat(2)} in addition to the usual
+        @code{stat(2)}
 @item -DUSE_SOCKOPT
-Use when your system has a working  @code{setsockopt(2)} for @code{SO_RCVBUF},
-and @code{SO_SNDBUF}.
-Most systems do!
-This is a performace option, which @strong{might} help on busy systems
-
+        Use when your system has a working  @code{setsockopt(2)} for
+        @code{SO_RCVBUF}, and @code{SO_SNDBUF}.
+        Most systems do!
+        This is a performace option, which @strong{might} help on busy systems
 @item -DNBCONNECT
-The system can do a @code{connect(2)} on a socket, which has been flagged
-as non-blocking.  Without this connection to a system which is unreachable
-would cause system to hang for synchronous timeout...
-(Superceded with @strong{NBSTREAM})
-
+        The system can do a @code{connect(2)} on a socket, which has been
+        flagged as non-blocking.  Without this connection to a system which
+        is unreachable would cause system to hang for synchronous timeout...
+        (Superceded with @strong{NBSTREAM})
+@item -DNO_NBSTREAM
+        If for some reason you want to disable the non-blocking stream
+        code that uses following two defined, define this.
 @item -DNBSTREAM
-This compilation option allows for more complete non-blocking operations,
-including actual @code{write(2)}s.
-@strong{This is DEFAULT mode of operation!}
-
+        This compilation option allows for more complete non-blocking
+        operations, including actual @code{write(2)}s.
+        Defined in @file{consts.h}, unless @strong{-DNO_NBSTREAM} is
+        defined.
 @item -DUSE_XMIT_QUEUE
-Another flag which is necessary for successfull operation of NBSTREAM-code.
-(Without it the NBSTREAM-code causes bug_check()s..  DEFAULT MODE)
-
+        Another flag which is necessary for successfull operation of
+        NBSTREAM-code.
+        (Without it the NBSTREAM-code causes bug_check()s..)
+        Defined in @file{consts.h}, unless @strong{-DNO_NBSTREAM} is
+        defined.
 @item -DNO_GETTIMEOFDAY
-System internal time retrieval for various delay/speed-analysis uses
-uses (per default) BSD-derived(?)  @code{gettimeofday(2)}-call, but
-if your system does not have it, define this, and  @code{time(2)}
-will be used.
-
+        System internal time retrieval for various delay/speed-analysis
+        uses uses (per default) BSD-derived(?)  @code{gettimeofday(2)}-call,
+        but if your system does not have it, define this, and  @code{time(2)}
+        will be used.
 @item -DMAILERNAME="..."
-To override the default @var{MAILERNAME} (= "MAILER")
-in the @file{bmail.c} source.
+        To override the default @var{MAILERNAME} (= "MAILER")
+        in the @file{bmail.c} source.
 
-For normal use the @code{bmail}'s ``-u''-option does the same
-
+        For normal use the @code{bmail}'s ``-u''-option does the same
 @item -DCONFIG_FILE=...
-Override @file{consts.h} definition of system config file name
+        Override @file{consts.h} definition of system config file name
 
 @item -DPID_FILE=...
-Override @file{consts.h} definition of emulator process-id file name
-
-@item @emph{A set of IPC methods, choose one!}
-
-@item -DCOMMAND_MAILBOX_FIFO
-Uses named pipe (@code{mkfifo(2)}) for an emulator vs. user programs
-IPC channel.
-Fifo path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry
-
-
-@item (-DFIFO_0_READ)
-A subitem on @strong{-DCOMMAND_MAILBOX_FIFO} -- Do a @code{close(2)}/@code{open(2)}
-pair on a FIFO, when read from it returns 0.  Was needed for Linux 0.99pl13.
-
-@item -DCOMMAND_MAILBOX_SOCKET
-Uses @code{AF_UNIX}, @code{SOCK_STREAM} for the IPC channel.
-Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry
-
-@item -DCOMMAND_MAILBOX_UDP
-Uses @code{AF_INET}, @code{SOCK_DGRAM} for the IPC channel.
-Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
-entry (numeric), and it naturally must be on same machine, as the emulator
-runs.  This is only choice for cluster nodes
-
+        Override @file{consts.h} definition of emulator process-id file name
 @item -DBSD_SIGCHLDS
-Uses @code{BSD}-style @code{SIGCLD/SIGCHLD} handling where an signal
-trapper program is required to process the exited child information.
-On @code{SysV}-systems it is safe (it seems) to just ignore @code{SIGCLD}
-and that way to get rid of the zombied child.
-
+        Uses @code{BSD}-style @code{SIGCLD/SIGCHLD} handling where an signal
+        trapper program is required to process the exited child information.
+        On @code{SysV}-systems it is safe (it seems) to just ignore
+        @code{SIGCLD} and that way to get rid of the zombied child.
 @item @emph{Some compiler switches:}
 @item -fno-builtin
-A GNU-CC option telling it, that builtin accelerated operations should not
-be used. (Alignment may cause problems on some cases!) However we have
-a fairly high confidence that we have eliminated every case, where inlining
-a @code{memcpy(3)} could cause problems.  Try without it!
-(Possible problems manifest themselves as coredrops due to SIGBUS, as
- some memory accesses may become unaligned..)
-
+        A GNU-CC option telling it, that builtin accelerated operations
+        should not be used. (Alignment may cause problems on some cases!)
+        However we have a fairly high confidence that we have eliminated
+        every case, where inlining a @code{memcpy(3)} could cause problems.
+        Try without it!
+        (Possible problems manifest themselves as coredrops due to SIGBUS,
+        as some memory accesses may become unaligned..)
 @item @emph{Some more esoteric tricks:}
 @item -DDEBUG
-If you really want to see what goes on...  The amount of DEBUG-code
-is decreasing all the time, and frankly we haven't compiled the code
-with `-DDEBUG' for last 100 or so versions, we have just added
-`logger()'-calls into it at places needing it, and adjusted @var{LOGLEVEL}
-to get them into @var{LOGFILE}, and then commented or removed those loggers
-out again..  (Or used debuggers to get into the business..)
-
+        If you really want to see what goes on...  The amount of DEBUG-code
+        is decreasing all the time, and frankly we haven't compiled the code
+        with `-DDEBUG' for last 100 or so versions, we have just added
+        `logger()'-calls into it at places needing it, and adjusted
+        @var{LOGLEVEL} to get them into @var{LOGFILE}, and then commented
+        or removed those loggers out again..  (Or used debuggers to get into
+        the business..)
 @item -DUSE_ZMAILER -I/usr/local/include
-For @file{mailify.c} -- for tight integration with ZMailer MTA.
-(Expects ZMailer's  @file{libzmailer.a}, and @file{zmailer.h} to be
-available.  See ZMailer's @code{zmailer(3)} for further information)
-
+        For @file{mailify.c} -- for tight integration with ZMailer MTA.
+        (Expects ZMailer's  @file{libzmailer.a}, and @file{zmailer.h} to be
+        available.  See ZMailer's @code{zmailer(3)} for further information)
 @item -DUSE_OWN_PROTOS
-If the "prototypes.h" -function prototypes for various things can
-for your system, and your system does not have ANSI-headers of its
-own, then use this
+        If the "prototypes.h" -function prototypes for various things can
+        for your system, and your system does not have ANSI-headers of its
+        own, then use this
 @end table
 
 Several pre-tested compiler setups are also available in the @file{Makefile}.
 
 @c ================================================================
 @node Configuration, User programs, Installation, Top
-@chapter Configuration of FUNET-NJE package
+@chapter Configuration of FUNETNJE package
 
 @menu
 * funetnje.cf::         Runtime main configuration file
@@ -620,7 +592,7 @@ Here is a sample @file{/etc/funetnje.cf} -file:
 
 @example
 *
-*       Configuration file for FUNET-NJE program
+*       Configuration file for FUNETNJE program
 *
 
 NAME            FINFILES                      @i{Node primary name}
@@ -628,8 +600,9 @@ NAME            FINFILES                      @i{Node primary name}
 *IPADDRESS      nic.funet.fi                  @i{Node primary IP address}
 IPADDRESS       128.214.6.100                 @i{used on link signon msgs}
 QUEUE           /usr/spool/bitnet             @i{Emulator spool directory}
-CMDMAILBOX      /usr/spool/bitnet/.cmdpipe    @i{IPC Socket/Fifo -path}
-#CMDMAILBOX     128.214.6.100 175             @i{IPC IP-address + port number}
+CMDMAILBOX      F /usr/spool/bitnet/.cmdpipe  @i{IPC Fifo -path}
+#CMDMAILBOX     S /usr/spool/bitnet/.cmdpipe  @i{IPC Socket -path}
+#CMDMAILBOX     U 128.214.6.100 175           @i{IPC IP-address + port number}
 LOG             /usr/adm/bitnet.log           @i{Emulator log-file}
 LLEVEL          1                             @i{Logging level.  Smaller==less}
 RSCSACCT        /usr/adm/bitnet.acct          @i{Define for IBM RSCS-like account file}
@@ -638,7 +611,7 @@ TABLE           /usr/local/lib/nje/finfiles.routes   @i{NJE route database}
 * @i{EBCDIC<->ASCII tables, (optional), see ebcdictbl(5)}
 *EBCDICTBL      /usr/local/lib/nje/ebcdictbl
 INFORM          MEA@@FINFILES                  @i{1+ users monitoring line}
-INFORM          ROOT@@FINFILES                 @i{   states}
+INFORM          ROOT@@FINFILES                 @i{    states}
 FILEEXITS       /usr/local/lib/nje/file-exit.cf      @i{Defines  FILE-EXITs}
 MSGEXITS        /usr/local/lib/nje/msg-exit.cf       @i{Defines  MSG-EXITs}
 DEFFORM         STANDARD                      @i{NJE 'FORM' default}
@@ -650,44 +623,44 @@ DEFFORM         STANDARD                      @i{NJE 'FORM' default}
 LINE 0 FIGBOX                           @i{Key-line starting link definition}
  TYPE           UNIX_TCP                @i{Only supported value is  UNIX_TCP}
  BUFSIZE        4096                    @i{VMNET TTB size}
- TIMEOUT        3                       @i{3 is a good value..}
  IPPORT         500                     @i{Opposite end's VMNET's IP port}
 * TCPNAME       figbox.funet.fi         @i{Opposite end's name - as a comment}
  TCPNAME        128.214.6.7             @i{ .. or IP number ..}
- TCP-SIZE       8192                    @i{How much to block before write}
  MAX-STREAMS    7                       @i{Number of parellel streams}
+ TCP-SIZE       8192                    @i{How much to block before write}
+ TIMEOUT        3                       @i{.. and how long to wait to flush partial block?}
 
-*  @i{Example link to a Linux-PC running FUNET-NJE}
+*  @i{Example link to a Linux-PC running FUNETNJE}
 LINE 1 ALIJKU65
  TYPE           UNIX_TCP
  BUFSIZE        1024
- TIMEOUT        3
  IPPORT         175             @i{The official VMNET port}
 *TCPNAME        alijku65.edvz.uni-linz.ac.at
  TCPNAME        140.78.4.34
- TCP-SIZE       3100            @i{Lower than usual - network problems}
  MAX-STREAMS    7
+ TCP-SIZE       3100            @i{Lower than usual - network problems}
+ TIMEOUT        3
 
 *  @i{Example link to an IBM VM/SP RSCSv3 system with VMNET}
 LINE 2 FINHUTC
  TYPE           UNIX_TCP
  BUFSIZE        1024
- TIMEOUT        3
  IPPORT         175
 *TCPNAME        finhutc.hut.fi
  TCPNAME        130.233.224.4
- TCP-SIZE       8192
  MAX-STREAMS    7
+ TCP-SIZE       8192
+ TIMEOUT        3
 
-*  @i{Example link to a Convex C3480 running FUNET-NJE}
+*  @i{Example link to a Convex C3480 running FUNETNJE}
 LINE 3  FINFAN
  TYPE           UNIX_TCP
  BUFSIZE        8192
- TIMEOUT        3
  IPPORT         175
  TCPNAME        convex.csc.fi
- TCP-SIZE       8192
  MAX-STREAMS    7
+ TCP-SIZE       8192
+ TIMEOUT        3
 @end example
 
 @c ----------------------------------------------------------------
@@ -697,13 +670,16 @@ LINE 3  FINFAN
 This is @emph{wide} format configuration file (like they all), and
 can be used to define what is done with various incoming files.
 
+Comment lines are those that start with ``#'' or ``;'' on column 1.
+The ``*'' is a wild-card needed on patterns.
+
 Over-wide lines are wrapped @emph{in this document} with @code{\}-characters
 at the end of previous line, and at the begin of next line.
 Such wrapping is not allowed in the real configuration file!
 
 
 @example
-#  FILE-EXIT.CF -- Configure file handling on FUNET-NJE
+#  FILE-EXIT.CF -- Configure file handling on FUNETNJE
 #
 # Rule for spool disposition path, defines also system default
 # user spool directory for those who don't have specially set
@@ -793,6 +769,9 @@ NETINIT  FINFILES *        *        *   *   *        *        *          \
 This is @emph{wide} format configuration file (like they all), and
 can be used to define what is done with various incoming NMR's.
 
+Comment lines are those that start with ``#'' or ``;'' on column 1.
+The ``*'' is a wild-card needed on patterns.
+
 Over-wide lines are wrapped @emph{in this document} with @code{\}-characters
 at the end of previous line, and at the begin of next line.
 Such wrapping is not allowed in the real configuration file!
@@ -800,7 +779,7 @@ Such wrapping is not allowed in the real configuration file!
 
 @example
 #
-# MSG-EXIT.CF  for FUNET-NJE
+# MSG-EXIT.CF  for FUNETNJE
 #
 # Some first ideas about patterns, et.al.:
 #
@@ -885,7 +864,7 @@ which paths is defined in the @file{msg-exit.cf}.
 
 @example
 @cartouche
-Commands available for FUNET-NJE emulator:
+Commands available for FUNETNJE emulator:
    Help / HILfe / SOS - Three commands to ask for this info 
    Query SYStem       - Show line status summary report, and activity
    Query SYStem S     - Same as "Q SYS", but with extra activity data
@@ -912,7 +891,7 @@ This system has also NMR responding servers at addresses:
 @node routes,   , cmd-help.txt, Configuration
 @section BITNET node routing databases: @file{nje.routes}
 
-@emph{FUNET-NJE} uses @emph{IBM RSCSv1} compatible route
+@emph{FUNETNJE} uses @emph{IBM RSCSv1} compatible route
 files.  Used data-elements are @var{SITE}, and @var{LINE}
 definitions (second, and third tokens).
 
@@ -928,7 +907,7 @@ generated with @file{njeroutes} -command:
    @r{ Local override file:} @file{finfiles.header}
 @cartouche
 *
-*  Header of FUNET-NJE/HUyNJE package routing table
+*  Header of FUNETNJE/HUyNJE package routing table
 *
 *  Generic format:
 *       SITE    LINE    FORMAT
@@ -1052,7 +1031,7 @@ previous ones match to input punch records.
 For three PRINT formats there  are: PRINT (Machine Carriage Control),
 PASA (ANSI Carriage Control), and PCPDS for rare 3rd alternative.
 
-
+@page
 @c ----------------------------------------------------------------
 @node receive, sendfile, qrdr, User programs
 @section Receive files from spool: @file{receive}
@@ -1071,42 +1050,34 @@ in the user's spool directory, or (relative) path to a file.
 Options are as follows:
 @table @strong
 @item -n
-Don't delete the spool file, when processing completes successfully.
-
+        Don't delete the spool file, when processing completes successfully.
 @item -a
-Do forced translate of the file contents from EBCDIC to ASCII.
-(Despite of the spool file's class.)
-
+        Do forced translate of the file contents from EBCDIC to ASCII.
+        (Despite of the spool file's class.)
 @item -b
-Consider the file to be binary, only receive it, don't translate.
-
+        Consider the file to be binary, only receive it, don't translate.
 @item -d
-Debug outputs of the NJE spool file
-
+        Debug outputs of the NJE spool file
 @item -asa
-Affects PRINT files which contain MCC carriage control codes
-(see bitspool(5)) by translating them to FORTRAN-style carriage
-control.
-
+        Affects PRINT files which contain MCC carriage control codes
+        (see bitspool(5)) by translating them to FORTRAN-style carriage
+        control.
 @item -rawpun
-Outputs the file contents (usually 80 chars per record PUNCH records)
-as is without adding anything, nor translating it.
-
+        Outputs the file contents (usually 80 chars per record PUNCH records)
+        as is without adding anything, nor translating it.
 @item -bitraw
-????
-
+        Something from the earlier versions of these tools; output records
+        in format of <length>+<data,data,data,...>
 @item -bcat
-Output non-translated records in format:
+        Output non-translated records in format:
 @example
 <char of reclen> <chars of record>
 @end example
-
 @item -u @i{username}
-Look into @i{username}'s spool directory, instead of who invokes
-the command.
-
+        Look into @i{username}'s spool directory, instead of who invokes
+        the command.
 @item -o @i{outpath}
-Define output file, `-' denotes @var{STDOUT}.
+        Define output file, `-' denotes @var{STDOUT}.
 @end table
 
 Input files can be designated either with numeric spoolid, or
@@ -1121,18 +1092,18 @@ This program quintet is actually one binary with four invocation names.
 It behaves slightly differently with each name:
 @table @strong
 @item sendfile/sf
-Generates @emph{SYSOUT} @emph{PUNCH} file containing @emph{NETDATA}
-encoded contents of the original file, and submits it to transmission
-to a remote system.
+        Generates @emph{SYSOUT} @emph{PUNCH} file containing @emph{NETDATA}
+        encoded contents of the original file, and submits it to transmission
+        to a remote system.
 @item print/bitprt
-Generates @emph{SYSOUT} @emph{PRINT} file, and submits it to
-transmission to a remote system.
+        Generates @emph{SYSOUT} @emph{PRINT} file, and submits it to
+        transmission to a remote system.
 @item punch
-Generates @emph{SYSOUT} @emph{PUNCH} file, and submits it to
-transmission to a remote system.
+        Generates @emph{SYSOUT} @emph{PUNCH} file, and submits it to
+        transmission to a remote system.
 @item submit
-Generates @emph{SYSIN} batch job spool file, and submits it to
-transmission to a remote batch facility for further processing.
+        Generates @emph{SYSIN} batch job spool file, and submits it to
+        transmission to a remote batch facility for further processing.
 @end table
 
 Actual usage details are on the man-page.
@@ -1259,23 +1230,19 @@ no MTA exists at the node@dots{}
 Options are as follows:
 @table @strong
 @item -u origuser
-Defines the originating user, e.g. local @emph{MAILER}@dots{}
-Only @emph{super-user}, and @emph{daemon (uid=1)} can use this option.
-
+        Defines the originating user, e.g. local @emph{MAILER}@dots{}
+        Only @emph{super-user}, and @emph{daemon (uid=1)} can use this option.
 @item -v
-Request BSMTP `VERB ON' to be injected.  Sometimes usefull, when
-debugging some IBM CMS mailers.
-
+        Request BSMTP `VERB ON' to be injected.  Sometimes usefull, when
+        debugging some IBM CMS mailers.
 @item -tag RSCS-TAG
-Optional RSCS-TAG string to be passed to the transporter, usually
-not needed.
-
+        Optional RSCS-TAG string to be passed to the transporter, usually
+        not needed.
 @item -nd Gateway-address
-Send the email in NETDATA format -- implies also BSMTP.
-
+        Send the email in NETDATA format -- implies also BSMTP.
 @item -b(smtp) Gateway-address
-Make the file contents to be BSMTP -- that is, Batch SMTP.
-Without NETDATA the width limit is 80 chars.
+        Make the file contents to be BSMTP -- that is, Batch SMTP.
+        Without NETDATA the width limit is 80 chars.
 @end table
 
 The message content (along with its RFC-822 headers) is taken
@@ -1338,9 +1305,9 @@ BSMTP in NETDATA file.
   * - Not yet implemented,  % - obsoleted
 @end example
 
-Program for commanding the FUNET-NJE emulator to do various things.
+Program for commanding the FUNETNJE emulator to do various things.
 Successfull usage of this utility @emph{requires} that the user has
-supplementary group, which allows communication with the FUNET-NJE.
+supplementary group, which allows communication with the FUNETNJE.
 
 
 @c ----------------------------------------------------------------
@@ -1430,7 +1397,7 @@ Total records inserted: 2136, 0 duplicates in DUPLICATE.TMP
 
 UNIX-program that is able to dump VM/CMS RSCS-accounting records into
 ASCII format. (For various reasons that format was chosen as the
-accounting format of the FUNET-NJE as well.)
+accounting format of the FUNETNJE as well.)
 
 
 See file @file{rscsacct.format}  for the log-file format.
@@ -1438,10 +1405,10 @@ The ASCII-dump via @code{acctcat} is almoast identical.
 
 @c ================================================================
 @node Interfacing mailer, Nuts and Bolts, System programs, Top
-@chapter Interfacing ZMailer/smail/sendmail with FUNET-NJE
+@chapter Interfacing ZMailer/smail/sendmail with FUNETNJE
 
 Here are some instructions on how to interface various MTA-systems
-into the @emph{FUNET-NJE} package.
+into the @emph{FUNETNJE} package.
 
 There is a separate program (@emph{mailify}) responsible for
 incoming email processing, these are routers, and senders of
@@ -1459,7 +1426,7 @@ for generating the necessary  @emph{nodename->route}  mapping
 
 @c ----------------------------------------------------------------
 @node    ZMailer, smail, , Interfacing mailer
-@section Interfacing Toronto/FUNET ZMailer with FUNET-NJE
+@section Interfacing Toronto/FUNET ZMailer with FUNETNJE
 
 Doing this interface was easy due to vast amounts of easy
 to understand configurability of the @emph{ZMailer}@footnote{
@@ -1513,12 +1480,12 @@ searn            bsmtp3nd!mailer!searn
 which essentially mean:
 @table @emph
 @item academic
-Use @strong{bsmtp3}-channel, and send it to @strong{mailer@@academic}
+        Use @strong{bsmtp3}-channel, and send it to @strong{mailer@@academic}
 @item acusd
-Use @strong{defrt1}-channel, and send mail do @strong{$user@@acusd}
+        Use @strong{defrt1}-channel, and send mail do @strong{$user@@acusd}
 @item searn
-Use @strong{bsmtp3nd}-channel (bsmtp3 in NETDATA instead of PUNCH),
-and send it to @strong{mailer@@searn}
+        Use @strong{bsmtp3nd}-channel (bsmtp3 in NETDATA instead of PUNCH),
+        and send it to @strong{mailer@@searn}
 @end table
 
 That email routing database is built from @file{BITEARN NODES}-file
@@ -1571,37 +1538,34 @@ defrt1      snS   /usr/local/lib/nje/bmail bmail $g $u
 
 @c ----------------------------------------------------------------
 @node    smail, sendmail, ZMailer, Interfacing mailer
-@section Interfacing Smail3.0 with FUNET-NJE
+@section Interfacing Smail3.0 with FUNETNJE
 
 @emph{This information is from Gerald Hanusch <root@@alijku65.edvz.uni-linz.ac.at>}
 
 @emph{Relevant files are on subdirectory @file{smail-configs/} of the source
 directory.}
 
-In order to get SMAIL3.1.28 working with the FUNET-NJE emulator,
+In order to get SMAIL3.1.28 working with the FUNETNJE emulator,
 following steps are necessary:
 
 @enumerate
 @item
-Copy the BSMTP3, BSMTP3ND and DEFRT1 BASH scripts to your
-@var{SMAIL-LIBDIR}, e.g. @file{/usr/local/lib/smail/}
-
+        Copy the BSMTP3, BSMTP3ND and DEFRT1 BASH scripts to your
+        @var{SMAIL-LIBDIR}, e.g. @file{/usr/local/lib/smail/}
 @item
-Edit these 3 Scripts to fit your nje emulator installation,
-mainly the path to the @file{bmail} program coming with the emulator
-needs to be set properly.
-
+        Edit these 3 Scripts to fit your nje emulator installation,
+        mainly the path to the @file{bmail} program coming with the emulator
+        needs to be set properly.
 @item
-If you don't use a @file{routers} and @file{transports} file till now,
-because the compiled in defaults of SMAIL fit your needs,
-make a copy of these files to the @var{SMAIL-LIBDIR}.
-The source distribution of SMAIL comes with generic samples,
-which reflect the compiled-in configuration.
-
+        If you don't use a @file{routers} and @file{transports} file till now,
+        because the compiled in defaults of SMAIL fit your needs,
+        make a copy of these files to the @var{SMAIL-LIBDIR}.
+        The source distribution of SMAIL comes with generic samples,
+        which reflect the compiled-in configuration.
 @item
-Make an entry to @file{routers} file like below. Commonly between
-the entry which defines the @file{path} router and the @file{uucp-neighbors}
-router with the following lines
+        Make an entry to @file{routers} file like below.
+        Commonly between the entry which defines the @file{path}
+        router and the @file{uucp-neighbors} router with the following lines
 
 @example
 bitnet: driver=pathalias,
@@ -1613,18 +1577,18 @@ bitnet: driver=pathalias,
         domain=bitnet,
 @end example
 
-The position of the entries within @file{routers} file is significant.
-The decision, which path is taken, depends mainly on this position.
-Please consult the SMAIL doc, resp. man 5 smail for more info on this.
+        The position of the entries within @file{routers} file is significant.
+        The decision, which path is taken, depends mainly on this position.
+        Please consult the SMAIL doc, resp. man 5 smail for more info on this.
 
 @item
-Make a directory @file{methods} within @var{SMAIL-LIBDIR}.
-Copy the supplied @file{bitmethods} file into there.
+        Make a directory @file{methods} within @var{SMAIL-LIBDIR}.
+        Copy the supplied @file{bitmethods} file into there.
 
-Edit or generate a bitnet mailers routing table,
-and copy it to @var{SMAIL-LIBDIR}.
-It can be built from @file{BITEARN NODES}-file
-by use of @file{namesfilter}-program:
+        Edit or generate a bitnet mailers routing table,
+        and copy it to @var{SMAIL-LIBDIR}.
+        It can be built from @file{BITEARN NODES}-file
+        by use of @file{namesfilter}-program:
 @example
 # ./namesfilter -smail < bitearn.nodes | sort > routes.bitnet
 @end example
@@ -1635,36 +1599,31 @@ The table has the common pathalias format with following entries:
    destdomain   transportmethod!mailername!nodename!%s
 @end example
 
-where @emph{destdomain} is the domain within bitnet,
-@emph{transportmethod} is either bsmtp3, bsmtp3nd or defrt1,
-@emph{mailername} is the name of the remote mailer userid which
-receives email from bitnet, and
-@emph{nodename} is the bitnet node running the mailer
+        where @emph{destdomain} is the domain within bitnet,
+        @emph{transportmethod} is either bsmtp3, bsmtp3nd or defrt1,
+        @emph{mailername} is the name of the remote mailer userid which
+        receives email from bitnet, and
+        @emph{nodename} is the bitnet node running the mailer
 
-The `@emph{%s} behind the @emph{nodename} is not needed for our purposes,
-but is necessary to pass the syntax check. The meaning of the 3 transport
-methods is described in @file{bmail(8)} utility.
-
-
+        The `@emph{%s} behind the @emph{nodename} is not needed for our
+        purposes, but is necessary to pass the syntax check. The meaning
+        of the 3 transport methods is described in @file{bmail(8)} utility.
 @item
-Edit the @file{transports} file in @var{SMAIL-LIBDIR} by adding
-the entries bstmp3, bsmtp3nd, and defrt1.
-A sample is provided with the nje emulator package.
-
+        Edit the @file{transports} file in @var{SMAIL-LIBDIR} by adding
+        the entries bstmp3, bsmtp3nd, and defrt1.
+        A sample is provided with the nje emulator package.
 @item
-Add to your SMAIL - @file{config} file to the @emph{domains=}-line
-an entry for @emph{bitnet}, separated by a ":"
-
+        Add to your SMAIL - @file{config} file to the @emph{domains=}-line
+        an entry for @emph{bitnet}, separated by a ":"
 @item
-If the packages installed properly, reload smail configuration.
-Now it should be possible to deliver mail within BITNET using nje.
-
+        If the packages installed properly, reload smail configuration.
+        Now it should be possible to deliver mail within BITNET using nje.
 @end enumerate
 
 @c ----------------------------------------------------------------
 @node    sendmail,  ,  smail, Interfacing mailer
 @comment node-name,   next,  previous, up
-@section Interfacing BSD-sendmail with FUNET-NJE
+@section Interfacing BSD-sendmail with FUNETNJE
 
 @emph{This presentation is by the courtesy of mr.
 Jukka Ukkonen of CSC.FI, translation to english is
@@ -1773,31 +1732,26 @@ these make any sense/are corrent -- early September-94.}
 
 @c ----------------------------------------------------------------
 @node directories, cmdpipe,   , Nuts and Bolts
-@section Directory structure of the FUNET-NJE
+@section Directory structure of the FUNETNJE
 @c      - Directory structure
 
 @table @asis
 @item @file{/etc/funetnje.cf}
-Is the default location of the runtime system master configuration file.
-It defines all other files and directories used by this system.
-
+        Is the default location of the runtime system master configuration
+        file.  It defines all other files and directories used by this system.
 @item @file{/usr/local/funetnje/}
-A possible location to place system programs, which are used by the
-system only.
-
+        A possible location to place system programs, which are used by the
+        system only.
 @item @file{/usr/local/bin/}
-A possible location to place user-callable programs into.
-
+        A possible location to place user-callable programs into.
 @item @file{/usr/local/sbin/}
-A possible location to place sysmanager-callable programs into.
-
+        A possible location to place sysmanager-callable programs into.
 @item @file{/var/spool/bitnet/}
-Outgoing file spooling directory (and its subdirectories);
-defined on @file{/etc/funetnje.cf}.
-
+        Outgoing file spooling directory (and its subdirectories);
+        defined on @file{/etc/funetnje.cf}.
 @item @file{/var/spool/bitspool/}
-Incoming file spooling directory -- each user has his/her own subdir;
-defined on @file{/etc/funetnje.cf}.
+        Incoming file spooling directory -- each user has his/her own subdir;
+        defined on @file{/etc/funetnje.cf}.
 @end table
 
 @c ----------------------------------------------------------------
@@ -1810,26 +1764,44 @@ on how to use the client->emulator command channel.
 
 The coded alternatives are:
 @table @strong
-@item COMMAND_MAILBOX_UDP
-Propably the best alternative.  System allows UDP-dgram sending to
-just anybody, but not all can access (from filesystem) the necessary
-magic value to present authorization.
+@item UDP
+        Propably the best alternative.  System allows UDP-datagram sending to
+        just anybody, but not all can access (from filesystem) the necessary
+        magic value to present authorization.
 
-Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
-entry (numeric), and it naturally must be on same machine, as the emulator
-runs.  (Client reads the supposed peer address from that location.)
+        Socket IP address is taken from @file{/etc/funetnje.cf}
+        @var{CMDMAILBOX} entry (numeric), and it naturally must
+        be on same machine, as the emulator runs.
+        (Client reads the supposed peer address from that location.)
 
-@item COMMAND_MAILBOX_FIFO
-Uses named pipe for IPC -- not outmost reliable method, and can't grant
-universally working the same way on every machine.
+Example:
+@example
+CMDMAILBOX  U 127.0.0.1 175
+@end example
 
-Fifo path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry.
+@item FIFO
+        Uses named pipe for IPC -- not outmost reliable method, and can't
+        grant universally working the same way on every machine.
 
-@item COMMAND_MAILBOX_SOCKET
-An @code{AF_UNIX}/@code{SOCK_STREAM} socket; sort of named pipe on BSD world.
-Also somewhat system dependent.
+        Fifo path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry.
 
-Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry.
+Example:
+@example
+CMDMAILBOX  F /var/spool/bitnet/.cmdfifo
+@end example
+
+@item SOCKET
+        An @code{AF_UNIX}/@code{SOCK_STREAM} socket; sort of named pipe
+        on BSD world.    Also somewhat system dependent.
+
+        Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
+        entry.
+
+Example:
+@example
+CMDMAILBOX  S /var/spool/bitnet/.cmdsocket
+@end example
+
 @end table
 
 
@@ -1855,7 +1827,7 @@ magic tokens.
 
 @c ----------------------------------------------------------------
 @node spool format, netdata, iucvpipe, Nuts and Bolts
-@section FUNET-NJE Spool Format
+@section FUNETNJE Spool Format
 @c      - spool file format
 
 @emph{Straight copy of man-page: bitspool(5)}
@@ -1871,115 +1843,102 @@ share the same @strong{BITNET} node..
 Known @strong{ASCII} headers are:
 @table @asis
 @item @strong{FRM:} USERNAME@@HOSTNAME
-Mandatory (fall-back default: ``***@@****'').
-Uppercase-only data in fixed 17 chars wide field, left justified.
-
+        Mandatory (fall-back default: ``***@@****'').
+        Uppercase-only data in fixed 17 chars wide field, left justified.
 @item @strong{TOA:} USERNAME@@HOSTNAME
-Mandatory (fall-back default: ``POSTMAST@@<localname>'').
-Uppercase-only data in fixed 17 chars wide field, left justified.
-
+        Mandatory (fall-back default: ``POSTMAST@@<localname>'').
+        Uppercase-only data in fixed 17 chars wide field, left justified.
 @item @strong{FNM:} FILENAME
-Optional, default value: ``UNKNOWN''.
-Mixed-case alphanumeric data in fixed 12 chars wide field, left justified.
-
+        Optional, default value: ``UNKNOWN''.
+        Mixed-case alphanumeric data in fixed 12 chars wide field,
+        left justified.
 @item @strong{EXT:} FILEEXTN
-Optional, default value: ``DATA''.
-Mixed-case alphanumeric data in fixed 12 chars wide field, left justified.
-
+        Optional, default value: ``DATA''.
+        Mixed-case alphanumeric data in fixed 12 chars wide field,
+        left justified.
 @item @strong{TYP:} type
-Optional, defaults to ``PUNCH''.
-Controls physical device attribute on the outgoing NJE headers.
-When sending PRINT files, use @strong{TYP: PRINT}.
-When you want to send SYSIN jobs, use @strong{TYP: JOB},
-and if it is just a PUNCH something, use @strong{TYP: PUNCH}.
+        Optional, defaults to ``PUNCH''.
+        Controls physical device attribute on the outgoing NJE headers.
+        When sending PRINT files, use @strong{TYP: PRINT}.
+        When you want to send SYSIN jobs, use @strong{TYP: JOB},
+        and if it is just a PUNCH something, use @strong{TYP: PUNCH}.
 
-Recognized obsolete keywords for the TYP are:
-MAIL, BSMTP, FILE, and FASA, which are in reality synonyms for PUNCH,
-and PASA, which is synonym for PRINT.
+        Recognized obsolete keywords for the TYP are:
+        MAIL, BSMTP, FILE, and FASA, which are in reality synonyms for PUNCH,
+        and PASA, which is synonym for PRINT.
 
 @item @strong{CLS:} class
-Optional, defaulted by the @strong{TYP:}, if not defined.
-This is @strong{one} (1) uppercase alpha in range A-Z.
+        Optional, defaulted by the @strong{TYP:}, if not defined.
+        This is @strong{one} (1) uppercase alpha in range A-Z.
 
 @c .br
-Customary values are:
-MAIL, BSMTP files: M, NETDATA containing binary data: N,
-console printouts: O, all others: A.
-
+        Customary values are:
+        MAIL, BSMTP files: M, NETDATA containing binary data: N,
+        console printouts: O, all others: A.
 @item @strong{FOR:} FILEFORM
-Optional, recommended.
-If you don't want to see file-traversal notes from the network,
-BITNET style is to start the form name with two characters: "QU".
-That matches at "QUIET", "QUMAIL", ...
+        Optional, recommended.
+        If you don't want to see file-traversal notes from the network,
+        BITNET style is to start the form name with two characters: "QU".
+        That matches at "QUIET", "QUMAIL", ...
 
-System wide default is taken from
-@file{/etc/funetnje.cf DEFFORM}
-entry, and it often has value
-@strong{STANDARD}.
+        System wide default is taken from
+        @file{/etc/funetnje.cf DEFFORM}
+        entry, and it often has value
+        @strong{STANDARD}.
 
 @item @strong{FMT:} spool-format
-Mandatory (fall-back default: @strong{BINARY}).
+        Mandatory (fall-back default: @strong{BINARY}).
 
 @c .br
-@strong{BINARY} for all locally generated files, and for cases
-where the @strong{ASCII} headers have been mungled after
-the file was received from the network.
+        @strong{BINARY} for all locally generated files, and for cases
+        where the @strong{ASCII} headers have been mungled after
+        the file was received from the network.
 
 @c .br
-@strong{EBCDIC} denotes spool file which has been received
-from the network, and contains all possible data blocks in it.
-(Users will ignore all, but PUNCH, and PRINT records..)
-
+        @strong{EBCDIC} denotes spool file which has been received
+        from the network, and contains all possible data blocks in it.
+        (Users will ignore all, but PUNCH, and PRINT records..)
 @item @strong{FID:} 9900
-Mandatory, sender original spoolid; A number between 1, and 9900.
-File submitter should put "0000" in there, and delivery facility
-will do something about it.. When system picks up this field, it
-will assign there next spoolid from file sender's store, however
-network delivery uses ``@strong{OID:}'', which it assigns..
-
+        Mandatory, sender original spoolid; A number between 1, and 9900.
+        File submitter should put "0000" in there, and delivery facility
+        will do something about it.. When system picks up this field, it
+        will assign there next spoolid from file sender's store, however
+        network delivery uses ``@strong{OID:}'', which it assigns..
 @item @strong{OID:} 0000
-Mandatory, for spool-id allocation at the first time it is queued
-for delivery to somewhere remote.
-
+        Mandatory, for spool-id allocation at the first time it is queued
+        for delivery to somewhere remote.
 @item @strong{TAG:} RSCS-TAG-STRING
-Optional.
-The IBM NJE TAG string of 136 characters.
-
+        Optional.
+        The IBM NJE TAG string of 136 characters.
 @item @strong{DIS:} RSCS-DIST
-Optional.
-Fixed width, left justified 8 characters field of RSCS DIST information.
-Default: 
-``@strong{SYSTEM}''.
-
+        Optional.
+        Fixed width, left justified 8 characters field of RSCS DIST
+        information.    Default:  ``@strong{SYSTEM}''.
 @item @strong{REC:}  nnnn
-Highly preferred (almoast mandatory!)
-Tells the number of records of data; necessary to get job-header
-right on file transmission, altough not really mandatory for
-successfull file sending.  As the count of records isn't
-known before all are written (in the usual case), this entry
-is written at first to reserve space for later seek, and rewite
-with correct information.
-
+        Highly preferred (almoast mandatory!)
+        Tells the number of records of data; necessary to get job-header
+        right on file transmission, altough not really mandatory for
+        successfull file sending.  As the count of records isn't
+        known before all are written (in the usual case), this entry
+        is written at first to reserve space for later seek, and rewite
+        with correct information.
 @item @strong{JNM:} JOBNAME
-Optional.
-Contains NJE job name (8 characters).
-
+        Optional.
+        Contains NJE job name (8 characters).
 @item @strong{PRT:} prtfiles@@tonode
-Optional.
-For @strong{SYSIN} jobs this defines alternate address for sending
-the job PRINT outputs to. 
-Default is taken from ``@strong{FRM:}''.
-
+        Optional.
+        For @strong{SYSIN} jobs this defines alternate address for sending
+        the job PRINT outputs to. 
+        Default is taken from ``@strong{FRM:}''.
 @item @strong{PUN:} punfiles@@tonode
-Optional.
-For @strong{SYSIN} jobs this defines alternate address for sending
-the job PUNCH outputs to.
-Default is taken from ``@strong{FRM:}''.
-
+        Optional.
+        For @strong{SYSIN} jobs this defines alternate address for sending
+        the job PUNCH outputs to.
+        Default is taken from ``@strong{FRM:}''.
 @item @strong{END:}
-Mandatory.
-Ends the @strong{ASCII}-portion of the headers.
-Terminating newline must be immediately after the colon character.
+        Mandatory.
+        Ends the @strong{ASCII}-portion of the headers.
+        Terminating newline must be immediately after the colon character.
 @end table
 
 With all (except @strong{END:}) above header tags there must be
@@ -2064,20 +2023,15 @@ english: Form-Feed..)
 
 @table @emph
 @item Jump to next page
-ASA: `1', Pre-MCC: X'8B'
-
+        ASA: `1', Pre-MCC: X'8B'
 @item Overwrite; Defined only in pre-write.   
-ASA: `\+', MCC: X'01'
-
+        ASA: `\+', MCC: X'01'
 @item Write and advance one line
-ASA: Space, Pre-MCC: X'0B', Post-MCC: X'09'
-
+        ASA: Space, Pre-MCC: X'0B', Post-MCC: X'09'
 @item Write and advance twolines
-ASA: `0', Pre-MCC: X'13', Post-MCC: X'11'
-
+        ASA: `0', Pre-MCC: X'13', Post-MCC: X'11'
 @item Write and advance three lines
-ASA: `-', Pre-MCC: X'1B', Post-MCC: X'19'
-
+        ASA: `-', Pre-MCC: X'1B', Post-MCC: X'19'
 @end table
 
 
@@ -2104,9 +2058,9 @@ The @emph{parser} understands following NETDATA keys:
 
         Record-kind info is ignored.
 @item INMLRECL
-        If LRECL exceeds 65534, it is complained, but not aborted.
+        If LRECL exceeds 65534, it is complained about, but not aborted.
 @item INMSIZE
-        SIZE (in XXX units) is ignored.
+        SIZE (in bytes) is ignored.
 @item INMNUMF
         NUMF (what??) is ignored.
 @item INMFACK
@@ -2115,11 +2069,11 @@ The @emph{parser} understands following NETDATA keys:
 @item INMTERM
         This flag of PROFS NOTE message is noted, but ignored.
 @item INMFTIME
-        This file creation(?) timestamp is analyzed, and provided for
-        user for possible action.
+        This file's last modification timestamp is analyzed, and provided
+        for user for possible action.
 @item INMCREAT
-        This file creation(?) timestamp is analyzed, and provided for
-        user for possible action.
+        This file creation timestamp is analyzed, and provided for user
+        for possible action.
 @item INMDSNAM
         The originating system dataset name (esp. on MVS systems)
         is saved for possible user action.
@@ -2169,7 +2123,7 @@ following datas:
         A true RECFM (user supplied) is stored onto INMR02-record.
 @item INMSIZE
         File size in bytes is stored.
-@item IBMDSNAM
+@item INMDSNAM
         Here a dataset name is stored in style of: "A Filename Fileext"
 
         The first letter is always "A", and then comes one or two

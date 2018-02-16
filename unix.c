@@ -22,7 +22,7 @@
 #include "consts.h"
 #include "headers.h"
 #include "prototypes.h"
-#ifdef	COMMAND_MAILBOX_SOCKET /* AF_UNIX stream */
+#ifdef	AF_UNIX
 #include <sys/un.h>
 #endif
 #ifdef	AIX
@@ -55,8 +55,12 @@ struct	TIMER	{			/* The timer queue		*/
 #define	EXPLICIT_ACK	0
 #define	DELAYED_ACK	2		/* In accordance with PROTOOCL */
 
+
+typedef enum {CMD_SOCKET, CMD_UDP, CMD_FIFO, CMD_FIFO0, CMD_UNKNOWN} cmdbox_t;
+static cmdbox_t cmdbox = CMD_UNKNOWN;
+
 static void  auto_restart_lines __(( void ));
-static void  parse_op_command __(( const int *fd ));
+static void  parse_op_command __(( int *fd ));
 static void  parse_file_queue __(( const int fd ));
 
 extern int	sys_nerr;	/* Maximum error number recognised */
@@ -77,11 +81,6 @@ init_command_mailbox()
 	char	path[LINESIZE];
 	struct stat dstat;
 
-#if	defined(COMMAND_MAILBOX_FIFO) /* FIFO based method */
-
-	char *s;
-	int rc;
-	
 	/* We need a random number soon.. */
 #ifdef	USG
 	srand((unsigned int)time(NULL));
@@ -89,112 +88,121 @@ init_command_mailbox()
 	srandom(time(NULL));
 #endif
 
-	s = strrchr(COMMAND_MAILBOX,'/');
-	if (s) {
-	  unlink(COMMAND_MAILBOX);
-	  rc = mkfifo(COMMAND_MAILBOX,S_IFIFO|0660);
-	  *s = 0;
-	  if (rc==0 && stat(COMMAND_MAILBOX,&dstat) == 0) {
-	    *s = '/';
-	    chown(COMMAND_MAILBOX,0,dstat.st_gid);
-	    chmod(COMMAND_MAILBOX,0660);
+	cmdbox = CMD_UNKNOWN;
+
+	if (*COMMAND_MAILBOX == 'F' ||
+	    *COMMAND_MAILBOX == 'f') {
+
+	  char *s;
+	  int rc;
+
+	  s = strrchr(COMMAND_MAILBOX+1,'/');
+	  if (s) {
+	    unlink(COMMAND_MAILBOX+1);
+	    rc = mkfifo(COMMAND_MAILBOX+1,S_IFIFO|0660);
+	    *s = 0;
+	    if (rc==0 && stat(COMMAND_MAILBOX+1,&dstat) == 0) {
+	      *s = '/';
+	      chown(COMMAND_MAILBOX+1,0,dstat.st_gid);
+	      chmod(COMMAND_MAILBOX+1,0660);
+	    } else {
+	      logger(1,"UNIX: Can't mkfifo() COMMAND_MAILBOX, or no directory!  Error: %s\n",PRINT_ERRNO);
+	      exit(9);
+	    }
 	  } else {
-	    logger(1,"UNIX: Can't mkfifo() COMMAND_MAILBOX, or no directory!  Error: %s\n",PRINT_ERRNO);
-	    exit(9);
-	  }
-	} else {
 	    logger(1,"UNIX: Command mailbox not configured!\n");
 	    exit(8);
-	}
+	  }
 
-	CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
+	  CommandSocket = open(COMMAND_MAILBOX+1,O_RDONLY|O_NDELAY,0);
 
+	  if (*COMMAND_MAILBOX == 'f')
+	    cmdbox = CMD_FIFO0;
+	  else
+	    cmdbox = CMD_FIFO;
+
+	  /* End of FIFO-case */
+
+	} else if (*COMMAND_MAILBOX == 'S') /* AF_UNIX SOCKET */ {
+
+#ifndef AF_UNIX
+	  logger(1,"UNIX: AF_UNIX socket for CMDMAILBOX is not available on this platform!\n");
+	  exit(8);
 #else
-#if	defined(COMMAND_MAILBOX_SOCKET)	/* AF_UNIX, SOCK_STREAM */
 
-	int i;
-	struct	sockaddr_un	SocketName;
+	  int i;
+	  struct sockaddr_un	SocketName;
 
-	/* We need a random number soon.. */
-#ifdef	USG
-	srand((unsigned int)time(NULL));
-#else
-	srandom(time(NULL));
+	  /* Create a local socket */
+	  if ((CommandSocket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+	    logger(1, "UNIX, Can't create command socket, error: %s\n",
+		   PRINT_ERRNO);
+	    exit(1);
+	  }
+
+	  unlink(COMMAND_MAILBOX+1);  /* in case there is one from
+					 previous run.. */
+	  bzero((char *) &SocketName, sizeof(SocketName));
+
+	  /* Now, bind a local name for it */
+	  SocketName.sun_family = AF_UNIX;
+	  strcpy(SocketName.sun_path, COMMAND_MAILBOX+1);
+
+	  i = sizeof(SocketName.sun_family) + strlen(SocketName.sun_path);
+	  if (bind(CommandSocket, (struct sockaddr *)&SocketName, i) < 0) {
+	    logger(1, "UNIX, Can't bind command socket, error: %s\n",
+		   PRINT_ERRNO);
+	    exit(1);
+	  }
+	  if (listen(CommandSocket, 2) < 0) {
+	    logger(1, "UNIX, Can't listen to command socket, error: %s\n",
+		   PRINT_ERRNO);
+	    exit(1);
+	  }
+
+	  cmdbox = CMD_SOCKET;
 #endif
+	} else if (*COMMAND_MAILBOX == 'U') /* UDP */ {
 
-	/* Create a local socket */
-	if ((CommandSocket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-	  logger(1, "UNIX, Can't create command socket, error: %s\n",
-		 PRINT_ERRNO);
-	  exit(1);
-	}
+	  u_int32 iaddr;
+	  struct	sockaddr_in	SocketName;
+	  int portnum;
+	  int on = 1;
 
-	unlink(COMMAND_MAILBOX);  /* if there is one from previous run ... */
-	bzero((char *) &SocketName, sizeof(SocketName));
 
-	/* Now, bind a local name for it */
-	SocketName.sun_family = AF_UNIX;
-	strcpy(SocketName.sun_path, COMMAND_MAILBOX);
+	  /* Create a local socket */
+	  if ((CommandSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	    logger(1, "UNIX, Can't create command socket, error: %s\n",
+		   PRINT_ERRNO);
+	    exit(1);
+	  }
 
-	i = sizeof(SocketName.sun_family) + strlen(SocketName.sun_path);
-	if (bind(CommandSocket, (struct sockaddr *)&SocketName, i) < 0) {
-	  logger(1, "UNIX, Can't bind command socket, error: %s\n",
-		 PRINT_ERRNO);
-	  exit(1);
-	}
-	if (listen(CommandSocket, 2) < 0) {
-	  logger(1, "UNIX, Can't listen to command socket, error: %s\n",
-		 PRINT_ERRNO);
-	  exit(1);
-	}
+	  setsockopt(CommandSocket, SOL_SOCKET, SO_REUSEADDR,
+		     (char*)&on, sizeof(on));
 
-#else
-#if	defined(COMMAND_MAILBOX_UDP)	/* AF_INET, SOCK_DGRAM */
-
-	u_int32 iaddr;
-	struct	sockaddr_in	SocketName;
-	int portnum;
-	int on = 1;
-
-	/* We need a random number soon.. */
-#ifdef	USG
-	srand((unsigned int)time(NULL));
-#else
-	srandom(time(NULL));
-#endif
-
-	/* Create a local socket */
-	if ((CommandSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-	  logger(1, "UNIX, Can't create command socket, error: %s\n",
-		 PRINT_ERRNO);
-	  exit(1);
-	}
-
-	setsockopt(CommandSocket, SOL_SOCKET, SO_REUSEADDR,
-		   (char*)&on, sizeof(on));
-
-	/* Now, bind a local name for it */
-	memset(&SocketName,0,sizeof SocketName);
-	SocketName.sin_family      = AF_INET;
-	SocketName.sin_addr.s_addr = htonl(INADDR_ANY);
-	iaddr = inet_addr(COMMAND_MAILBOX);
-	if (iaddr != 0xFFFFFFFFL)
+	  /* Now, bind a local name for it */
+	  memset(&SocketName,0,sizeof SocketName);
+	  SocketName.sin_family      = AF_INET;
+	  SocketName.sin_addr.s_addr = htonl(INADDR_ANY);
+	  iaddr = inet_addr(COMMAND_MAILBOX+1);
+	  if (iaddr != 0xFFFFFFFFL)
 	  SocketName.sin_addr.s_addr = iaddr;
-	portnum = 175;
-	sscanf(COMMAND_MAILBOX,"%*s %d", &portnum);
-	SocketName.sin_port        = htons(portnum);
+	  portnum = 175;
+	  sscanf(COMMAND_MAILBOX+1,"%*s %d", &portnum);
+	  SocketName.sin_port        = htons(portnum);
 
-	if (bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
-	  logger(1, "UNIX, Can't bind command socket, error: %s\n",
-		 PRINT_ERRNO);
-	  exit(1);
+	  if (bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
+	    logger(1, "UNIX, Can't bind command socket, error: %s\n",
+		   PRINT_ERRNO);
+	    exit(1);
+	  }
+
+	  cmdbox = CMD_UDP;
+
+	} else {
+	  logger(1, "UNIX: Unknown CMDMAILBOX method (S=Socket, F=Fifo, U=UDP are known!)\n");
+	  exit(8);
 	}
-
-#else
-  :::: error	"MISSING COMMAND_MAILBOX DEFINITION!"  ::::
-#endif
-#endif
-#endif
 
 	sprintf(path,"%s/.socket.key",BITNET_QUEUE);
 	unlink(path);
@@ -822,7 +830,7 @@ logger(1,"parse_file_queuer(): Queue file \"%s\" siz=%d\n",line+3,FileSize);
 	  }
 	  ++file_queuer_cnt;
 	}
-	if (rc < 1) {
+	if (rc < 1) /* -1 (=err), or 0 (=EOF) */ {
 	  close(file_queuer_pipe);
 	  file_queuer_pipe = -1;
 logger(1, "parse_file_queuer() cnt=%d\n", file_queuer_cnt);
@@ -836,59 +844,54 @@ logger(1, "parse_file_queuer() cnt=%d\n", file_queuer_cnt);
  */
 static void
 parse_op_command(CommandSocket)
-const int *CommandSocket;
+int *CommandSocket;
 {
 	char	*p, line[LINESIZE];
-	int	size;
+	int	size = 0;
 
+	if (cmdbox == CMD_FIFO || cmdbox == CMD_FIFO0) {
 
-#if	defined(COMMAND_MAILBOX_FIFO)
-
-	if ((size = read(*CommandSocket, line, sizeof line)) < 0) {
-	  logger(1,"UNIX: CommandSocket read failed: %s\n",PRINT_ERRNO);
-	  return;
-	}
-
-#ifdef	FIFO_0_READ
-	if (size == 0) {
-	  close(*CommandSocket);
-	  *CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
-	  return;
-	}
-#endif
-
-#else
-#if	defined(COMMAND_MAILBOX_SOCKET)
-
-	int	NewSock, i;
-	struct  sockaddr_un  cli_addr;
-
-	i = sizeof(cli_addr);	
-
-	if ((NewSock = accept(*CommandSocket,
-			     (struct sockaddr *)&cli_addr, &i)) < 0) {
-	  logger(1,"UNIX: Can't Accept control connection !\n");
-	  return;
-	} else {	
-	
-	  if ((size = read(NewSock, &line, sizeof line)) < 0) {
-	    logger(1,"UNIX: Can't read from control socket !\n");
+	  if ((size = read(*CommandSocket, line, sizeof line)) < 0) {
+	    logger(1,"UNIX: CommandSocket read failed: %s\n",PRINT_ERRNO);
+	    return;
 	  }
-	  close(NewSock);
-	}
 
+	  if (cmdbox == CMD_FIFO0) {
+	    if (size == 0) {
+	      close(*CommandSocket);
+	      *CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
+	      return;
+	    }
+	  }
+	} else if (cmdbox == CMD_SOCKET) {
+#ifndef AF_UNIX
+	  bug_check("UNIX: CMDMAILBOX has accepted SOCKET mode without AF_UNIX!\n");
 #else
-#if	defined(COMMAND_MAILBOX_UDP)
 
-	if ((size = recv(*CommandSocket, line, sizeof line, 0)) <= 0) {
-	  perror("Recv");
-	  return;
+	  int	NewSock, i;
+	  struct  sockaddr_un  cli_addr;
+	  
+	  i = sizeof(cli_addr);	
+
+	  if ((NewSock = accept(*CommandSocket,
+				(struct sockaddr *)&cli_addr, &i)) < 0) {
+	    logger(1,"UNIX: Can't Accept control connection !\n");
+	    return;
+	  } else {	
+
+	    if ((size = read(NewSock, &line, sizeof line)) < 0) {
+	      logger(1,"UNIX: Can't read from control socket !\n");
+	    }
+	    close(NewSock);
+	  }
+#endif
+	} else if (cmdbox == CMD_UDP) {
+
+	  if ((size = recv(*CommandSocket, line, sizeof line, 0)) <= 0) {
+	    perror("Recv");
+	    return;
+	  }
 	}
-#else
-  ::: error	"COMMAND MAILBOX METHOD NOT DEFINED!" :::
-#endif
-#endif
-#endif
 
 	logger(5,"UNIX: COMMAND_MAILBOX received %d bytes.\n",size);
 

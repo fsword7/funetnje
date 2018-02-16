@@ -61,8 +61,7 @@ read_configuration()
 	  if (*line == 0) continue; /* Blank line */
 
 	  *KeyWord = 0; *param1 = 0; *param2 = 0; *param3 = 0;
-	  sscanf(line, "%s %s %s %s", KeyWord,
-		 param1, param2, param3);
+	  sscanf(line, "%s %s %s %s", KeyWord, param1, param2, param3);
 
 	  if (strcasecmp(KeyWord, "USEREXITS") == 0) {
 	    strcpy(USER_EXITS, param1);
@@ -70,9 +69,10 @@ read_configuration()
 	    strcpy(BITNET_QUEUE, param1);
 	  } else if (strcasecmp(KeyWord, "CMDMAILBOX") == 0) {
 	    strcpy(COMMAND_MAILBOX, param1);
-	    if (*param2 != 0) {
+	    strcat(COMMAND_MAILBOX, param2);
+	    if (param3[0] != 0) {
 	      strcat(COMMAND_MAILBOX, " ");
-	      strcat(COMMAND_MAILBOX, param2);
+	      strcat(COMMAND_MAILBOX, param3);
 	    }
 	  } else if (strcasecmp(KeyWord, "NAME") == 0) {
 	    strcpy(LOCAL_NAME, param1);

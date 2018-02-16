@@ -1222,7 +1222,7 @@ const char	*UserName, opt;
 	register struct LINE	*Line;
 	int activecnt = 0;
 
-	logger(1, "** IO, Debug-rescan-queue called by user %s, opt: `%c'\n", UserName,opt);
+	logger(1, "** IO: Debug-rescan-queue called by user %s, opt: `%c'\n", UserName,opt);
 
 	for (i = 0; i < MAX_LINES; i++) {
 	  Line = &(IoLines[i]);
@@ -1235,9 +1235,18 @@ const char	*UserName, opt;
 	}
 
 	if (opt != '-') {
-	  logger(1, "** IO, Memory freed, starting queue scan\n");
-	  init_files_queue();
-	  logger(1, "** IO, Queue scan done.\n");
+	  logger(1, "** IO: Starting queue scan\n");
+	  i = init_files_queue(); /* -1: Pipe-queue running
+				      0: Pipe started
+				      1: Sync queueing completed */
+	  if (i > 0) {
+	    logger(1, "** IO: Queue scan done.\n");
+	  } else if (i == 0)
+	    logger(1, "** IO: Queue scan started.\n");
+	  else {
+	    logger(1, "** IO: Queue scan already running.\n");
+	    return;
+	  }
 	} else {
 	  logger(1, "** IO: no queue rescan executed!\n");
 	}

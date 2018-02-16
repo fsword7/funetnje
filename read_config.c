@@ -359,12 +359,21 @@ read_configuration()
 		  break;
 	    }
 	  } else if (strcasecmp(KeyWord, "CMDMAILBOX") == 0) {
-	    strncpy(COMMAND_MAILBOX, param1, sizeof COMMAND_MAILBOX);
-	    if (*param2 != 0) {
+	    strcpy(COMMAND_MAILBOX, param1);
+	    if (*param2 == 0) {
+	      printf("CMDMAILBOX missing mandatory argument: %s\n", line);
+	      return 0;
+	    }
+	    strcat(COMMAND_MAILBOX, param2);
+	    if (*param3 != 0) {
 	      strcat(COMMAND_MAILBOX, " ");
-	      strcat(COMMAND_MAILBOX, param2);
+	      strcat(COMMAND_MAILBOX, param3);
 	    }
 	    ThingsRead |= CMDMAILBOX;
+	    if (strlen(COMMAND_MAILBOX) >= sizeof(COMMAND_MAILBOX)) {
+	      printf("CMDMAILBOX CONTENT TOO LARGE FOR INTERNAL STORAGE!\n");
+	      exit(99);
+	    }
 	  } else if (strcasecmp(KeyWord, "QUEUE") == 0) {
 	    strncpy(BITNET_QUEUE, param1, sizeof BITNET_QUEUE);
 	    if (!(ThingsRead & CMDMAILBOX)) {

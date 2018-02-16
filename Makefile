@@ -57,26 +57,6 @@
 #	If your system MAILER is to be called something else, than "MAILER":
 #	-DMAILERNAME="$SYSMAIL"
 #
-#	Pick only one of following four COMMAND_MAILBOX methods:
-#	-DCOMMAND_MAILBOX_FIFO
-#			Uses named pipe (mkfifo()) for an IPC channel.
-#			Uses also special 32-bit signature prefix on commands
-#			to ensure authenticity..
-#	-DFIFO_0_READ	Do a close()/open() pair on a FIFO when read from
-#			fifo returns 0.  On Linux0.99pl13 at least.
-#	-DCOMMAND_MAILBOX_SOCKET
-#			Use  AF_UNIX, SOCK_STREAM for command channel instead
-#			of named pipe (mkfifo()) stuff.
-#			Uses also special 32-bit signature prefix on commands
-#			to ensure authenticity..
-#			Can be controlled by  `CMDMAILBOX' entry in the
-#			`funetnje.cf' -file.  Default  INADDR_LOOPBACK.
-#	-DCOMMAND_MAILBOX_UDP
-#			Use  AF_INET, SOCK_DGRAM  for command channel...
-#			Uses also special 32-bit signature prefix on commands
-#			to ensure authenticity..
-#
-#
 #	Define following for Zmailer as a system mailer, othervice will use
 #	/usr/lib/sendmail to send the email..  Needed ONLY by  mailify.c
 #		-DUSE_ZMAILER -I/usr/local/include
@@ -96,8 +76,7 @@
 # Convex OS V10.2 -- very POSIX.1 beast indeed..
 #CC     = gcc -fno-builtin -fpcc-struct-return
 #CPP    = gcc -E
-#CDEFS  = -O -D_POSIX_SOURCE -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT
-#     Using  -DCOMMAND_MAILBOX_FIFO  didn't work..
+#CDEFS  = -O -D_POSIX_SOURCE  -DHAS_LSTAT
 #CFLAGS = -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -115,7 +94,7 @@ CC=gcc -Wall -O6 #-fno-builtin
 #CC=cc -migrate -D__alpha__
 #CC=cc -D__alpha__
 CPP=gcc -E
-CDEFS=  -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
+CDEFS=  -DBSD_SIGCHLDS -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
 CFLAGS= -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 MAILIFY=mailify
@@ -133,7 +112,7 @@ INSTALL=installbsd
 #   for compilation to succeed without pains..
 #CC=gcc -Wall -D__STDC__=0
 #CPP=gcc -E
-#CDEFS=  -O -I. -DUSG -DUSE_POLL -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
+#CDEFS=  -O -I. -DUSG -DUSE_POLL -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
 #CFLAGS= -g $(CDEFS)
 ## Have MAILIFY compiled by uncommenting following ones:
 ##MAILIFY=mailify
@@ -150,9 +129,9 @@ INSTALL=installbsd
 # SunOS --  GNU-CC 2.4.5 on SPARC SunOS 4.1.3
 #CC=gcc -Wall #-fno-builtin
 #CPP=gcc -E
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV
+#CDEFS=  -O -DBSD_SIGCHLDS -DHAS_LSTAT -DHAS_PUTENV
 #CFLAGS= -g $(CDEFS)
-## Have MAILIFY compiled by uncommenting following ones:
+# Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
 #MAILIFYCFLAGS= $(CFLAGS) -DUSE_ZMAILER -I/usr/local/include
 #LIBMAILIFY= -lzmailer
@@ -166,7 +145,7 @@ INSTALL=installbsd
 # SunOS -- SunOS 4.1.3 bundled cc
 #CC=cc
 #CPP=/lib/cpp
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV
+#CDEFS=  -O -DBSD_SIGCHLDS -DHAS_LSTAT -DHAS_PUTENV
 #CFLAGS=  $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -180,7 +159,7 @@ INSTALL=installbsd
 #INSTALL=install
 
 # Linux 1.2.x  (w/o using -D_POSIX_SOURCE)
-#CDEFS= -O6 -DCOMMAND_MAILBOX_DGRAM -DHAS_LSTAT -DHAS_PUTENV
+#CDEFS= -O6 -DHAS_LSTAT -DHAS_PUTENV
 #CC=gcc
 #CPP=gcc -E
 #CFLAGS= -g $(CDEFS)

@@ -638,7 +638,7 @@ struct	LINE *line;
 	  /* If we read 0 characters, it usually signals that other
 	     side closed the connection */
 	  if (size == 0 /*&& Line->RecvSize == 0*/) {
-	    logger(1,"UNIX_TCP: Zero characters read. Disabling line %s, errno = %d\n",
+	    logger(1,"UNIX_TCP: Zero characters read - TCP's way to report EOF. Disabling line %s, errno = %d\n",
 		   Line->HostName,lerrno);
 	    Line->state = INACTIVE;
 	    restart_channel(Index); /* Will close line and put

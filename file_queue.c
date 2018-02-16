@@ -157,7 +157,7 @@ struct QUEUE *Entry;
  | If it points to a Null byte, then this is not the first call, and the
  | find-file routine already has the parameters in its internal variables.
  */
-void
+int
 init_files_queue()
 {
 	int	i = -1, pid;
@@ -175,21 +175,24 @@ init_files_queue()
 #ifdef	UNIX
 	pipes[0]  = -1;
 	pid = -1;
-	sync_mode = pipe(pipes);
-	if (file_queuer_pipe >= 0)
-	  /* close(file_queuer_pipe); */
-	  return; /* ALREADY RUNNING! */
 
-	file_queuer_pipe = pipes[0];
-	file_queuer_cnt = 0;
-
+	sync_mode = (pipe(pipes) < 0);
 	if (!sync_mode) {
 
 	  extern FILE *LogFd;
 
+	  if (file_queuer_pipe >= 0)
+	    close(file_queuer_pipe);
+#if 0
+	  return -1; /* ALREADY RUNNING! */
+#endif
+
+	  file_queuer_pipe = pipes[0];
+	  file_queuer_cnt = 0;
+
 	  if ((pid = fork()) > 0) {
 	    close(pipes[1]);
-	    return;	/* Parent.. */
+	    return 0;	/* Parent.. */
 	  }
 
 	  /* Child -- detach all except the submit-pipe */
@@ -273,6 +276,7 @@ init_files_queue()
 	  _exit(0);
 	} else
 	  logger(1,"FILE_QUEUE: Sync-mode file queuer done. Submitted %d files.\n",filecnt);
+	return 1;
 }
 
 

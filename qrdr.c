@@ -5,7 +5,8 @@
  |  Options:								|
  |	-u user		(default is invoker)				|
  |	-n		(give return code != 0 if pending files)	|
- |      -l		(list original filenames in front if other data)|
+ |      -l		(list original filenames in front if other data,|
+ |                       and file arrival date (UNIX ctime) to spool.)  |
  |	dirpath		(point to directory to search)			|
  |	filepath	(point to file to search)			|
  |									|
@@ -29,7 +30,7 @@ FILE *LogFd = NULL;
 extern char DefaultSpoolDir[256];
 extern char DefaultPOSTMASTdir[256];
 
-extern	int	dump_header __(( char const *path, char const *dirpath ));
+extern	int	dump_header __(( char const *path, char const *dirpath, const time_t mtime ));
 extern	void	usage __(( void ));
 
 char	WhoAmI[10] = "";
@@ -45,6 +46,17 @@ int	FilesFound = 0;
 int	LongList = 0;	/* -l prints also filenames in front of other data */
 int	Debug = 0;
 
+struct namedate {
+	char	*name;
+	time_t	mtime;
+};
+
+static int cmpnamedate(p1,p2)
+const struct namedate *p1, *p2;
+{
+  return (p1->mtime) - (p2->mtime);
+}
+
 static int
 study_dir(dirpath)
 char *dirpath;
@@ -53,6 +65,9 @@ char *dirpath;
 	DIRENTTYPE *dirp;
 	struct stat fstat;
 	char curdir[MAXPATHLEN];
+	struct namedate *namedates = NULL;
+	int entryspace = 0;
+	int entrycount = 0;
 	int rc;
 
 #if	defined(USG)
@@ -75,12 +90,35 @@ char *dirpath;
 	for (dirp = readdir(dirfile);
 	     dirp != NULL;
 	     dirp = readdir(dirfile)) {
-		stat(dirp->d_name,&fstat);
-		/* printf("QRDR: dirfile: `%s'\n",dirp->d_name); */
-		/* if (strcmp(dirp->d_name,".spoolid")== 0)
-		   continue; */ /* old, obsolete.. */
-		if ((fstat.st_mode & S_IFMT) == S_IFREG)
-		  rc |= dump_header(dirp->d_name,dirpath);
+	  if (stat(dirp->d_name,&fstat) != 0)
+	    continue;
+	  /* printf("QRDR: dirfile: `%s'\n",dirp->d_name); */
+	  /* if (strcmp(dirp->d_name,".spoolid")== 0)
+	     continue; */ /* old, obsolete.. */
+	  if ((fstat.st_mode & S_IFMT) == S_IFREG) {
+	    if (entryspace == 0) {
+	      entryspace  = 8;
+	      namedates = (struct namedate*)malloc(sizeof(struct namedate) *
+						   entryspace);
+	    } else if (entrycount >= entryspace) {
+	      entryspace += 8;
+	      namedates = (struct namedate*)realloc(namedates,
+						    sizeof(struct namedate) *
+						    entryspace);
+	    }
+	    namedates[entrycount].name = strdup(dirp->d_name);
+	    namedates[entrycount].mtime = fstat.st_mtime;
+	    ++entrycount;
+	  }
+	}
+	if (entrycount > 0) {
+	  int i;
+	  qsort(namedates,entrycount,sizeof(struct namedate),cmpnamedate);
+	  for (i = 0; i < entrycount; ++i) {
+	    rc |= dump_header(namedates[i].name, dirpath, namedates[i].mtime);
+	    free(namedates[i].name);
+	  }
+	  free(namedates);
 	}
 	closedir(dirfile);
 	chdir(curdir);
@@ -201,7 +239,7 @@ main(argc,argv)
 	      continue;			/* Bad name ? Skip it */
 	    }
 	    if ((fstat.st_mode & S_IFMT) == S_IFREG)
-	      dump_header(*argv,"");
+	      dump_header(*argv,"",fstat.st_mtime);
 	    else if ((fstat.st_mode & S_IFMT) == S_IFDIR)
 	      study_dir(*argv);
 	    else {
@@ -260,9 +298,10 @@ static  unsigned char VMSDUMP[12] =
 	{ 0xFF,0x0D,0x00,'V','M','S','D','U','M','P',' ','V' };
 
 int
-dump_header(path,dirpath)
+dump_header(path,dirpath,mtime)
      char const *path;
      char const *dirpath;
+     const time_t mtime;
 {
 	int	rc;
 	char	FileName[20], FileExt[20], From[20], To[20], Class;
@@ -359,10 +398,16 @@ dump_header(path,dirpath)
 	if (LongList) {
 	  int len = strlen(dirpath);
 	  char last = len ? dirpath[len-1] : 0;
-	  printf("%s%s%s\t%s\t%s\t%s\t%s\t%s\t%s\t%c\t%s\t%s\n",
+	  char cdatestr[20];
+	  struct tm *tp = gmtime(&mtime);
+	  sprintf(cdatestr,"%04d%02d%02d%02d%02d%02d",
+		  tp->tm_year+1900,tp->tm_mon+1,tp->tm_mday,
+		  tp->tm_hour,tp->tm_min,tp->tm_sec);
+	  printf("%s%s%s\t%s\t%s\t%s\t%s\t%s\t%s\t%c\t%s\t%s\t%s\n",
 		 dirpath, (last=='/') ? "":"/", path,
 		 ContentsType,
-		 From,To,FileName,FileExt,TypeStr,Class,Form,SpoolID);
+		 From,To,FileName,FileExt,TypeStr,Class,Form,SpoolID,
+		 cdatestr);
 	} else
 	  printf("%-17s %-17s %-8.8s %-8.8s %-3s %c %-8.8s %s\n",
 		 From,To,FileName,FileExt,TypeStr,Class,Form,SpoolID);

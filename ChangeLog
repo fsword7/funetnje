@@ -1,3 +1,36 @@
+Tue Jun 13 09:13:18 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* qrdr.c:
+	    Collect directory browsing results to an array at first,
+	    then qsort() it with the time-stamp, and finally display
+	    them in order. (Latest last)
+	    (This is something what Gerald Hanush asked for.)
+
+Mon Jun 12 22:44:00 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* file_queue.c:
+	    Apparently OSF/1 pipe() return value is the first
+	    fd, not "0", when it succeeds.  Nice thing - and not..
+	    Altered the test to see if it returns a value under
+	    zero, or something positive.  When the return is
+	    positive (zero, or larger), fork() and run in
+	    child-mode.
+
+	    If a child_pipe exists already ( >= 0 ), close
+	    it and mark the new one for processing.
+
+	* libreadcfg.c, read_config, libsendcmd.c, unix.c:
+	    Rewrote things so that now the used CMDMAILBOX
+	    transport method is chosen at runtime:
+
+	    CMDMAILBOX  F  /path/to/.cmdfifo
+	    CMDMAILBOX  f  /path/to/.cmdfifo
+	    CMDMAILBOX  S  /path/to/.cmdsocket
+	    CMDMAILBOX  U  127.0.0.2 175	# UDP port
+
+	    The "f" is FIFO which is closed, and reopened
+	    every time one command is pulled in.
+
 Sun Jun 11 03:12:06 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* namesparser.c:
