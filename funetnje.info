@@ -14,50 +14,50 @@ non-commercial use without prior agreenment.
 
 Indirect:
 funetnje.info-1: 443
-funetnje.info-2: 50210
+funetnje.info-2: 50255
 
 Tag Table:
 (Indirect)
 Node: Top443
 Node: Support1248
-Node: History1976
-Node: Introduction3909
-Node: BITNET-II7674
-Node: Installation13389
-Node: Configuration19109
-Node: funetnje.cf19611
-Node: file-exit.cf23077
-Node: msg-exit.cf27754
-Node: cmd-help.txt32414
-Node: routes33928
-Node: User programs35922
-Node: qrdr36691
-Node: receive38725
-Node: sendfile40239
-Node: send41084
-Node: bitsend42291
-Node: bitreceive42540
-Node: ygone42726
-Node: iucvtrap42947
-Node: transfer43198
-Node: System programs43379
-Node: bmail44019
-Node: mailify45200
-Node: ucp46082
-Node: namesfilter47612
-Node: njeroutes48650
-Node: acctcat49075
-Node: Interfacing mailer49506
-Node: Zmailer50210
-Node: smail53766
-Node: sendmail56611
-Node: Nuts and Bolts59640
-Node: directories60166
-Node: cmdpipe61046
-Node: iucvpipe61324
-Node: spool format61504
-Node: netdata69102
-Node: emulator logics69283
-Node: Literature69417
+Node: History2506
+Node: Introduction4439
+Node: BITNET-II8204
+Node: Installation13919
+Node: Configuration19820
+Node: funetnje.cf20322
+Node: file-exit.cf23788
+Node: msg-exit.cf28465
+Node: cmd-help.txt33176
+Node: routes34690
+Node: User programs36684
+Node: qrdr37453
+Node: receive39487
+Node: sendfile41001
+Node: send41899
+Node: bitsend43106
+Node: bitreceive43355
+Node: ygone43541
+Node: iucvtrap43762
+Node: transfer44013
+Node: System programs44617
+Node: bmail45257
+Node: mailify46438
+Node: ucp47320
+Node: namesfilter48850
+Node: njeroutes49830
+Node: acctcat50255
+Node: Interfacing mailer50686
+Node: Zmailer51390
+Node: smail54948
+Node: sendmail57958
+Node: Nuts and Bolts61100
+Node: directories61626
+Node: cmdpipe62496
+Node: iucvpipe62774
+Node: spool format62954
+Node: netdata70543
+Node: emulator logics70724
+Node: Literature70858
 
 End Tag Table

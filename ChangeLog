@@ -1,3 +1,19 @@
+Mon Apr 24 08:48:51 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* sendfile.c:
+	    A bit stricter processing of target address - to ensure that
+	    it follows the 8+8 limits of NJE..
+
+	* transfer.c:
+	    Check that the file-path given to us is absolute -- that is,
+	    it starts with "/".
+
+	* consts.h, io.c vmnet_monitor():
+	    "VMNET MONITOR" probe interval changed to 60 seconds,
+	    and full timeout to 4*60 seconds.
+	    Now ONE slow-responding case (like temporary connectivity
+	    breakdown) won't break the link.
+
 Fri Apr 21 11:23:23 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* unix.c, util.c:

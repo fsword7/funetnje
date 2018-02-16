@@ -12,6 +12,39 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 non-commercial use without prior agreenment.
 
 
+File: funetnje.info,  Node: acctcat,  Prev: njeroutes,  Up: System programs
+
+`acctcat' - Utility to dump the RSCS-accounting records
+=======================================================
+
+     Synopsis:
+       acctcat /path/to/rscs/acct-file
+
+   UNIX-program that is able to dump VM/CMS RSCS-accounting records into
+ASCII format. (For various reasons that format was chosen as the
+accounting format of the FUNET-NJE as well.)
+
+
+File: funetnje.info,  Node: Interfacing mailer,  Next: Nuts and Bolts,  Prev: System programs,  Up: Top
+
+Interfacing Zmailer/smail/sendmail with FUNET-NJE
+*************************************************
+
+   Here are some instructions on how to interface various MTA-systems
+into the *FUNET-NJE* package.
+
+   There is a separate program (*mailify*) responsible for incoming
+email processing, these are routers, and senders of BITNET email
+(*bmail*), and there is route database generator for generating the
+necessary  *nodename->route*  mapping (*namesfilter*).
+
+* Menu:
+
+* Zmailer::     Interfacing Toronto/FUNET Zmailer
+* smail::       Interfacing smail3.0
+* sendmail::    Interfacing BSD sendmail
+
+
 File: funetnje.info,  Node: Zmailer,  Next: smail,  Up: Interfacing mailer
 
 Interfacing Toronto/FUNET Zmailer with FUNET-NJE
@@ -64,7 +97,7 @@ use of `namesfilter' -program:
    Unlike the original Toronto `namesfilter'-package, this does not
 take `BITEARN DOMAINS', or `XMAILER NAMES'.
 
-   Channels are defined in `$MAILSHARE/scheduler.cf', in which these
+   Channels are defined in `$MAILSHARE/scheduler.conf', in which these
 five are defined as:
      ...
      defrt1/*
@@ -108,6 +141,12 @@ File: funetnje.info,  Node: smail,  Next: sendmail,  Prev: Zmailer,  Up: Interfa
 
 Interfacing Smail3.0 with FUNET-NJE
 ===================================
+
+   *This information is from Gerald Hanusch
+<root@alijku65.edvz.uni-linz.ac.at>*
+
+   *Relevant files are on subdirectory `smail-configs/' of the source
+directory.*
 
    In order to get SMAIL3.1.28 working with the FUNET-NJE emulator,
 following steps are necessary:
@@ -181,6 +220,9 @@ Interfacing BSD-sendmail with FUNET-NJE
 
    *This presentation is by the courtesy of mr.  Jukka Ukkonen of
 CSC.FI, translation to english is by Matti Aarnio*
+
+   *See source-tree subdirectory `sendmail-configs/' for the way how
+Paul Bryant <P.Bryant@rl.ac.uk> did this.*
 
    Somewhere in the begin of the `sendmail.cf':
      # Bitnet route table (overriding default routes)
@@ -264,24 +306,28 @@ File: funetnje.info,  Node: directories,  Next: cmdpipe,  Up: Nuts and Bolts
 Directory structure of the FUNET-NJE
 ====================================
 
-   * `/etc/funetnje.cf' Is the default location of the runtime system
-     master configuration file.  It defines all other files and
-     directories used by this system.
+`/etc/funetnje.cf'
+     Is the default location of the runtime system master configuration
+     file.  It defines all other files and directories used by this
+     system.
 
-   * `/usr/local/funetnje/' A possible location to place system
-     programs, which are used by the system only.
+`/usr/local/funetnje/'
+     A possible location to place system programs, which are used by the
+     system only.
 
-   * `/usr/local/bin/' A possible location to place user-callable
-     programs into.
+`/usr/local/bin/'
+     A possible location to place user-callable programs into.
 
-   * `/usr/local/sbin/' A possible location to place
-     sysmanager-callable programs into.
+`/usr/local/sbin/'
+     A possible location to place sysmanager-callable programs into.
 
-   * `/var/spool/bitnet/' Outgoing file spooling directory (and its
-     subdirectories); defined on `/etc/funetnje.cf'.
+`/var/spool/bitnet/'
+     Outgoing file spooling directory (and its subdirectories); defined
+     on `/etc/funetnje.cf'.
 
-   * `/var/spool/bitspool/' Incoming file spooling directory - each
-     user has his/her own subdir; defined on `/etc/funetnje.cf'.
+`/var/spool/bitspool/'
+     Incoming file spooling directory - each user has his/her own
+     subdir; defined on `/etc/funetnje.cf'.
 
 
 File: funetnje.info,  Node: cmdpipe,  Next: iucvpipe,  Prev: directories,  Up: Nuts and Bolts
@@ -343,9 +389,10 @@ non-homogenous hardware in clusters which share the same *BITNET* node..
 
 *CLS:* class
      Optional, defaulted by the *TYP:*, if not defined.  This is *one*
-     (1) uppercase alpha in range A-Z.  %.br Customary values are:
-     MAIL, BSMTP files: M, NETDATA containing binary data: N, console
-     printouts: O, all others: A.
+     (1) uppercase alpha in range A-Z.
+
+     Customary values are: MAIL, BSMTP files: M, NETDATA containing
+     binary data: N, console printouts: O, all others: A.
 
 *FOR:* FILEFORM
      Optional, recommended.  If you don't want to see file-traversal
@@ -356,10 +403,13 @@ non-homogenous hardware in clusters which share the same *BITNET* node..
      entry, and it often has value *STANDARD*.
 
 *FMT:* spool-format
-     Mandatory (fall-back default: *BINARY*).  %.br *BINARY* for all
-     locally generated files, and for cases where the *ASCII* headers
-     have been mungled after the file was received from the network.
-     %.br *EBCDIC* denotes spool file which has been received from the
+     Mandatory (fall-back default: *BINARY*).
+
+     *BINARY* for all locally generated files, and for cases where the
+     *ASCII* headers have been mungled after the file was received from
+     the network.
+
+     *EBCDIC* denotes spool file which has been received from the
      network, and contains all possible data blocks in it.  (Users will
      ignore all, but PUNCH, and PRINT records..)
 

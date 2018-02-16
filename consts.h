@@ -291,7 +291,7 @@ typedef enum {
 #endif
 #define	T_STATS_INTERVAL 3600	/* Compute each T_STATS_INT seconds.	*/
 #define	T_AUTO_RESTART_INTERVAL 60 /* Retry granularity is 1 minute.	*/
-#define T_VMNET_INTERVAL	120 /* "VMNET MONITOR" interval.        */
+#define T_VMNET_INTERVAL	60 /* "VMNET MONITOR" interval.         */
 
 /* General status */
 #define	G_INACTIVE	0	/* Not active or not allowed */

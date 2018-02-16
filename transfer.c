@@ -165,6 +165,11 @@ Args:  [-t] Destin@Address absolute-filepath\n\
 	Destin = argv[1];
 	path  = argv[2];
 
+	if (*path != '/') {
+	  printf("TRANSFER: given file to be trasnferred is NOT an ABSOLUTE path: \"%s\"\n",path);
+	  exit(4);
+	}
+
 	read_configuration();
 	/* read_etable() */  /* Not needed if we don't mess
 				with the real headers..		  */

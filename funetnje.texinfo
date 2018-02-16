@@ -118,8 +118,8 @@ Academic version of this software is available from:
 @emph{Academic version of this software comes AS-IS without
         any guarantees of working for any particular purpose,
         or that it is bug-free, or that it won't cause trouble,
-        loss of valuable data, @dots{} -- for short, you are
-        on your own.}
+        loss of valuable data, etc. -- for short, you are
+        essentially on your own.}
 
 Like all Academic software, there might come up a bugfix, or
 improvement sometimes, but such effort being non-funded, and
@@ -135,6 +135,9 @@ Then corresponding via address: @emph{funetnje@@nic.funet.fi}
 
 @emph{Remember: LIST administrativia goes via mailserver!}
 
+When registering this software to your @emph{BITNET}-node,
+I request that you use name: @strong{FUNETNJE}
+
 
 @c Developement continues under the company  @emph{IBiS Support OY}
 @c founded by Matti Aarnio
@@ -142,6 +145,14 @@ Then corresponding via address: @emph{funetnje@@nic.funet.fi}
 @c for producing customized editions of this software for parties
 @c who want to pay for the customization service, or just for timely
 @c implementation/bug-fixing something.
+
+If you want to pay for hand-holding service/timely bugfixing,
+special customizations, etc. please contact author:
+@itemize
+@item @emph{<mea@@nic.funet.fi>}
+@end itemize
+
+
 
 
 @c ================================================================
@@ -468,9 +479,14 @@ The @file{Makefile} has variable @var{NJEGRP} for it.
 Directories for your BITNET transmission spool, and user spool.
 @emph{Important: those must be on same partition!}
 
-Example configurations have them as: @file{/var/spool/bitnet}
-(@emph{QUEUEDIR}), and @file{/var/spool/bitspool}
-(@emph{USERSPOOL}).
+Example configurations have them as:
+@itemize
+@item @emph{QUEUEDIR}
+@file{/var/spool/bitnet}
+
+@item @emph{USERSPOOL}
+@file{/var/spool/bitspool}
+@end itemize
 
 @item
 Location of various programs, @file{Makefile} has variables:
@@ -1099,11 +1115,11 @@ path(s) to the file(s).
 This program quintet is actually one binary with four invocation names.
 It behaves slightly differently with each name:
 @table @strong
-@item sendfile
+@item sendfile/sf
 Generates @emph{SYSOUT} @emph{PUNCH} file containing @emph{NETDATA}
 encoded contents of the original file, and submits it to transmission
 to a remote system.
-@item print
+@item print/bitprt
 Generates @emph{SYSOUT} @emph{PRINT} file, and submits it to
 transmission to a remote system.
 @item punch
@@ -1114,6 +1130,7 @@ Generates @emph{SYSIN} batch job spool file, and submits it to
 transmission to a remote batch facility for further processing.
 @end table
 
+Actual usage details are on the man-page.
 @strong{**T.B.W.**}
 
 @c ----------------------------------------------------------------

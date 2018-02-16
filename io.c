@@ -1061,8 +1061,8 @@ vmnet_monitor()
 	time_t now, timelim;
 
 	now = time(NULL);
-	timelim = now - (T_VMNET_INTERVAL << 1); /* Timelimit is twice
-						    the probe interval */
+	timelim = now - (T_VMNET_INTERVAL << 2); /* Timelimit is four times the
+						    probe interval (4 mins) */
 
 	sprintf(vmnet_from,"VMNET@%s", LOCAL_NAME);
 

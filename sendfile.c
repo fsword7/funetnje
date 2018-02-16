@@ -259,9 +259,15 @@ char	*argv[];
 	      lrecl = 8192; /* BINARY is wider.. */
 
 	  } else if (**argv != '-' && *To == 0) {
-	    strcpy(To, *argv);
-	    if (strchr(To,'@')==NULL) {
-	      sprintf(To,"%s@%s",*argv,LOCAL_NAME);
+	    char *s;
+	    strncpy(To, *argv, sizeof(To)-1);
+	    if ((s = strchr(To,'@'))==NULL) {
+	      To[8] = 0;
+	      sprintf(To+strlen(To),"@%s",LOCAL_NAME);
+	    } else {
+	      *s++ = 0;
+	      To[8] = 0;
+	      sprintf(To+strlen(To),"@%s",s);
 	    }
 	  } else
 	    break;

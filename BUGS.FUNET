@@ -9,6 +9,9 @@
 - Line-oriented operator-commands should be per link NAME,
   not its number!
 
+- bmail.c, et.al.: Have common library routine that will ensure
+  that BITNET addresses follow strict 8+8 rule.
+
 - An "IUCVTRAP" mechanism is needed
 
 - SOMETIMES there is memory leakage/refree on message-queue chains.
@@ -23,9 +26,6 @@
 - send.c/io.c: need more complete tests on what user (even SU) has put
   on the 'sender address'..  A "send -u @ addr@somenode text" should not
   produce totally void NMR..
-
-- sendfile.c -utility needs argument verify -- having "POSTMASTER@FINHUTC"
-  to be truncated to "POSTMASTER@FINHUT" did cause various surprises..
 
 - Better queue management -- when primary link to system X
   goes down, all files destined to it should be redirected
