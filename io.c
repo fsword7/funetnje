@@ -1184,10 +1184,11 @@ const int length;
 	      }
 	      /* The sender includes only the username.
 		 Add @LOCAL-NAME to it. */
-	      i = strlen(Faddress);
-	      if (Faddress[0] != '@')
+	      if (strchr(Faddress,'@') == NULL) {
+		i = strlen(Faddress);
 		Faddress[i++] = '@';
-	      strcpy(&Faddress[i], LOCAL_NAME);
+		strcpy(&Faddress[i], LOCAL_NAME);
+	      }
 	      if (*line == CMD_SEND_MESSAGE) {
 
 		/* If there is no @ in the Taddress,

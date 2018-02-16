@@ -23,7 +23,7 @@ qrdr -u NETINIT -l |		\
 	    if [ "$fn.$ft" = "FINFILES.NETINIT" ]; then
 		echo "FINFILES.NETINIT: " $fname $datatype \
 			$src $dest $fn.$ft $class
-		ndparse $N -a -o ${NJEDIR}/finfiles.netinit $fname	&& \
+		receive $N -a -o ${NJEDIR}/finfiles.netinit $fname	&& \
 		{   # Received most successfully the NETINIT file
 		    echo "Ndparse ok, generating routes.."
 		    (cd ${NJEDIR} ; ./njeroutes finfiles.header finfiles.netinit finfiles.routes)
@@ -35,7 +35,7 @@ qrdr -u NETINIT -l |		\
 		echo "XMAILER.NAMES: " $fname $datatype $src \
 			$dest $fn.$ft $class
 
-		ndparse $N -a -o XMAILER.NAMES $fname		&& \
+		receive $N -a -o XMAILER.NAMES $fname		&& \
 		{   # Received XMAILER.NAMES successfully.
 		    make
 		    cp routes.bitnet ../db
@@ -45,7 +45,7 @@ qrdr -u NETINIT -l |		\
 		echo "DOMAIN.NAMES: " $fname $datatype $src \
 			$dest $fn.$ft $class
 
-		ndparse $N -a -o DOMAIN.NAMES $fname		&& \
+		receive $N -a -o DOMAIN.NAMES $fname		&& \
 		{   # Received DOMAIN.NAMES successfully.
 		    rm routes.bitnet
 		    make

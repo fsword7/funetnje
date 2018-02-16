@@ -65,7 +65,7 @@ Mon Feb 21 10:49:06 1994  Matti Aarnio  (mea@nic.funet.fi)
 	    to the POSTMAST for processing.
 
 	* bintree.c, bmail.c, unix_msgs.c, main.c, transfer.c:
-	    A set of changes from Gerald Hanush to quiet down
+	    A set of changes from Gerald Hanusch to quiet down
 	    compiler warnings.
 
 	* send.c:
@@ -195,7 +195,7 @@ Mon Jan 31 08:53:51 1994  Matti Aarnio  (mea@nic.funet.fi)
 
 	* nmr.c, unix_routes.c:
 	    Found out a mysterious inactivity problem with ALIJKU65,
-	    where Gerald Hanush has thought that
+	    where Gerald Hanusch has thought that
 			UCP ROUTE ALIJKU29 to DEFAULT
 	    will send it via the default route..
 	    Took several precautions on finding bogons from the route
@@ -302,7 +302,7 @@ Fri Jan 14 10:26:49 1994  Matti Aarnio  (mea@nic.funet.fi)
 
 	* io.c init_link_state(), file_queue.c many routines:
 	    Queue rip-up/duplicate check as prompted by
-	    mr. Hanush.
+	    mr. Hanusch.
 	    Aarnio's work contain hash_*() -routines to locate
 	    any file from any queue -- assuming we know the
 	    unique file hash value..
@@ -1159,8 +1159,8 @@ Tue Oct 19 01:12:29 1993  Matti Aarnio  (mea@nic.funet.fi)
 	    Added `askack' option into INMR01 generation.
 
 	* nmr.c: list_users()
-	    Gerald Hanush:  Proper version of  CPQ U <username>
-			    command behaviour.
+	    Gerald Hanusch:  Proper version of  CPQ U <username>
+			     command behaviour.
 
 	* netdata-parse.c:
 	    Major rewrite so that it understands segmented
@@ -1171,7 +1171,7 @@ Mon Oct 18 14:05:12 1993  Matti Aarnio  (mea@nic.funet.fi)
 
 	* recv_file.c: parse_headers()
 	    Teach some more manners for the incoming envelope parsing
-	    (By Gerald Hanush) -- MVS TSO is pecular kind of system.
+	    (By Gerald Hanusch) -- MVS TSO is pecular kind of system.
 
 	* main.c: bug_check()
 	    Inform users also!

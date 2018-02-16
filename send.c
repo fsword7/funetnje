@@ -25,7 +25,8 @@
 #include "prototypes.h"
 #include "clientutils.h"
 
-#define LINESIZE 256
+#define LINESIZE 512
+#define MAXTEXTSIZE 80 /* Should be able to use at least 103 chars.. */
 #define CMD_MSG 0
 #define CMD_CMD 1
 
@@ -40,6 +41,7 @@ usage()
 char LOCAL_NAME   [10];
 char BITNET_QUEUE [80];
 char LOG_FILE     [80] = "-";	/* STDERR as the default */
+int silent_wordwrap = 0;
 
 int LogLevel = 1;
 FILE *LogFd = NULL;
@@ -51,7 +53,10 @@ main(cc, vv)
 char	**vv;
 int	cc;
 {
-	char	text[LINESIZE], address[LINESIZE], from[32], *p;
+	char	text[LINESIZE];
+	char	address[32];
+	char	from[32];
+	char	*p;
 	int	type = 0,	/* Message or command */
 		mode = 0;	/* Interactive or not */
 	struct stat stdstats;
@@ -90,7 +95,7 @@ int	cc;
 	if (strcasecmp(*vv,"-s") == 0) {
 	  ++vv;
 	  --cc;
-	  strcpy(from,"@");
+	  sprintf(from,"@%s",LOCAL_NAME);
 	  if (getuid() >= LuserUidLevel) {
 	    type = -1;
 	    fprintf(stderr,"SEND: -s option requires priviledges!\n");
@@ -126,6 +131,7 @@ int	cc;
 	      printf("_Address: ");
 	    if (fgets(address, sizeof address, stdin)== NULL) /* EOF */
 	      exit(0);
+	    address[sizeof(address)-1] = 0; /* Make sure it fills only so much.. */
 	    if ((p = strchr(address, '\n')) != NULL) *p = '\0';
 	    mode = 1;		/* Interactive mode */
 	    if (*address == 0) continue;	/* Blank address.. */
@@ -144,11 +150,15 @@ int	cc;
 	  }
 	} else {		/* Get the available parameters */
 	  if (!*vv) {
-	    fprintf(stderr,"Mandatory parameter (target address) is missing!\n");
+	    fprintf(stderr,
+		    "Mandatory parameter (target address) is missing!\n");
 	    exit(9);
 	  }
 
-	  strcpy(address, *vv); /* We have at least the address there */
+	  strncpy(address, *vv, sizeof(address)); /* We have at least
+						     the address there */
+	  address[sizeof(address)-1] = 0;	  /* Make sure it fills
+						     only so much.. */
 	  ++vv;
 	  --cc;
 
@@ -166,13 +176,20 @@ int	cc;
 	    mode = 1;		/* Interactive mode */
 	  }
 	  else {		/* Reconstruct the parameters as the text */
+	    char *tout = text;
+	    int  charspace = sizeof(text)-2;
 	    *text = '\0';
 	    while (cc > 0 && *vv) {
-	      strcat(text, *vv);
-	      strcat(text, " ");
+	      char *s = *vv;
+	      while (*s && charspace > 0) {
+		*tout++ = *s++;
+		--charspace;
+	      }
+	      if (vv[1] != NULL && charspace > 0)  /* More to come ? */
+		*tout++ = ' ';
+	      *tout = 0;
 	      ++vv; --cc;
 	    }
-	    text[strlen(text) - 1] = '\0'; /* Remove the last blank */
 	  }
 	}
 
@@ -196,8 +213,9 @@ int	cc;
 	  if (!noprompt)
 	    printf("%s: ", address);
 	  *text = 0;
-	  if (fgets(text, sizeof text, stdin) == NULL)
+	  if (fgets(text, sizeof(text)-1, stdin) == NULL)
 	    break;		/* EOF */
+	  text[sizeof(text)-1] = 0;
 	  if ((p = (char*)strchr(text, '\n')) != NULL) *p = '\0';
 	  send_nje(type, from, address, text);
 	}
@@ -210,12 +228,13 @@ send_nje(type, from, address, text)
 int	type;
 char	*from, *address, *text;
 {
-	char	line[LINESIZE], *p;
+	char	line[140], *p;
 	int	size;
+	int	textlen, addrlen;
 
 	/* Remove all controls */
 	for (p = text; *p != '\0'; p++)
-	  if((*p < ' ') || (*p > 126)) *p = ' ';
+	  if ((*p < ' ') || (*p > 126)) *p = ' ';
 
 	if (type == CMD_CMD) {
 	  /* Uppercase the message's text */
@@ -230,17 +249,48 @@ char	*from, *address, *text;
 	else			/* Address already has @ */
 	  sprintf(&line[2], "%s %s ", from, address);
 
+	addrlen = strlen(line+2);
+
 	/* Upper-case the addresses.
 	   If this is a command - uppercase it also */
 	upperstr(line+2);
 	if (type == CMD_CMD)
 	  upperstr(text);
 
-	line[1] = strlen(&line[2]) + 2;	/* Where the text begins */
-	strcat(&line[2], text);
+	textlen = strlen(text);
 
-	size = strlen(&line[1]) + 2;	/* 2 for the command code, and string
-					   end NULL */
+	line[1] = addrlen + 2;		/* Where the text begins */
+	if (textlen <= MAXTEXTSIZE) {
+	  strcpy(line+2+addrlen, text);
 
-	return send_cmd_msg(line, size, 0); /* Must be ONLINE! */
+	  size = 3+addrlen+textlen;	/* 3 for the command code,
+					   text start offset,
+					   and string end NULL */
+
+	  return send_cmd_msg(line, size, 0); /* Must be ONLINE! */
+
+	} else {
+	  /* Ok, so the text length is more than the allowed maximum
+	     (103 chars), do wraps et.al. */
+	  char *t = text;
+
+	  /* XX: Complain about long input ?? */
+
+	  while (textlen > 0) {
+	    int partlength = textlen > MAXTEXTSIZE  ? MAXTEXTSIZE : textlen;
+	    int rc;
+
+	    strncpy(line+2+addrlen, t, partlength);
+	    size = 3+addrlen+partlength;
+	    line[size-1] = 0; /* Add terminating NULL */
+
+	    rc = send_cmd_msg(line, size, 0); /* Must be ONLINE! */
+	    if (rc) return rc;  /* Return immediately,
+				   if sending was not ok.. */
+
+	    t += partlength;
+	    textlen -= partlength;
+	  }
+	  return 0;
+	}
 }
