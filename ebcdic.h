@@ -1,5 +1,15 @@
 /* EBCDIC.H   V1.0
  | The EBCDIC characters.
+ |
+ | Copyright (c) 1988,1989,1990,1991 by
+ | The Hebrew University of Jerusalem, Computation Center.
+ |
+ |   This software is distributed under a license from the Hebrew University
+ | of Jerusalem. It may be copied only under the terms listed in the license
+ | agreement. This copyright message should never be changed or removed.
+ |   This software is gievn without any warranty, and the Hebrew University
+ | of Jerusalem assumes no responsibility for any damage that might be caused
+ | by use oR misuse of this software.
  */
 
 /* Control characters: */

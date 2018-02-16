@@ -1,5 +1,5 @@
 /* BCB_CRC.C   V1.2
- | Copyright (c) 1988,1989,1990 by
+ | Copyright (c) 1988,1989 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
  |   This software is distributed under a license from the Hebrew University
@@ -7,7 +7,7 @@
  | agreement. This copyright message should never be changed or removed.
  |   This software is gievn without any warranty, and the Hebrew University
  | of Jerusalem assumes no responsibility for any damage that might be caused
- | by use or misuse of this software.
+ | by use of misuse of this software.
  |
  | Add the BCB and FCS to sending messages. Also compute CRC for incoming
  | and outgoing messages.
@@ -35,9 +35,11 @@
  |        this change (to not give place for the PAD character).
  */
 #include "consts.h"
+#include "headers.h"
+#include "prototypes.h"
 #include "ebcdic.h"
 
-EXTERNAL struct	LINE IoLines[MAX_LINES];
+EXTERNAL struct	LINE IoLines[ABSMAX_LINES];
 
 /* A naive bit-shifts algoruthm (not used):
 #define ACUCRC(crc, c) {\
@@ -107,100 +109,106 @@ unsigned char cones[256] =
 
 
 /*
- | calculate the CRC and compare it to the received one. return 1 if ok, 0 if
- | not. If there are two DLE's in a sequence, remove one (the first is for
+ | Check the CRC. First check that there is an ETB 2 characters before the
+ | end of the transmission.  If so, calculate the CRC and compare it to the
+ | received one. return 1 if ok, 0 if not.
+ | If there are two DLE's in a sequence, remove one (the first is for
  | transparency) and reduce the buffer size by one.
  */
 int
 check_crc(buffer, size)
-unsigned char	*buffer;
+void	*buffer;
 int	*size;
 {
-	unsigned char	c, *p, *q;
+	unsigned char	c;
+	unsigned char *p, *q;
 	unsigned short crc, rcrc;
 	register int	DleFound, AccumulatedSize;
 
-	crc = 0; q = p = &buffer[2];	/* Skip first DLE+STX */
+	crc = 0;
+	q = p = &((unsigned char *)buffer)[2];	/* Skip first DLE+STX */
 	DleFound = AccumulatedSize = 0;
-	for(;;) {
-		c = *p++;	/* Use direct mode instead of indirect, and
-			           also save us incrementing problems later. */
-		if((c != DLE) || (DleFound != 0)) {
-			/* Accumulate only the second DLE */
-			ACUCRC(crc, c);
-		}
-		if((c == DLE) && (DleFound != 0)) {
-			/* Remove the second DLE - Reduce size and don't increment *q */
-			*size -= 1;
-			AccumulatedSize--;
-		}
-		else	/* Retain it */
-			*q++ = c;
-		if((c == ETB) && (DleFound))
-			break;	/* End of the block */
-/* Mark that we have a DLE only if it is first in a sequence (and not Second in
-   a serias of 4 DLE's which should be made to 2) */
-		if((c == DLE) && (DleFound == 0))
-			DleFound++;
-		else
-			DleFound = 0;
-		if(++AccumulatedSize > *size) {	/* Unterminated block */
-			logger(2, "BCB_CRC, Unterminated block received\n");
-			trace(buffer, AccumulatedSize, (int)(2));
-			return 0;
-		}
+	for (;;) {
+	  c = *p++;	/* Use direct mode instead of indirect, and
+			   also save us incrementing problems later. */
+	  if ((c != DLE) || (DleFound != 0)) {
+	    /* Accumulate only the second DLE */
+	    ACUCRC(crc, c);
+	  }
+	  if ((c == DLE) && (DleFound != 0)) {
+	    /* Remove the second DLE - Reduce size and
+	       don't increment *q */
+	    *size -= 1;
+	    AccumulatedSize--;
+	  } else			/* Retain it */
+	    *q++ = c;
+	  if ((c == ETB) && (DleFound))
+	    break;		/* End of the block */
+	  /* Mark that we have a DLE only if it is first in a sequence (and
+	     not Second in a serias of 4 DLE's which should be made to 2) */
+	  if ((c == DLE) && (DleFound == 0))
+	    DleFound++;
+	  else
+	    DleFound = 0;
+	  if (++AccumulatedSize > *size) { /* Unterminated block */
+	    logger(2, "BCB_CRC, Unterminated block received\n");
+	    trace(buffer, AccumulatedSize, 2);
+	    return 0;
+	  }
 	}
 
-/* Compute now the received CRC and compare */
+	/* Compute now the received CRC and compare */
+
 	rcrc = (*p++ & 0xff);
 	rcrc += ((*p & 0xff) << 8);
-	if(crc == rcrc)		/* Match */
-		return 1;
+	
+	if (crc == rcrc)		/* Match */
+	  return 1;
 
-	logger(2, "BCB_CRC: Received CRC error, received=x^%x, computed=x^%x\n",
-			(int)(rcrc), (int)(crc));
+	logger(2,
+	       "BCB_CRC: Received CRC error, received=x^%x, computed=x^%x\n",
+	       rcrc, crc);
 	return 0;
 }
 
 /*
- | In case of DMB working in BISYNC mode, the DMB does the CRC checking. However,
- | it doesn't strip out double DLE's, so we have to do it.
+ | In case of DMB working in BISYNC mode, the DMB does the CRC checking.
+ | However, it doesn't strip out double DLE's, so we have to do it.
  | If there are two DLE's in a sequence, remove one (the first is for
  | transparency) and reduce the buffer size by one.
  */
 int
 remove_dles(buffer, size)
-unsigned char	*buffer;
+void	*buffer;
 int	*size;
 {
 	unsigned char	c, *p, *q;
 	register int	DleFound, AccumulatedSize;
 
-	q = p = &buffer[2];	/* Skip first DLE+STX */
+	q = p = &((unsigned char *)buffer)[2];	/* Skip first DLE+STX */
 	DleFound = AccumulatedSize = 0;
-	for(;;) {
-		c = *p++;	/* Use direct mode instead of indirect, and
-			           also save us incrementing problems later. */
-		if((c == DLE) && (DleFound != 0)) {
-			/* Remove the second DLE - Reduce size and don't increment *q */
-			*size -= 1;
-			AccumulatedSize--;
-		}
-		else	/* Retain it */
-			*q++ = c;
-		if((c == ETB) && (DleFound))
-			break;	/* End of the block */
-/* Mark that we have a DLE only if it is first in a sequence (and not Second in
-   a serias of 4 DLE's which should be made to 2) */
-		if((c == DLE) && (DleFound == 0))
-			DleFound++;
-		else
-			DleFound = 0;
-		if(++AccumulatedSize > *size) {	/* Unterminated block */
-			logger(2, "BCB_CRC, Unterminated block received\n");
-			trace(buffer, AccumulatedSize, (int)(2));
-			return 0;
-		}
+	for (;;) {
+	  c = *p++;	/* Use direct mode instead of indirect, and
+			   also save us incrementing problems later. */
+	  if ((c == DLE) && (DleFound != 0)) {
+	    /* Remove the second DLE - Reduce size and don't increment *q */
+	    *size -= 1;
+	    AccumulatedSize--;
+	  } else	/* Retain it */
+	    *q++ = c;
+	  if (c == ETB && DleFound)
+	    break;	/* End of the block */
+	  /* Mark that we have a DLE only if it is first in a sequence (and
+	     not Second in a serias of 4 DLE's which should be made to 2) */
+	  if (c == DLE && !DleFound)
+	    DleFound++;
+	  else
+	    DleFound = 0;
+	  if(++AccumulatedSize > *size) {	/* Unterminated block */
+	    logger(2, "BCB_CRC, Unterminated block received\n");
+	    trace(buffer, AccumulatedSize, 2);
+	    return 0;
+	  }
 	}
 	return 1;
 }
@@ -216,55 +224,62 @@ int	*size;
  */
 int
 add_bcb_crc(Index, buffer, size, NewLine, BCBcount)
-unsigned char	*buffer, *NewLine;
-int	Index, size, BCBcount;
+const void	*buffer;
+      void	*NewLine;
+const int	Index, size, BCBcount;
 {
-	unsigned char	*p, *q, c;
+	unsigned char	*p, c;
+	const unsigned char *q;
 	int	i, NewSize;
 	unsigned short	crc;
 
 	NewSize = 0;  p = NewLine; crc = 0;
 
-/* Put the DLE, STX, BCB and FCS.
-   If BCB is zero, send a "reset" BCB.
- */
+	/* Put the DLE, STX, BCB and FCS.
+	   If BCB is zero, send a "reset" BCB. */
+
 	*p++ = DLE; *p++ = STX;
-	if((BCBcount == 0) && ((IoLines[Index].flags & F_RESET_BCB) == 0)) {
-		IoLines[Index].flags |= F_RESET_BCB;
-		*p++ = 0xa0;	/* Reset BCB count to zero */
-	}
-	else
-		*p++ = 0x80 + (BCBcount & 0xf);	/* Normal block */
+
+	if ((BCBcount == 0) &&
+	    ((IoLines[Index].flags & F_RESET_BCB) == 0)) {
+	  IoLines[Index].flags |= F_RESET_BCB;
+	  *p++ = 0xa0;	/* Reset BCB count to zero */
+	} else
+	  *p++ = 0x80 + (BCBcount & 0xf);	/* Normal block */
 
 	*p++ = 0x8f; *p++ = 0xcf;	/* FCS - all streams are enabled */
-	NewSize = 5;	/* DLE+STX+BCB+FCS1+FCS2 */
-	p = &NewLine[2];	/* Compute the CRC of the above */
-	for(i = 2; i < NewSize; i++) {	/* Skip the DLE STX */
-		c = *p++;	/* Use direct mode instead of indirect, and
-			           also save us incrementing problems later. */
-		ACUCRC(crc, c);
+	NewSize = 5;			/* DLE+STX+BCB+FCS1+FCS2 */
+	p = &((unsigned char*)NewLine)[2];  /* Compute the CRC of the above */
+	for (i = 2; i < NewSize; i++) {	/* Skip the DLE STX */
+	  c = *p++;	/* Use direct mode instead of indirect, and
+			   also save us incrementing problems later. */
+	  ACUCRC(crc, c);
 	}
 
-/* Copy the data, compute the CRC during the copy, and replicate DLE if needed */
+	/* Copy the data, compute the CRC during the copy,
+	   and replicate DLE if needed */
+
 	q = buffer;
-	for(i = 0; i < size; i++) {
-		c = *q++;
-		ACUCRC(crc, c);
-		*p++ = c;
-		if(c == DLE) {
-			*p++ = DLE;
-			NewSize++;
-		}
+	for (i = 0; i < size; i++) {
+	  c = *q++;
+	  ACUCRC(crc, c);
+	  *p++ = c;
+	  if (c == DLE) {
+	    *p++ = DLE;
+	    NewSize++;
+	  }
 	}
 	NewSize += size;
 
-/* Add DLE+ETB and the CRC, and finaly the PAD character */
+	/* Add DLE+ETB and the CRC, and finaly the PAD character */
+
 	*p++ = DLE; *p++ = ETB;
 	ACUCRC(crc, ETB);
 	*p++ = (crc & 0xff);
 	*p++ = ((crc & 0xff00) >> 8);
 	*p++ = PAD;
 	NewSize += 5;
+
 	return NewSize;
 }
 
@@ -279,43 +294,49 @@ int	Index, size, BCBcount;
  */
 int
 add_bcb(Index, buffer, size, NewLine, BCBcount)
-unsigned char	*buffer, *NewLine;
-int	Index, size, BCBcount;
+const void	*buffer;
+      void	*NewLine;
+const int	Index, size, BCBcount;
 {
-	unsigned char	*p, *q, c;
+	unsigned char	*p, c;
+	const unsigned char *q;
 	int	i, NewSize;
 
 	NewSize = 0;  p = NewLine;
 
-/* Put the DLE, STX, BCB and FCS.
-   If BCB is zero, send a "reset" BCB.
- */
+	/* Put the DLE, STX, BCB and FCS.
+	   If BCB is zero, send a "reset" BCB.  */
+
 	*p++ = DLE; *p++ = STX;
-	if((BCBcount == 0) && ((IoLines[Index].flags & F_RESET_BCB) == 0)) {
-		IoLines[Index].flags |= F_RESET_BCB;
-		*p++ = 0xa0;	/* Reset BCB count to zero */
-	}
-	else
-		*p++ = 0x80 + (BCBcount & 0xf);	/* Normal block */
+	if ((BCBcount == 0) &&
+	    ((IoLines[Index].flags & F_RESET_BCB) == 0)) {
+	  IoLines[Index].flags |= F_RESET_BCB;
+	  *p++ = 0xa0;	/* Reset BCB count to zero */
+	} else
+	  *p++ = 0x80 + (BCBcount & 0xf);	/* Normal block */
 
 	*p++ = 0x8f; *p++ = 0xcf;	/* FCS - all streams are enabled */
 	NewSize = 5;	/* DLE+STX+BCB+FCS1+FCS2 */
 
-/* Copy the data, replicate DLE if needed */
+	/* Copy the data, replicate DLE if needed */
+
 	q = buffer;
-	for(i = 0; i < size; i++) {
-		c = *q++;
-		*p++ = c;
-		if(c == DLE) {
-			*p++ = DLE;
-			NewSize++;
-		}
+	for (i = 0; i < size; i++) {
+	  c = *q++;
+	  *p++ = c;
+	  if(c == DLE) {
+	    *p++ = DLE;
+	    NewSize++;
+	  }
 	}
 	NewSize += size;
 
-/* Add DLE+ETB and leave space for CRC's but not for PAD (if we leave place for
-   the PAD also, the DMB gets confused and adds garbage after the frame) */
+	/* Add DLE+ETB and leave space for CRC's but not for PAD
+	   (if we leave place for the PAD also, the DMB gets confused
+	   and adds garbage after the frame) */
+
 	*p++ = DLE; *p++ = ETB;
 	NewSize += 4;	/* DEL+ETB, 2 for CRCs */
+
 	return NewSize;
 }

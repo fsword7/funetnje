@@ -1,5 +1,5 @@
-/* UNIX.C	V3.5
- | Copyright (c) 1988,1989,1990,1991,1992,1993 by
+/* UNIX.C	V3.5-mea1.1
+ | Copyright (c) 1988,1989,1990,1991 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
  |   This software is distributed under a license from the Hebrew University
@@ -8,163 +8,252 @@
  |   This software is gievn without any warranty, and the Hebrew University
  | of Jerusalem assumes no responsibility for any damage that might be caused
  | by use or misuse of this software.
- |
+
+
+ | Extensive modifications for  FUNET-NJE, Copyright (c)
+ | Finnish University and Research Network, FUNET, 1991, 1993, 1994
+
  | Sections: COMMAND - Command mailbox (socket)
  |           COMMUNICATION - Send messages to user and  opcom.
  |           TIMER - The one second timer process.
  |
- | V1.1 - Changes to comply with VMS.C, version 1.3
- | V1.2 - The close-file function returns the file size in 512 bytes blocks.
- | V1.3 - When a user sends message or command, add @Local-name to his address
- |        (Was done up to now by SEND.C.
- | V1.4 - Change the TCP_TIMEOUT handling in the timer AST.
- | V1.5 - Add the calls for routines Debug-dump-buffers and Debug-rescan-queue
- |        to aid debugging. These routines reside in IO.C module.
- | V1.6 - Add IBM-time. Also add LOGLEVEL command in UNIX_CP.C
- |        Before changing the loglevel
- |        we call the log function while setting the loglevel to 1 in order to
- |        close the log file. This guarantees writing all logs up to this
- |        point.
- | V1.7 - Do a quick change to Uread to handle binary files. Have to debug it...
- | V1.8 - Change the handling of auto restarts. Instead of each routine queueing
- |        the autorestart, we simply loop every 5 minutes and check whether there
- |        are links needing restarts.
- | V1.9 - Add the Delete-line_timeouts which is called by Restart_channel.
- | V2.0 - When doing select, add the channels used to accept and read the initial
- |        VMnet records.
- | V2.1 - FCNTL.H include added; (int) removed; SWAP_xxx replaced with XtoXY.
- | V2.2 - 21/2/90 - Change the include file <sys/dir.h> and the relevant
- |        structure type to be defined in SITE_CONSTS, as there is difference
- |        among various Unix systems.
- | V2.3 - 23/2/90 - 1. Change the timer-queue elements to be INT all.
- |        2. When queueing a timer entry for general routine (not related with
- |        some line) use index of -1.
- | V2.4 - 3/3/90 - Simplify auto_restart_lines() routine.
- | V2.5 - 7/3/90 - Add CMD_CHANGE_ROUTE to enable changing the routing database
- |        on-line.
- | V2.6 - 14/3/90 - When calling select(), do not pass the Fd's table width as
- |        a constant. Instead, call getdtablesize() to get it.
- | V2.7 - 15/3/90 - Add F_IN_HEADER flag for each file. This is true while reading
- |        or writing our internal header (which is always lines of ASCII text)
- |        and false after. This will allow us to read the rest of file with
- |        fread() instead of fgets() if the file is binary.
- |        Currently each read/write in binary/EBCDIC mode is done in two calls
- |        (one for the size and one for the string itself). This should be
- |        improved.
- | V2.8 - 22/3/90 - Add CMD_GONE_ADD and CMD_GONE_DEL to maintain the Gone list.
- | V2.9 - 26/3/90 - When calling select add a one second timeout. Remove the
- |        T_POLL timer entry.
- | V3.0 - 4/4/90 - Replace printouts of Errno value with error messages from
- |        sys_errlist[].
- | V3.1 - 8/5/90 - Use FD_SET and the other related functions if it is defined.
- | V3.2 - 7/10/90 - Open_recv_file(), Delete_file(), Rename_file(), Close_file()
- |         - Add stream number to the filename.
- | V3.3 - 31/3/91 - Add multi-stream support on sending.
- | V3.4 - 1/9/93 - Uwrite() - Do not terminate the string with a NULL and use
- |        Fwrite which does not require terminating NULL. This way we do not
- |        ruin the original buffer.
- | V3.5 - 8/9/93 - Add support for AIX.
+ |
  */
-#include "site_consts.h"
 #include "consts.h"
 #include "headers.h"
-#include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include DIRENTFILE
-#include <sys/stat.h>
-#ifdef AIX
-#include <sys/select.h>
+#include "prototypes.h"
+#ifdef	COMMAND_MAILBOX_SOCKET /* AF_UNIX stream */
+#include <sys/un.h>
 #endif
+#ifdef	AIX
+#include <sys/select.h>
+#endif /* AIX */
 
-#define	TEMP_R_FILE		"NJE_R_TMP_"
-#define	TEMP_R_EXT		"TMP"
+#define	TEMP_R_FILE		".NJE_R_"	/* Won't submit temp files.. */
+#define	TEMP_R_EXT		"TMP"		/* before they are ready.. */
 
-static int	CommandSocket;	/* The command socket number */
+static int	CommandSocket = -1;	/* The command socket number */
+struct sockaddr_in CommandAddress;	/* Incoming command originator addr */
+/*static int      CommandAddressLen;*/
 extern int	LogLevel;	/* So we change it with the LOGLEVEL CP command */
 
-extern struct	LINE IoLines[MAX_LINES];
 extern struct	SIGN_OFF	SignOff;
 extern int	MustShutDown;
 extern int	PassiveSocketChannel,	/* We called LISTEN on it */
-		PassiveReadChannel;	/* We are waiting on it for the initial VMnet record */
+		PassiveReadChannel;	/* We are waiting on it for
+					   the initial VMnet record */
 
 #define	MAX_QUEUE_ENTRIES	9	/* Maximum entries in timer's queue */
 struct	TIMER	{			/* The timer queue */
-		int	expire;		/* Number of seconds untill expiration */
-		int	index;		/* Line;s index */
+		int	expire;		/* Number of seconds until
+					   expiration */
+		time_t	expiration;	/* Expiration time */
+		int	index;		/* Line's index */
 		int	action;		/* What to do when expires */
 	} TimerQueue[MAX_QUEUE_ENTRIES];
 
 #define	EXPLICIT_ACK	0
 #define	DELAYED_ACK	2		/* In accordance with PROTOOCL */
 
-char	*strchr(), *strrchr();
-
-#define	IBM_TIME_ORIGIN	2105277440	/* Number of seconds between 1900 and 1970 */
-#define	BIT_32_SEC	1.048565 /* The number of seconds the 32 bit is */
+static void  auto_restart_lines __(( void ));
+static void  parse_op_command __(( void ));
+static void  parse_file_queue __(( const int fd ));
 
 extern int	sys_nerr;	/* Maximum error number recognised */
 extern char	*sys_errlist[];	/* List of error messages */
 #define	PRINT_ERRNO	(errno > sys_nerr ? "***" : sys_errlist[errno])
 
+long socket_access_key;
+
 /*===================== COMMAND ============================*/
 /*
  | Init the command socket. We use a datagram socket.
+ 	[mea] Using  mkfifo()  for it !
  */
+void
 init_command_mailbox()
 {
+	int	fd;
+	char	path[LINESIZE];
+	struct stat dstat;
+
+#if	defined(COMMAND_MAILBOX_FIFO) /* FIFO based method */
+
+	char *s;
+	int rc;
+	
+	/* We need a random number soon.. */
+#ifdef	USG
+	srand((unsigned int)time(NULL));
+#else
+	srandom(time(NULL));
+#endif
+
+	s = strrchr(COMMAND_MAILBOX,'/');
+	if (s) {
+	  unlink(COMMAND_MAILBOX);
+	  rc = mkfifo(COMMAND_MAILBOX,S_IFIFO|0660);
+	  *s = 0;
+	  if (rc==0 && stat(COMMAND_MAILBOX,&dstat) == 0) {
+	    *s = '/';
+	    chown(COMMAND_MAILBOX,0,dstat.st_gid);
+	    chmod(COMMAND_MAILBOX,0660);
+	  } else {
+	    logger(1,"UNIX: Can't mkfifo() COMMAND_MAILBOX, or no directory!  Error: %s\n",PRINT_ERRNO);
+	    exit(9);
+	  }
+	} else {
+	    logger(1,"UNIX: Command mailbox not configured!\n");
+	    exit(8);
+	}
+
+	CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
+
+#else
+#if	defined(COMMAND_MAILBOX_SOCKET)	/* AF_UNIX, SOCK_STREAM */
+
+	int i;
+	struct	sockaddr_un	SocketName;
+
+	/* We need a random number soon.. */
+#ifdef	USG
+	srand((unsigned int)time(NULL));
+#else
+	srandom(time(NULL));
+#endif
+
+	/* Create a local socket */
+	if ((CommandSocket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+	  logger(1, "UNIX, Can't create command socket, error: %s\n",
+		 PRINT_ERRNO);
+	  exit(1);
+	}
+
+	unlink(COMMAND_MAILBOX);  /* if there is one from previous run ... */
+	bzero((char *) &SocketName, sizeof(SocketName));
+
+	/* Now, bind a local name for it */
+	SocketName.sun_family = AF_UNIX;
+	strcpy(SocketName.sun_path, COMMAND_MAILBOX);
+
+	i = sizeof(SocketName.sun_family) + strlen(SocketName.sun_path);
+	if (bind(CommandSocket, (struct sockaddr *)&SocketName, i) < 0) {
+	  logger(1, "UNIX, Can't bind command socket, error: %s\n",
+		 PRINT_ERRNO);
+	  exit(1);
+	}
+	if (listen(CommandSocket, 2) < 0) {
+	  logger(1, "UNIX, Can't listen to command socket, error: %s\n",
+		 PRINT_ERRNO);
+	  exit(1);
+	}
+
+#else
+#if	defined(COMMAND_MAILBOX_UDP)	/* AF_INET, SOCK_DGRAM */
+
+	unsigned long iaddr;
 	struct	sockaddr_in	SocketName;
-	int	i;
+	int on = 1;
 
-/* Create a local socket */
-	if((CommandSocket = socket(AF_INET, SOCK_DGRAM,	0)) == -1) {
-		logger(1, "UNIX, Can't create command socket, error: %s\n",
-			PRINT_ERRNO);
-		exit(1);
+	/* We need a random number soon.. */
+#ifdef	USG
+	srand((unsigned int)time(NULL));
+#else
+	srandom(time(NULL));
+#endif
+
+	/* Create a local socket */
+	if ((CommandSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	  logger(1, "UNIX, Can't create command socket, error: %s\n",
+		 PRINT_ERRNO);
+	  exit(1);
 	}
 
-/* Now, bind a local name for it */
-	SocketName.sin_family = (AF_INET);
-	SocketName.sin_port = htons(COMMAND_MAILBOX);
-	SocketName.sin_addr.s_addr = 0;	/* Local machine */
-	for(i = 0; i < 8; i++)
-		(SocketName.sin_zero)[i] = 0;
-	if(bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
-		logger(1, "UNIX, Can't bind command socket, error: %s\n",
-			PRINT_ERRNO);
-		exit(1);
+	setsockopt(CommandSocket, SOL_SOCKET, SO_REUSEADDR,
+		   (char*)&on, sizeof(on));
+
+	/* Now, bind a local name for it */
+	memset(&SocketName,0,sizeof SocketName);
+	SocketName.sin_family      = AF_INET;
+	SocketName.sin_port        = htons(175);
+	SocketName.sin_addr.s_addr = htonl(INADDR_ANY);
+	iaddr = inet_addr(COMMAND_MAILBOX);
+	if (iaddr != 0xFFFFFFFFL)
+	  SocketName.sin_addr.s_addr = iaddr;
+
+	if (bind(CommandSocket, &SocketName, sizeof(SocketName)) == -1) {
+	  logger(1, "UNIX, Can't bind command socket, error: %s\n",
+		 PRINT_ERRNO);
+	  exit(1);
 	}
 
-/* That's all. Select will poll for it */
+#else
+  :::: error	"MISSING COMMAND_MAILBOX DEFINITION!"  ::::
+#endif
+#endif
+#endif
+
+	sprintf(path,"%s/.socket.key",BITNET_QUEUE);
+	unlink(path);
+	if ((fd = open(path,O_WRONLY|O_CREAT|O_TRUNC,0660)) < 0) {
+	  logger(1, "UNIX: Can't create `%s' to hold access authorization key\n",path);
+	  exit(1);
+	}
+	fstat(fd,&dstat);
+#ifdef	USG
+	sleep((rand() % 5)+1); /* Delay a random time.. */
+	/* Auth key is some random value.. */
+	socket_access_key = rand() ^ (dstat.st_ino ^ dstat.st_mtime);
+	if (socket_access_key == 0)		/* Can't be 0 twice! */
+	  socket_access_key = rand() ^ (dstat.st_ino ^ dstat.st_mtime);
+#else
+	sleep((random() % 5)+1); /* Delay a random time.. */
+	/* Auth key is some random value.. */
+	socket_access_key = random() ^ (dstat.st_ino ^ dstat.st_mtime);
+	if (socket_access_key == 0)		/* Can't be 0 twice! */
+	  socket_access_key = random() ^ (dstat.st_ino ^ dstat.st_mtime);
+#endif
+	write(fd,(void*)&socket_access_key,4);
+	close(fd);
+	if (stat(BITNET_QUEUE,&dstat) == 0) {
+	  chown(path,-1,dstat.st_gid);
+	  chmod(path,0440);
+	}
+	/* That's all. Select will poll for it */
 }
 
 /*
- | CLose the operator communication channel (we are shutting down).
+ | Close the operator communication channel (we are shutting down).
  */
+void
 close_command_mailbox()
 {
 	close(CommandSocket);
+	CommandSocket = -1;
 }
 
 /*================= COMMUNICATION ========================*/
 /*
  | Send a message to console and log it in our logfile.
  */
+void
 send_opcom(text)
+const char *text;
 {
 	int	ftty;
 	char	line[512];
 
 	logger(1, "OPCOM message: %s\n", text);
 
-	if(strlen(text) > 500) return;	/* Too long to handle */
+	/* Too long to handle ? */
+	if (strlen(text) > sizeof(line)-5) return;
 
 	sprintf(line, "\r%s\r\n", text);
-	if((ftty = open("/dev/console", O_WRONLY)) < 0)
-		return;
+
+	/* [mea] XXX: Not always /dev/console! */
+	if ((ftty = open("/dev/console", O_WRONLY|O_NOCTTY, 0644)) < 0)
+	  return;
+
 	write(ftty, line, strlen(line));
 	close(ftty);
 }
@@ -176,72 +265,75 @@ send_opcom(text)
  | second to poll the active sockets.
  | The timer's AST is called by the main routine wach second.
  */
+void
 init_timer()
 {
 	long	i, timer_ast();
 
-/* Zero the queue */
-	for(i = 0; i < MAX_QUEUE_ENTRIES; i++)
-		TimerQueue[i].expire = 0;
+	/* Zero the queue */
+	for (i = 0; i < MAX_QUEUE_ENTRIES; i++)
+	  TimerQueue[i].expire = 0;
 }
 
 /*
  | The AST routine that is waked-up once a second.
  */
-long
+time_t
 timer_ast()
 {
 	long	i;
 	int	queue_timer();
 	struct	LINE	*temp;
+	time_t	now;
 
-/* Loop over all active timeouts and decrement them. If expired, handle
-   accordingly.
-*/
-	for(i = 0; i < MAX_QUEUE_ENTRIES; i++) {
-		if(TimerQueue[i].expire != 0) {		/* Active */
-			if(--(TimerQueue[i].expire) == 0) {
-				switch(TimerQueue[i].action) {
-				case T_SEND_ACK:	/* Send ACK */
-					handle_ack(TimerQueue[i].index,
-						DELAYED_ACK);
-						break;
-				case T_TCP_TIMEOUT:
-				/* Read timeout, Simulate an an ACK if needed */
-					temp = &(IoLines[TimerQueue[i].index]);
-					if(temp->state == ACTIVE) {
-						handle_ack(TimerQueue[i].index,
-						 EXPLICIT_ACK);
-					}
-					/* Requeue it: */
-					temp->TimerIndex = queue_timer(temp->TimeOut,
-						TimerQueue[i].index,
-						T_TCP_TIMEOUT);
-					break;
-					break;
-				case T_AUTO_RESTART:
-					auto_restart_lines();
-					queue_timer(T_AUTO_RESTART_INTERVAL,
-						-1, T_AUTO_RESTART);
-					break;
-#ifdef DEBUG
-				case T_STATS:	/* Compute statistics */
-					compute_stats();
-					break;
-#endif
-				default: logger(1, "UNIX, No timer routine, code=d^%d\n",
-					TimerQueue[i].action);
-				}
-			}
-		}
+	time(&now);
+
+	/* Loop over all active timeouts and decrement them.
+	   If expired, handle accordingly.
+	 */
+	for (i = 0; i < MAX_QUEUE_ENTRIES; ++i) {
+	  if (TimerQueue[i].expire != 0) {	/* Active	*/
+	    /* if ((--TimerQueue[i].expire) == 0) { */
+	    if (TimerQueue[i].expiration <= now) {
+	      TimerQueue[i].expire = 0;
+	      switch (TimerQueue[i].action) {
+		case T_SEND_ACK:		/* Send ACK	*/
+		    handle_ack(TimerQueue[i].index, DELAYED_ACK);
+		    break;
+		case T_TCP_TIMEOUT:
+		    /* Read timeout, Simulate an ACK if needed */
+		    temp = &(IoLines[TimerQueue[i].index]);
+		    if (temp->state == ACTIVE) {
+		      handle_ack(TimerQueue[i].index, EXPLICIT_ACK);
+		    }
+		    /* Requeue it: */
+		    temp->TimerIndex = queue_timer(temp->TimeOut,
+						   TimerQueue[i].index,
+						   T_TCP_TIMEOUT);
+		    break;
+		case T_AUTO_RESTART:
+		    auto_restart_lines();
+		    queue_timer(T_AUTO_RESTART_INTERVAL, -1, T_AUTO_RESTART);
+		    break;
+		case T_STATS:	/* Compute statistics */
+		    compute_stats();
+		    break;
+		default:
+		    logger(1, "UNIX, No timer routine, code=d^%d\n",
+			   TimerQueue[i].action);
+		    break;
+	      }
+	    }
+	  }
 	}
+	return 0;
 }
 
 
 
 /*
  | Queue an entry. The line index and the timeout us expected.  Since we don't
- | use a 1-second clock, but a SLEPP call, we do not add 1 to the timeout value
+ | use a 1-second clock, but a SLEEP call, we do not add 1 to the timeout value
  | as is done on the VMS.
  | A constant which decalres the routine to call on timeout is also expected.
  */
@@ -251,21 +343,26 @@ int	expiration, WhatToDo;
 int	Index;			/* Index in IoLines array */
 {
 	int	i;
+	time_t	now;
 
-	for(i = 0; i < MAX_QUEUE_ENTRIES; i++) {
-		if(TimerQueue[i].expire == 0) {	/* Free */
-			TimerQueue[i].expire = expiration;
-			TimerQueue[i].index = Index;
-			TimerQueue[i].action = WhatToDo;
-			return i;
-		}
+	time(&now);
+
+	for (i = 0; i < MAX_QUEUE_ENTRIES; ++i) {
+	  if (TimerQueue[i].expire == 0) { /* Free */
+	    TimerQueue[i].expire     = expiration;
+	    TimerQueue[i].expiration = expiration+now;
+	    TimerQueue[i].index      = Index;
+	    TimerQueue[i].action     = WhatToDo;
+	    return i;
+	  }
 	}
-/* Not found an entry - bug check */
+
+	/* Not found an entry - bug check */
 	logger(1, "UNIX, Can't queue timer, timer queue dump:\n");
-	for(i = 0; i < MAX_QUEUE_ENTRIES; i++)
-		logger(1, "  #%d, Expire=%d, index=%d, action=%d\n",
-			i, TimerQueue[i].expire,
-			TimerQueue[i].index, TimerQueue[i].action);
+	for (i = 0; i < MAX_QUEUE_ENTRIES; ++i)
+	  logger(1, "  #%d, Expire=%d, index=%d, action=%d\n",
+		 i, TimerQueue[i].expire,
+		 TimerQueue[i].index, TimerQueue[i].action);
 	bug_check("UNIX, can't queue timer entry.");
 	return 0;	/* To make LINT quiet... */
 }
@@ -274,33 +371,34 @@ int	Index;			/* Index in IoLines array */
 /*
  | Dequeue a timer element (I/O completed ok, so we don't need this timeout).
  */
+void
 dequeue_timer(TimerIndex)
 int	TimerIndex;		/* Index into our timer queue */
 {
-	if(TimerQueue[TimerIndex].expire == 0) {
-		/* Dequeueing a non-existent entry... */
-		logger(1, "UNIX, Unexisted timer entry; Index=%d, action=%d\n",
-			TimerQueue[TimerIndex].index,
-			TimerQueue[TimerIndex].action);
-		logger(1, "UNIX, dequeing unexisted timer queue entry.\n");
+	if (TimerQueue[TimerIndex].expire == 0) {
+	  /* Dequeueing a non-existent entry... */
+	  logger(1, "UNIX, Nonexistent timer entry; Index=%d, action=%d\n",
+		 TimerQueue[TimerIndex].index,
+		 TimerQueue[TimerIndex].action);
+	  logger(1, "      Dequeued it.\n");
 	}
 
-/* Mark this entry as free */
+	/* Mark this entry as free */
 	TimerQueue[TimerIndex].expire = 0;
 }
 
 /*
  | Delete all timer entries associated with a line.
  */
-int
+void
 delete_line_timeouts(Index)
 int	Index;			/* Index in IoLines array */
 {
 	register int	i;
 
-	for(i = 0; i < MAX_QUEUE_ENTRIES; i++) {
-		if(TimerQueue[i].index == Index)	/* For this line - clear it */
-			TimerQueue[i].expire = 0;
+	for (i = 0; i < MAX_QUEUE_ENTRIES; i++) {
+	  if (TimerQueue[i].index == Index) /* For this line - clear it */
+	    TimerQueue[i].expire = 0;
 	}
 }
 
@@ -309,280 +407,676 @@ int	Index;			/* Index in IoLines array */
  | Loop over all lines. If some line is in INACTIVE to RETRY state and the
  | AUTO-RESTART flag is set, try starting it.
  */
+static void
 auto_restart_lines()
 {
 	int	i;
 	struct	LINE	*temp;
 
-	for(i = 0; i < MAX_LINES; i++) {
-		temp = &IoLines[i];
-		if(*temp->HostName == '\0') continue;	/* Not defined... */
-		if((temp->flags & F_AUTO_RESTART) == 0)
-			continue;	/* Doesn't need restarts at all */
-		switch(temp->state) {	/* Test whether it needs restart */
-		case INACTIVE:
-		case RETRYING:	restart_line(i);	/* Yes - it needs */
-				break;
-		default:	break;		/* Other states - no need */
-		}
+	for (i = 0; i < MAX_LINES; i++) {
+	  temp = &IoLines[i];
+	  if (*temp->HostName == 0) continue;	/* Not defined... */
+	  if ((temp->flags & F_AUTO_RESTART) == 0)
+	    continue;			/* Doesn't need restarts at all */
+	  switch (temp->state) {	/* Test whether it needs restart */
+	      case INACTIVE:
+	      case RETRYING:
+		  if ( -- temp->RetryPeriod > 0)	/* Not yet.. */
+		    break;
+		  restart_line(i);	/* Yes - it needs */
+		  break;
+	      default:
+		  break;		/* Other states - no need */
+	  }
 	}
 }
 
 
 /*
- | Use the Select function to poll for sockets status. We distinguish between
- | two types: The command mailbox and the NJE/TCP sockets.
- | If there was some processing to do, we repeat this call, since the processing
- | done might take more than 1 second, and our computations of timeouts might
- | be too long.
- |  If FD_SET is defined, then we run on SparcStation and should use the
- | system's supplied macros and data structure for Select() call.
+ | Use the Select function to poll for sockets status.
+ | We distinguish between two types:
+ |   - The command mailbox, and
+ |   - the NJE/TCP sockets.
+ | If there was some processing to do, we repeat this call,
+ | since the processing done might take more than 1 second,
+ | and our computations of timeouts might be too long.
+ |
+ | If FD_SET is defined, then we should use the system
+ | supplied macros and data structure for Select() call.
  */
+void
 poll_sockets()
 {
 	int	i, j, nfds;
 	struct	timeval	timeout;
-	static	int FdWidth = 0;
+	int	FdWidth = 0;
+	static	int passiv_reinit = 0;
+	int	has_pending_connects = 0;
+	extern  int file_queuer_pipe;
+
 #ifdef AIX
 	struct {
-		fd_set	fdsmask;
-		fd_set	msgsmask;
-	} readfds;
-#else	/* AIX */
-#ifdef FD_SET
-	fd_set	readfds;
+		fd_set  fdsmask;
+		fd_set  msgsmask;
+	} readfds, writefds;
+#define _FD_SET(sock,var) FD_SET(sock,&var.fdsmask)
+#define _FD_CLR(sock,var) FD_CLR(sock,&var.fdsmask)
+#define _FD_ZERO(var) FD_ZERO(&var.fdsmask)
+#define _FD_ISSET(i,var) FD_ISSET(i,&var.fdsmask)
 #else
-	long	readfds;	/* On most other machines */
-#endif
-#endif	/* AIX */
+#if	defined(FD_SET)
+	fd_set	readfds, writefds;
+#define _FD_SET(sock,var) FD_SET(sock,&var)
+#define _FD_CLR(sock,var) FD_CLR(sock,&var)
+#define _FD_ZERO(var) FD_ZERO(&var)
+#define _FD_ISSET(i,var) FD_ISSET(i,&var)
+#else /* No AIX, nor FD_SET */
+	long	readfds, writefds;	/* On most other machines */
+#define _FD_SET(sock,var) var |= (1 << sock)
+#define _FD_CLR(sock,var) var &= ~(1 << sock)
+#define _FD_ZERO(var) var = 0
+#define _FD_ISSET(i,var) ((var & (1 << i)) != 0)
+#endif /* no AIX, nor FD_SET */
+#endif /* no AIX, nor FD_SET */
 
-#ifndef FD_SET
-/* Get the descriptors table size if first time */
-	if(FdWidth == 0) FdWidth = getdtablesize();
-#endif
+	/* If the passive connection acceptance didn't come online
+	   for some reason (channel FD is  -1), retry it every once
+	   in a while, until we have it. */
+	if (PassiveSocketChannel == -1 && MustShutDown == 0) {
+	  if (passiv_reinit < 1) {
+	    /* Try to open it.. */
+	    init_passive_tcp_connection(0);
+	    passiv_reinit = 20; /* 20 visits later again.
+				   5 to 20 seconds.. */
+	    if (PassiveSocketChannel >= 0)
+	      logger(1,"Successfull at reiniting the PassiveSocketChannel\n");
+	  }
+	  --passiv_reinit;
+	}
 
 again:
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;	/* 1 second timeout */
-#ifdef AIX
-	FD_ZERO(&readfds.fdsmask);
-	FD_SET(CommandSocket, &readfds.fdsmask);
-#else	/* AIX */
-#ifdef FD_SET
-	FD_ZERO(&readfds);
-	FD_SET(CommandSocket, &readfds);	/* Set the command socket */
-#else
-	readfds = 1 << CommandSocket;
+#if 1 /* If 0.25 sec timeout is too fast ? */
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 250000;	/* 0.25 second timeout */
 #endif
-#endif	/* AIX */
+
+	_FD_ZERO(readfds);
+ 	_FD_ZERO(writefds);
+
+	has_pending_connects = 0;
+
+	if (CommandSocket >= 0) {
+	  if (CommandSocket >= FdWidth)
+	    FdWidth = CommandSocket+1;
+
+	  _FD_SET(CommandSocket, readfds);
+
+	  /*if (passiv_reinit < 1)
+	    logger(2,"poll(): CommandSocket fd=%d\n",CommandSocket);*/
+	}
+
+	if (file_queuer_pipe >= 0) {
+	  if (file_queuer_pipe >= FdWidth)
+	    FdWidth = file_queuer_pipe+1;
+
+	  _FD_SET(file_queuer_pipe, readfds);
+
+	  /*if (passiv_reinit < 1)
+	    logger(2,"poll(): file_queuer_pipe fd=%d\n",file_queuer_pipe);*/
+	}
 
 /* Add the sockets used for NJE comminucation */
-	for(i = 0; i < MAX_LINES; i++)
-		if((IoLines[i].state != INACTIVE) &&
-		   (IoLines[i].state != SIGNOFF) &&
-		   (IoLines[i].state != RETRYING) &&
-		   (IoLines[i].state != LISTEN) &&
-		   (IoLines[i].socket != 0)) {
-#ifdef AIX
-				FD_SET(IoLines[i].socket, &readfds.fdsmask);
-#else	/* AIX */
-#ifdef FD_SET
-				FD_SET(IoLines[i].socket, &readfds);
-#else
-				readfds |= 1 << IoLines[i].socket;
+	for (i = 0; i < MAX_LINES; i++) {
+	  if (IoLines[i].HostName[0] == 0) continue; /* No defined line */
+
+	  if (IoLines[i].socket >= FdWidth)
+	    FdWidth = IoLines[i].socket+1;
+	  if ((IoLines[i].state != INACTIVE) &&
+	      (IoLines[i].state != SIGNOFF) &&
+	      (IoLines[i].state != RETRYING) &&
+	      (IoLines[i].state != LISTEN) &&
+	      (IoLines[i].socket >= 0)) {
+#ifdef	NBCONNECT /* Can't do connects which take time to finish.. */
+	    if (IoLines[i].socketpending >= 0) {
+	      /* A pending open.. */
+
+	      _FD_SET(IoLines[i].socket, writefds);
+
+	      has_pending_connects = 1;
+	    } else 
 #endif
-#endif	/* AIX */
-		}
-/* Queue a select for the passive end; do it only if we did succeed binding
-   it */
-	if(PassiveSocketChannel != 0) {
-#ifdef AIX
-		FD_SET(PassiveSocketChannel, &readfds.fdsmask);
-#else	/* AIX */
-#ifdef FD_SET
-		FD_SET(PassiveSocketChannel, &readfds);
-#else
-		readfds |= 1 << PassiveSocketChannel;	/* Expecting connections on it */
-#endif
-#endif	/* AIX */
-		if(PassiveReadChannel != 0) {
-#ifdef AIX
-			FD_SET(PassiveReadChannel, &readfds.fdsmask);
-#else	/* AIX */
-#ifdef FD_SET
-			FD_SET(PassiveReadChannel, &readfds);
-#else
-			readfds |= 1 << PassiveReadChannel;	/* The one we read from before deciding which line it is */
-#endif
-#endif	/* AIX */
-		}
+	    {
+	      /* Normal stream, already open */
+
+	      _FD_SET(IoLines[i].socket, readfds);
+	    }
+#if	NBSTREAM
+	    if (IoLines[i].WritePending) {
+	      _FD_SET(IoLines[i].socket, writefds);
+	    }
+#endif	/* NBSTREAM */
+	  }
 	}
 
-#ifdef AIX
-	nfds = select(FD_SETSIZE, &readfds, 0, 0, &timeout);
-	nfds &= 0xffff;		/* Leave only the low 16 bits. The higher ones are
-				   for message queues */
-	if(nfds == -1) {
-#else	/* AIX */
-#ifdef FD_SET
-	if((nfds = select(NFDBITS, &readfds, 0, 0, &timeout)) == -1) {
-#else
-	if((nfds = select(FdWidth, &readfds, 0, 0, &timeout)) == -1) {
-#endif
-#endif	/* AIX */
-		logger(1, "UNIX, Select error, error: %s\n", PRINT_ERRNO);
-		bug_check("UNIX, Select error");
+	/* Queue a select for the passive end;
+	   do it only if we did succeed binding it */
+
+	if (PassiveReadChannel >= 0) {
+	  if (PassiveReadChannel >= FdWidth)
+	    FdWidth = PassiveReadChannel+1;
+
+	  _FD_SET(PassiveReadChannel, readfds);
+
 	}
 
-	if(nfds == 0) {	/* Nothing is there */
-/* We are done with input. When TcpIp sends data, it sets the F_CALL_ACK
-   flag, so we need to call handle-Ack from here.
-*/
-		for(i = 0; i < MAX_LINES; i++) {
-			if((IoLines[i].flags & F_CALL_ACK) != 0) {
-				IoLines[i].flags &= ~F_CALL_ACK;
-				handle_ack(i, EXPLICIT_ACK);
-			}
-		}
-		return;
+	/* Do only one accept on the passive side at the time.
+	   PassiveReadChannel is needed for link login,
+	   others can wait.				*/
+
+	if (PassiveReadChannel < 0 &&
+	    PassiveSocketChannel >= 0) {
+	  if (PassiveSocketChannel >= FdWidth)
+	    FdWidth = PassiveSocketChannel+1;
+
+	  /* Expecting connections on it */
+	  _FD_SET(PassiveSocketChannel, readfds);
 	}
 
-/* Check which channels have data to read. Differentiate between 2 types of
-   channels: the command socket and NJE/TCP channels.
-*/
-#ifdef AIX
-	for(i = 0; i < FD_SETSIZE; i++) {
-		if(FD_ISSET(i, &readfds.fdsmask)) {		/* Something is there */
-#else	/* AIX */
-#ifdef FD_SET
-	for(i = 0; i < NFDBITS; i++) {
-		if(FD_ISSET(i, &readfds)) {		/* Something is there */
-#else
-	for(i = 0; i < FdWidth; i++) {
-		if((readfds & (1 << i)) != 0) {		/* There is something */
+	/* If we have something left over from the last read(), process
+	   them..   This MAY cause excessive calls, but should improve
+	   the system performance..  */
+
+#if 0
+	for (j = 0; i < MAX_LINES; ++j)
+	  if ((*IoLines[j].HostName != '\0') &&
+	      (IoLines[j].RecvSize != 0))
+	    unix_tcp_receive(j);
 #endif
-#endif	/* AIX */
-			if(i == CommandSocket)	/* Handle it */
-				parse_op_command();
-			else {
-/* Look for the line that corrsponds to that FD */
-				for(j = 0; j < MAX_LINES; j++)
-					if((IoLines[j].socket == i) &&
-					   (*IoLines[j].HostName != '\0'))
-						unix_tcp_receive(j);
-			}
-		}
+
+	if ((nfds = select(FdWidth,
+			   &readfds,
+#ifdef	NBSTREAM
+			   &writefds,
+#else
+			   has_pending_connects ? &writefds : NULL,
+#endif
+			   NULL, &timeout)) == -1) {
+	  if (errno == EINTR) return; /* Ah well, happens at the debugger */
+	  /*if (errno == EBADF) return;*/
+	  logger(1, "UNIX, Select error, error: %s\n", PRINT_ERRNO);
+	  bug_check("UNIX, Select error");
 	}
-/* Check whether there is something to accept connection on */
-#ifdef AIX
-	if(FD_ISSET(PassiveSocketChannel, &readfds.fdsmask))
-#else	/* AIX */
-#ifdef FD_SET
-	if(FD_ISSET(PassiveSocketChannel, &readfds))
-#else
-	if((readfds & (1 << PassiveSocketChannel)) != 0)
-#endif
-#endif	/* AIX */
-		accept_tcp_connection();
-/* We've accepted some connection; now see whether there is something to read there */
-	if(PassiveReadChannel != 0) {
-#ifdef AIX
-		if(FD_ISSET(PassiveReadChannel, &readfds.fdsmask))
-#else	/* AIX */
-#ifdef FD_SET
-		if(FD_ISSET(PassiveReadChannel, &readfds))
-#else
-		if((readfds & (1 << PassiveReadChannel)) != 0)
-#endif
-#endif	/* AIX */
-			read_passive_tcp_connection();
+
+	if (nfds == 0) {		/* Nothing is there */
+	  /* We are done with input. When TcpIp sends data,
+	     it sets the F_CALL_ACK flag, so we need to call
+	     handle-Ack from here.
+	   */
+	  for (i = 0; i < MAX_LINES; i++) {
+	    if ((IoLines[i].flags & F_CALL_ACK) != 0) {
+	      IoLines[i].flags &= ~F_CALL_ACK;
+	      handle_ack(i, EXPLICIT_ACK);
+	    }
+	  }
+	  return;
+	}
+
+	/* Check which channels have data to read.
+	   Differentiate between 2 types of channels:
+	   - the command socket and,
+	   - NJE/TCP channels.				*/
+
+#if	defined(NBSTREAM)||defined(NBCONNECT)
+	if (has_pending_connects)
+	  for (j = 0; j < MAX_LINES; ++j) {
+	    if (IoLines[j].HostName[0] == 0 ||
+		IoLines[j].socketpending < 0)
+	      continue; /* No line, or not pending */
+	    i = IoLines[j].socket;
+
+	    if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
+
+	      /* Look for the line that corresponds to that FD */
+
+	      init_active_tcp_connection(j,1); /* Finalize that open */
+
+	      /* Turn off this bit from delayed writes.. */
+
+	      _FD_CLR(i, writefds);
+	    }
+	  } /* for (..j..) */
+#endif /* NB-connect/stream */
+
+
+	/* Handle all read-streams -- well, most.. */
+
+	for (i = 0; i < FdWidth; ++i)
+	  if ( _FD_ISSET(i, readfds) /* Something is there */ ) {
+
+	    if (i == CommandSocket)	/* Handle it */
+	      parse_op_command();
+	    else if (i == file_queuer_pipe)
+	      parse_file_queue(i);
+	    else {
+
+	      /* Look for the line that corresponds to that FD */
+
+	      for (j = 0; j < MAX_LINES; j++)
+		if ((IoLines[j].socket == i) &&
+		    (*IoLines[j].HostName != '\0'))
+		  unix_tcp_receive(j);
+	    }
+	  }
+
+#ifdef	NBSTREAM
+	/* Check write-pending */
+
+	for (j = 0; j < MAX_LINES; ++j) {
+	  if (IoLines[j].HostName[0] == 0 ||
+	      !IoLines[j].WritePending)
+	    continue; /* No line, or no */
+	  i = IoLines[j].socket;
+
+
+	  if ( _FD_ISSET(i, writefds) /* Something is there */ ) {
+	    tcp_partial_write(j);
+	  }
+	}
+#endif	/* NBSTREAM */
+
+	/* Check if there is a connection to be accepted */
+
+	if (PassiveSocketChannel >= 0) {
+	  if ( _FD_ISSET(PassiveSocketChannel, readfds))
+	    accept_tcp_connection();
+	}
+
+	/* We've accepted some connection;
+	   now see whether there is something to read there */
+
+	if (PassiveReadChannel >= 0) {
+	  if (_FD_ISSET(PassiveReadChannel, readfds))
+	    read_passive_tcp_connection();
 	}
 	goto again;	/* Retry operation */
 }
 
+/* ================================================================ */
+static void
+parse_file_queue(fd)
+const int fd;
+{
+	unsigned char line[LINESIZE];
+	int size;
+	long FileSize;
+	int rc;
+	extern int file_queuer_pipe;
+
+	if ((rc = readn(fd,line,1)) == 1) {
+	  size = line[0];
+	  rc = readn(fd,line+1,size);
+	  if (rc == size) {
+	    FileSize = ((line[1] << 8) + line[2]) * 512;
+	    queue_file(line+3, FileSize);
+	  }
+	}
+	if (rc < 1) {
+	  close(file_queuer_pipe);
+	  file_queuer_pipe = -1;
+	}
+}
+
+/* ================================================================ */
 
 /*
  | Read from the socket and parse the command.
  */
+static void
 parse_op_command()
 {
-	char	*p, line[LINESIZE], Faddress[LINESIZE], Taddress[LINESIZE];
-	int	i, size;	
+	char	*p, line[LINESIZE];
+	int	size;
 
-	if((size = recv(CommandSocket, line, sizeof line,
-		0)) <= 0) {
-		perror("Recv");
-		return;
+
+#if	defined(COMMAND_MAILBOX_FIFO)
+
+	if ((size = read(CommandSocket, line, sizeof line)) < 0) {
+	  logger(1,"UNIX: CommandSocket read failed: %s\n",PRINT_ERRNO);
+	  return;
 	}
-	line[size] = '\0';
-	if((p = strchr(line, '\n')) != NULL) *p = '\0';
 
-/* Parse the command. In most commands, the parameter is the username to
-   broadcast the reply to. */
-	parse_operator_command(line);
+#ifdef	FIFO_0_READ
+	if (size == 0) {
+	  close(CommandSocket);
+	  CommandSocket = open(COMMAND_MAILBOX,O_RDONLY|O_NDELAY,0);
+	  return;
+	}
+#endif
+
+#else
+#if	defined(COMMAND_MAILBOX_SOCKET)
+
+	int	NewSock, i;
+	struct  sockaddr_un  cli_addr;
+
+	i = sizeof(cli_addr);	
+
+	if ((NewSock = accept(CommandSocket,
+			     (struct sockaddr *)&cli_addr, &i)) < 0) {
+	  logger(1,"UNIX: Can't Accept control connection !\n");
+	  return;
+	} else {	
+	
+	  if ((size = read(NewSock, &line, sizeof line)) < 0) {
+	    logger(1,"UNIX: Can't read from control socket !\n");
+	  }
+	  close(NewSock);
+	}
+
+#else
+#if	defined(COMMAND_MAILBOX_UDP)
+
+	if ((size = recv(CommandSocket, line, sizeof line, 0)) <= 0) {
+	  perror("Recv");
+	  return;
+	}
+#else
+  ::: error	"COMMAND MAILBOX METHOD NOT DEFINED!" :::
+#endif
+#endif
+#endif
+
+	logger(5,"UNIX: COMMAND_MAILBOX received %d bytes.\n",size);
+
+	if (size < 5) return; /* Hmm... */
+	line[size] = '\0';
+	if ((p = strchr(line+4, '\n')) != NULL) *p = '\0';
+
+	/* Match the access key.. */
+	if (socket_access_key != *(long *)&(line[0]) ||
+	    *(long *)&(line[0]) == 0) {
+	  logger(1, "UNIX: Somebody spoofed command access, key mismatch!\n");
+	  return;
+	}
+
+	/* Parse the command. In most commands, the parameter is
+	   the username to broadcast the reply to. */
+	parse_operator_command(line+4,size-4);
+}
+
+
+/* ================================================================
+   handle_*() routines by Matti Aarnio <mea@nic.funet.fi>
+ */
+#if 0
+#ifndef linux /* POSIX signaling is somewhat different.. */
+
+void
+handle_childs(n)  /* signal(SIGCHLD,handle_childs); */
+const int n;
+{
+#ifdef	_POSIX_SOURCE	/* WE DO  waitpid()  */
+	int status;
+	int options;
+	int pid;
+
+	/* It seems that normal wait() without explicitic calls to this
+	   procedure can work also.  All tests indicate that polled
+	   handle_childs() just returns because of (pid <= 0). Always.
+	   Interrupt based handling has taken care of dead child.
+	   This is true at least on  SunOS 4.0.3			*/
+
+	pid = waitpid (-1 /* Any child */, &status, WNOHANG);
+	if (pid <= 0) return ; /* No childs waiting for us. */
+
+	/* We salvage dead childrens and make sure we don't gather zombies */
+	if (WIFSTOPPED(status))
+	  logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
+		 pid,WSTOPSIG(status));
+	else if (WIFSIGNALED(status))
+	  logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
+		 pid,WTERMSIG(status),(0200 & status)?", core dumped":"");
+	else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+	  logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
+		 WEXITSTATUS(status));
+#else /* !_POSIX_SOURCE */
+	union wait status;
+	struct rusage rusage;
+	int pid;
+
+	/* It seems that normal wait() without explicitic calls to this
+	   procedure can work also.  All tests indicate that polled
+	   handle_childs() just returns because of (pid <= 0). Always.
+	   Interrupt based handling has taken care of dead child.
+	   This is true at least on  SunOS 4.0.3			*/
+
+	pid = wait3 (&status,WNOHANG,&rusage);
+	if (pid <= 0) return ; /* No childs waiting for us. */
+
+	/* We salvage dead childrens and make sure we don't gather zombies */
+	if (WIFSTOPPED(status))
+	  logger(2,"SIGCHLD: child stopped! pid=%d, signal=%d\n",
+		 pid,status.w_stopsig);
+	else if (WIFSIGNALED(status))
+	  logger(2,"SIGCHLD: child sig-terminated, pid=%d, signal=%d%s\n",
+		 pid,status.w_termsig,status.w_coredump?", core dumped":"");
+	else if (WIFEXITED(status) && status.w_retcode != 0)
+	  logger(2,"SIGCHLD: child exited, pid=%d, status=%d\n",pid,
+		 status.w_retcode);
+#endif /* !_POSIX_SOURCE */
+}
+#endif /* !linux */
+#endif /* 0 */
+
+void
+handle_sighup(n) /* signal(SIGHUP,handle_sighup); */
+const int n;
+{
+	/*  Right, we have been HUPed.  Thus we must go and re-read
+	    exit config databases.  Should we also drop connections ? */
+
+	extern FILE *LogFd; /* In main.c */
+
+	signal(SIGHUP,handle_sighup); /* Keep it active on SYSVs, doesn't
+					 hurt BSDs.. */
+
+	logger(1,"==============================================\n");
+	logger(1,"SIGHUP: Rescanning exits, restarting log file.\n");
+	logger(1,"==============================================\n");
+
+	if (*FileExits)
+	  read_exit_config(FileExits); /* ==0 OK, others: error */
+
+	if (*MsgExits)
+	  read_message_config(MsgExits); /* ==0 OK, others: error */
+
+	if (LogFd) {  /* Close also log file, and mark it closed */
+	  fclose(LogFd);
+	  LogFd = NULL;
+	}
+
+	rscsacct_close();
+	rscsacct_open(RSCSACCT_LOG);
+
+	logger(1,"================================================\n");
+	logger(1,"SIGHUP: Rescanning done, New(?) log file opened.\n");
+	logger(1,"================================================\n");
+}
+
+
+void
+log_line_stats()
+{
+
+	register int i;
+	struct STATS *S, *stats;
+
+	logger(0,"STATS: Line statistics over whole HUJINJE process runtime:\n\n");
+
+	for (i=0; i<MAX_LINES; ++i) {
+	  S     = & IoLines[i].sumstats;
+	  stats = & IoLines[i].stats;
+
+	  S->TotalIn     += stats->TotalIn;     stats->TotalIn     = 0;
+	  S->TotalOut    += stats->TotalOut;    stats->TotalOut    = 0;
+	  S->WaitIn      += stats->WaitIn;      stats->WaitIn      = 0;
+	  S->WaitOut     += stats->WaitOut;     stats->WaitOut     = 0;
+	  S->AckIn       += stats->AckIn;       stats->AckIn       = 0;
+	  S->AckOut      += stats->AckOut;      stats->AckOut      = 0;
+	  S->RetriesIn   += stats->RetriesIn ;  stats->RetriesIn   = 0;
+	  S->RetriesOut  += stats->RetriesOut;  stats->RetriesOut  = 0;
+	  S->MessagesIn  += stats->MessagesIn;  stats->MessagesIn  = 0;
+	  S->MessagesOut += stats->MessagesOut; stats->MessagesOut = 0;
+
+	  if (IoLines[i].HostName[0] == 0)
+	    continue; /* Nothing on this line */
+
+	  logger(0,"STATS: line %d  Host `%s'\n",i,IoLines[i].HostName);
+	  logger(0,"STATS: line %d  TotalIn %d  TotalOut %d  WaitIn %d  WaitOut %d\n",
+		 i,S->TotalIn,S->TotalOut,S->WaitIn,S->WaitOut);
+	  logger(0,"STATS: line %d  AckIn %d  AckOut %d  MsgsIn %d  MsgsOut %d\n",
+		 i,S->AckIn,S->AckOut,S->MessagesIn,S->MessagesOut);
+	  logger(0,"STATS: line %d  RetriesIn %d  RetriesOut %d\n\n",
+		 i,S->RetriesIn,S->RetriesOut);
+	}
+}
+
+
+void
+handle_sigterm(n) /* signal(SIGTERM,handle_sigterm); */
+const int n;
+{
+	/*  Right, we have been TERMed.
+	    Thus we must go and close everything.  Flush counters... */
+
+	signal(SIGTERM,SIG_DFL);	/* Next TERM -> kill me... */
+
+	logger(0,"===============================\n");
+	logger(0,"SIGTERM: Terminating, counters:\n");
+	logger(0,"===============================\n");
+
+	log_line_stats();
+}
+
+void
+handle_sigusr1(n) /* signal(SIGUSR1,handle_sigusr1); */
+const int n;
+{
+	/*  Right, we have been USR1ed.
+	    Thus we must go and close everything.  Flush counters... */
+
+	signal(SIGUSR1,handle_sigusr1);
+
+	logger(0,"==================\n");
+	logger(0,"SIGUSR1: Counters:\n");
+	logger(0,"==================\n");
+
+	log_line_stats();
+}
+
+/* We timeout, with this ALARM */
+
+int alarm_happened = 0;
+
+void
+handle_sigalrm(n)
+const int n;
+{
+	signal(SIGALRM,handle_sigalrm);
+	alarm_happened = 1;
 }
 
 
 /*========================== FILES section =========================*/
 /*
  | Find the next file matching the given mask.
- | Note: We assume that the file mask has the format of: /dir1/.../FN*.Extension
- | The FileMask tells us whether this is afirst call (it has a file name),
- | or whether it is not a first call (*FileName = Null). In this case, we
- | use the values saved internally.
+ | Note: We assume that the file mask has the format of:
+ |	/dir1/.../FN*.Extension
+ |
+ | The FileMask tells us whether this is first call (it has a file name),
+ | or whether it is not (*FileName = Null). In later case, we use internally
+ | (statically) saved values.
+ |
  | Input:  FileMask - The mask to search.
  |         context  - Should be passed by ref. Must be zero before search, and
  |                    shouldn't be modified during the search.
  | Output: find_file() - 0 = No more files;  1 = Matching file found.
  |         FileName - The name of the found file.
  */
-find_file(FileMask, FileName, context)
-char	*FileMask, *FileName;
+int find_file(FileMask, FileName, context)
+const char *FileMask;
+char	*FileName;
 DIR	**context;
 {
 	DIRENTTYPE	*dirp;
-	static char	Directory[LINESIZE], File_Name[LINESIZE], Extension[LINESIZE];
+	static char	Directory[LINESIZE],
+			File_Name[LINESIZE], Extension[LINESIZE];
 	char	*p;
+	struct stat	stats;
 
-/* From the file mask, get the directory name, the file name, and the
-   extenstion.
-*/
-	if(*FileMask != 0) {	/* First time */
-		strcpy(Directory, FileMask);
-		if((p = strrchr(Directory, '/')) == NULL) {
-			logger(1, "UNIX, Illegal file mask='%s'\n", FileMask);
-			return 0;
-		}
-		else	*p++ ='\0';
-		strcpy(File_Name, p);
-		if((p = strchr(File_Name, '*')) == NULL) {
-			logger(1, "UNIX, Illegal file mask='%s'\n", FileMask);
-			return 0;
-		}
-		*p++ = '\0';
-		if((p = strchr(p, '.')) == NULL) *Extension = '\0';
-		else strcpy(Extension, p);
-/* Open the directory */
-		if((*context = opendir(Directory)) == NULL) {
-			logger(1, "UNIX, Can't open dir. error: %s\n", PRINT_ERRNO);
-			return 0;
-		}
+	/* From the file mask, get the directory name, the file name,
+	   and the extenstion.						*/
+
+	if (*FileMask != 0) {	/* First time */
+	  strcpy(Directory, FileMask);
+	  if ((p = strrchr(Directory, '/')) == NULL) {
+	    logger(1, "UNIX, Illegal file mask='%s', not an absolute path\n",
+		   FileMask);
+	    return 0;
+	  } else
+	    *p++ ='\0';
+	  strcpy(File_Name, p);
+	  if ((p = strchr(File_Name, '*')) == NULL) {
+	    logger(1, "UNIX, Illegal file mask='%s', no `*' in it\n",
+		   FileMask);
+	    return 0;
+	  }
+	  *p++ = '\0';
+	  if ((p = strchr(p, '.')) == NULL)
+	    *Extension = '\0';
+	  else
+	    strcpy(Extension, p);
+
+	  /* Open the directory */
+
+	  if ((*context = opendir(Directory)) == NULL) {
+	    logger(1, "UNIX, Can't open dir (%s) error: %s\n",
+		   Directory, PRINT_ERRNO);
+	    return 0;
+	  }
+	  logger(3,"UNIX: find_file(%s -> `%s' dir)\n",
+		 FileMask,Directory);
 	}
 
-/* Look for the next file name */
-	for(dirp = readdir(*context); dirp != NULL; dirp = readdir(*context)) {
-		if((dirp->d_namlen > 0) &&
-		   ((memcmp(dirp->d_name, File_Name, strlen(File_Name)) == 0) || (*File_Name == '\0'))) {
-			if((p = strchr(dirp->d_name, '.')) != NULL) {
-				if(strncmp(p, Extension, strlen(Extension)) == 0) {
-					(dirp->d_name)[dirp->d_namlen] = '\0';
-					sprintf(FileName, "%s/%s",
-						Directory, dirp->d_name);
-					return 1;
-				}
-			}
+	/* Look for the next file name */
+
+	for (dirp = readdir(*context);
+	     dirp != NULL;
+	     dirp = readdir(*context)) {
+	  int dnamlen = strlen(dirp->d_name);
+	  /* dirp->d_namlen  is not available everywhere.. */
+	  if ((dnamlen > 0) &&
+	     ((memcmp(dirp->d_name, File_Name, strlen(File_Name)) == 0) ||
+	      (*File_Name == '\0'))) {
+	    if (dirp->d_name[0] != '.') { /* Name beginning with '.' is
+					     not a ready-to-submit one! */
+		(dirp->d_name)[dnamlen] = '\0';
+		sprintf(FileName, "%s/%s",
+			Directory, dirp->d_name);
+		stat( FileName,&stats );
+		if ((stats.st_mode & S_IFMT) == S_IFREG) {
+		  /* Inform about regular files ONLY. */
+		  /* XXX: S_ISREG() could be used instead ? */
+		  logger(3,"UNIX: find_file(`%s' dir) -> `%s' file\n",
+			 Directory,FileName);
+		  return 1;
 		}
+	      }
+	  }
 	}
+	logger(3,"UNIX: find_file(`%s' dir) end.\n",Directory);
 	closedir(*context);
 	return 0;
 }
@@ -595,34 +1089,32 @@ DIR	**context;
  | Set the flags to hold the F_IN_HEADER flag so we know to start reading our
  | header in normal ASCII mode.
 */
-open_xmit_file(Index, DecimalStreamNumber, FileName)
-int	DecimalStreamNumber, Index;		/* Index into IoLine structure */
-char	*FileName;
+int
+open_xmit_file(Index, Stream, FileName)
+const int	Index;		/* Index into IoLine structure */
+const int	Stream;
+const char	*FileName;
 {
 	struct	LINE	*temp;
 	FILE	*fd;
-	struct	stat	Stat;
 
 	temp = &(IoLines[Index]);
 
 	/* Open the file */
-	if((fd = fopen(FileName, "r")) == NULL) {	/* Open file. */
-		logger(1, "UNIX, name='%s', error: %s\n", FileName, PRINT_ERRNO);
-		return 0;
+	if ((fd = fopen(FileName, "r+")) == NULL) { /* Open file. */
+	  logger(1, "UNIX, name='%s', error: %s\n", FileName, PRINT_ERRNO);
+	  return 0;
 	}
 
-	((temp->InFds)[DecimalStreamNumber]) = fd;
-	(temp->OutFileParams)[DecimalStreamNumber].flags = F_IN_HEADER;
-	parse_envelope(Index, DecimalStreamNumber);	/* get the file's data from our envelope */
-	(temp->OutFileParams)[DecimalStreamNumber].flags &= ~F_IN_HEADER;
+	temp->InFds[Stream] = fd;
 
-/* Get the file size in bytes */
-	if(stat(FileName, &Stat) == -1) {
-		logger(1, "UNIX, Can't stat file '%s'. error: %s\n", FileName, PRINT_ERRNO);
-		((temp->OutFileParams)[DecimalStreamNumber]).FileSize = 0;
+	strcpy(temp->OutFileParams[Stream].SpoolFileName, FileName);
+	if (parse_envelope(fd, &temp->OutFileParams[Stream], 1)<0) {
+	  fclose(fd);
+	  logger(1,"UNIX: file `%s' does not have HUJINJE headers\n",
+		 FileName);
+	  return 0;
 	}
-	else
-		((temp->OutFileParams)[DecimalStreamNumber]).FileSize = Stat.st_size;
 
 	return 1;
 }
@@ -634,35 +1126,47 @@ char	*FileName;
  | RECEIVE_TEMP.TMP; It'll be renamed later to a more sensible name.
  |  Caller must make sure that the stream number is within range.
 */
-open_recv_file(Index, DecimalStreamNumber)
+int
+open_recv_file(Index, Stream)
 int	Index,		/* Index into IoLine structure */
-	DecimalStreamNumber;	/* In the range 0-7 */
+	Stream;	/* In the range 0-7 */
 {
 	FILE	*fd;
 	char	FileName[LINESIZE];
 	struct	LINE	*temp;
+	struct	FILE_PARAMS *FP;
+	int	oldumask;
 
 	temp = &(IoLines[Index]);
+	FP = &(temp->InFileParams[Stream]);
 
 /* Create the filename in the queue */
 	sprintf(FileName, "%s/%s%d_%d.%s", BITNET_QUEUE, TEMP_R_FILE,
-		Index, DecimalStreamNumber, TEMP_R_EXT);
-	strcpy((temp->InFileParams[DecimalStreamNumber]).OrigFileName, FileName);
-	(temp->InFileParams[DecimalStreamNumber]).NetData = 0;
-	(temp->InFileParams[DecimalStreamNumber]).RecordsCount = 0;
-	((temp->InFileParams[DecimalStreamNumber]).JobName)[0] = '\0';
-	((temp->InFileParams[DecimalStreamNumber]).FileName)[0] =
-		((temp->InFileParams[DecimalStreamNumber]).FileExt)[0] =
-		((temp->InFileParams[DecimalStreamNumber]).JobName)[0] = '\0';
+		Index, Stream, TEMP_R_EXT);
+	strcpy(FP->SpoolFileName, FileName);
 
+	/* logger(3,"UNIX: open_recv_file(%s:%d)\n",
+	       temp->HostName,Stream); */
+
+	temp->SizeSavedJobHeader[Stream] = 0;
+	temp->SizeSavedDatasetHeader[Stream] = 0;
+	temp->SizeSavedJobTrailer[Stream] = 0;
+	FP->RecordsCount = 0;
+	FP->FileName[0] = FP->FileExt[0] = FP->JobName[0] = 0;
+	FP->type = 0;
+
+	oldumask = umask(077);
 	/* Open the file */
-	if((fd = fopen(FileName, "w")) == NULL) {	/* Open file. */
-		logger(1, "UNIX, name='%s', error: %s\n", FileName, PRINT_ERRNO);
-		return 0;
+	if ((fd = fopen(FileName, "w")) == NULL) {	/* Open file. */
+	  umask(oldumask);
+	  logger(1, "UNIX, name='%s', error: %s\n", FileName, PRINT_ERRNO);
+	  return 0;
 	}
+	umask(oldumask);
 
-	((temp->OutFds)[DecimalStreamNumber]) = fd;
-	((temp->InFileParams)[DecimalStreamNumber]).flags = F_IN_HEADER;
+	temp->OutFds[Stream] = fd;
+	FP->RecvStartTime = time(0);
+	FP->flags = 0;
 	return 1;
 }
 
@@ -670,84 +1174,69 @@ int	Index,		/* Index into IoLine structure */
 /*
  |  Write the given string into the file.
 */
-uwrite(Index, DecimalStreamNumber, string, size)
-unsigned char	*string;	/* Line descption */
-int	Index, DecimalStreamNumber, size;
+int
+uwrite(Index, Stream, string, size)
+const void	*string;	/* Line descption */
+const int	Index, Stream, size;
 {
 	FILE	*fd;
 
-	fd = ((IoLines[Index].OutFds)[DecimalStreamNumber]);
+	/* We write ONLY BINARY LINES.   recv_file.c does the ASCII header! */
 
-	if((((IoLines[Index].InFileParams[DecimalStreamNumber]).flags & F_IN_HEADER) != 0) ||
-	   (IoLines[Index].InFileParams[DecimalStreamNumber].format == ASCII)) {
-		if(compare(string, "END:") == 0) {
-			IoLines[Index].InFileParams[DecimalStreamNumber].flags &= ~F_IN_HEADER;
-		}
-/* Used Fwrite since it doesn't need terminating NULL */
-		if(fwrite(string, size, 1, fd) == EOF) {
-			logger(1, "UNIX: Can't fwrite, error: %s\n", PRINT_ERRNO);
-			return 0;
-		}
-		fwrite("\n", sizeof(char), 1, fd);	/* Write end of line */
-	} else {	/* Use Fwrite if the file is binary, Printf otherwise */
-		if(fwrite(&size, sizeof(int), 1, fd) == EOF) {
-			logger(1, "UNIX: Can't fwrite, error: %s\n", PRINT_ERRNO);
-			return 0;
-		}
-		if(fwrite(string, size, 1, fd) == EOF) {
-			logger(1, "UNIX: Can't fwrite, error: %s\n", PRINT_ERRNO);
-			return 0;
-		}
+	short unsigned int Size = htons(size);
+
+	fd = IoLines[Index].OutFds[Stream];
+
+	if (fwrite(&Size, 1, sizeof(Size), fd) != sizeof(Size)) {
+	  logger(1, "UNIX: Can't fwrite, error: %s\n", PRINT_ERRNO);
+	  return 0;
 	}
+	if (fwrite(string, 1, size, fd) != size) {
+	  logger(1, "UNIX: Can't fwrite, error: %s\n", PRINT_ERRNO);
+	  return 0;
+	}
+	IoLines[Index].OutFilePos[Stream] = ftell(fd);
+
 	return 1;
 }
 
 /*
- |  Read from the given file. The function returns the number of characters
- | read, or -1 if error.
- | This function has been modified (ugli...) to handle binary files.
+ | Read from the given file.
+ | The function returns the number of
+ | characters read, or -1 if error.
 */
 int
-uread(Index, DecimalStreamNumber, string, size)
+uread(Index, Stream, string, size)
 /* Read one record from file */
 unsigned char	*string;	/* Line descption */
-int	DecimalStreamNumber, Index, size;
+const int	Stream, Index, size;
 {
-	char	*p;
 	FILE	*fd;
-	int	status, NewSize;
+	unsigned short NewSize;
+	static int read_pos;
 
-	fd = ((IoLines[Index].InFds)[DecimalStreamNumber]);
+	fd = IoLines[Index].InFds[Stream];
 
-	if((IoLines[Index].OutFileParams[DecimalStreamNumber].format == ASCII) ||
-	   ((IoLines[Index].OutFileParams[DecimalStreamNumber].flags & F_IN_HEADER) != 0)) {
-		if(fgets(string, size, fd) != NULL) {
-			if((p = strchr(string, '\n')) != NULL) *p = '\0';
-			return strlen(string);
-		}
-		else {
-#ifdef DEBUG
-			logger(2, "UNIX: Uread errno = %d\n", PRINT_ERRNO);
-#endif
-			return -1;
-		}
+	read_pos = ftell(fd);
+	IoLines[Index].InFilePos[Stream] = read_pos;
+
+	if (fread(&NewSize, sizeof(NewSize), 1, fd) != 1)
+	  return -1;	/* Probably end of file */
+	NewSize = ntohs(NewSize);
+	if (NewSize > size) {	/* Can't reduce size, so can't recover */
+	  logger(1, "Unix, Uread, have to read %d into a buffer of only %d.  File offset: %d, Filename: %s\n",
+		 NewSize, size, ftell(fd)-2,
+		 IoLines[Index].OutFileParams[Stream].SpoolFileName
+		 );
+	  bug_check("Uread - buffer too small");
+	  /* XXX: [mea]  Should cause transmission abort,
+			 and move file into error area.. */
+	}
+	if (fread(string, NewSize, 1, fd) == 1) {
+	  return NewSize;
 	} else {
-		if(fread(&NewSize, sizeof(int), 1, fd) != 1)
-			return -1;	/* Probably end of file */
-		if(NewSize > size) {	/* Can't reduce size, so can't recover */
-			logger(1, "Unix, Uread, have to read %d into a buffer of only %d\n",
-				NewSize, size);
-			bug_check("Uread - buffer too small");
-		}
-		if(fread(string, NewSize, 1, fd) == 1) {
-			return NewSize;
-		}
-		else {
-#ifdef DEBUG
-			logger(2, "UNIX: Uread errno = %d\n", PRINT_ERRNO);
-#endif
-			return -1;
-		}
+	  logger(2, "UNIX: Uread errno = %d\n", PRINT_ERRNO);
+	  return -1;
 	}
 }
 
@@ -755,49 +1244,67 @@ int	DecimalStreamNumber, Index, size;
 /*
  | Close and Delete a file given its index into the Lines database.
  */
-delete_file(Index, direction, DecimalStreamNumber)
-int	Index, direction, DecimalStreamNumber;
+void
+delete_file(Index, direction, Stream)
+int	Index, direction, Stream;
 {
 	FILE	*fd;
 	char	*FileName;
 
-	if(direction == F_INPUT_FILE) {
-		fd = ((IoLines[Index].InFds)[DecimalStreamNumber]);
-		FileName = IoLines[Index].OutFileParams[DecimalStreamNumber].OrigFileName;
-	}
-	else {
-		fd = ((IoLines[Index].OutFds)[DecimalStreamNumber]);
-		FileName = IoLines[Index].InFileParams[DecimalStreamNumber].OrigFileName;
+	if (direction == F_INPUT_FILE) {
+	  fd = IoLines[Index].InFds[Stream];
+	  FileName = IoLines[Index].OutFileParams[Stream].SpoolFileName;
+	  if (fd)
+	    IoLines[Index].InFilePos[Stream] = ftell(fd);
+	} else {
+	  fd = IoLines[Index].OutFds[Stream];
+	  FileName = IoLines[Index].InFileParams[Stream].SpoolFileName;
+	  if (fd)
+	    IoLines[Index].OutFilePos[Stream] = ftell(fd);
 	}
 
-	if(fclose(fd) == -1)
-		logger(1, "UNIX: Can't close file, error: %s\n", PRINT_ERRNO);
+	if (fclose(fd) == -1)
+	  logger(1, "UNIX: Can't close file, error: %s\n", PRINT_ERRNO);
 
-	if(unlink(FileName) == -1) {
-		logger(1, "UNIX: Can't delete file '%s', error: %s\n",
-			FileName, PRINT_ERRNO);
+	if (unlink(FileName) == -1) {
+	  logger(1, "UNIX: Can't delete file '%s', error: %s\n",
+		 FileName, PRINT_ERRNO);
 	}
 }
 
 /*
  | Close a file given its index into the Lines database.
- | The file size in blocks (512 bytes) is returned.
+ | The file size is returned.
  */
-close_file(Index, direction, DecimalStreamNumber)
-int	Index, direction, DecimalStreamNumber;
+int	/* [mea] add 'int' here.. */
+close_file(Index, direction, Stream)
+int	Index, direction, Stream;
 {
 	FILE	*fd;
 	long	FileSize;
 
-	if(direction == F_INPUT_FILE)
-		fd = ((IoLines[Index].InFds)[DecimalStreamNumber]);
+	if (direction == F_INPUT_FILE)
+	  fd = ((IoLines[Index].InFds)[Stream]);
 	else
-		fd = ((IoLines[Index].OutFds)[DecimalStreamNumber]);
+	  fd = ((IoLines[Index].OutFds)[Stream]);
 
-	FileSize = ftell(fd) / 512;
+	if (fd) {
+	  fseek(fd,0,2);			/* To the EOF */
+	  FileSize = ftell(fd);
+	}
 
-	if(fclose(fd) == -1)
-		logger(1, "UNIX: Can't close file, error: %s\n", PRINT_ERRNO);
+	else FileSize = 0;
+
+	if (fd && fclose(fd) == -1)
+	  logger(1, "UNIX: Can't close file, error: %s\n", PRINT_ERRNO);
+
+	if (direction == F_INPUT_FILE) {
+	  IoLines[Index].InFds[Stream] = NULL;
+	  IoLines[Index].InFilePos[Stream] = FileSize;
+	} else {
+	  IoLines[Index].OutFds[Stream] = NULL;
+	  IoLines[Index].OutFilePos[Stream] = FileSize;
+	}
 
 	return FileSize;
 }
@@ -816,84 +1323,187 @@ int	Index, direction, DecimalStreamNumber;
  |       from the FABS and RABS which start with OUT (VMS output file).
  */
 char *
-rename_file(Index, flag, direction, DecimalStreamNumber)
-int	Index, flag, direction, DecimalStreamNumber;
+rename_file(FileParams, flag, direction)
+struct FILE_PARAMS *FileParams;
+const int flag, direction;
 {
-	struct	FILE_PARAMS	*FileParams;
-	char	InputFile[LINESIZE], ToNode[LINESIZE], *p;
-	static char	line[LINESIZE];	/* Will return here the new file name */
-	static	int	FileCounter = 0;	/* Just for the name... */
+	char	InputFile[LINESIZE], ToNode[30], UnderScores[9], *p;
+	static char	line[LINESIZE];/* Will return here the new file name */
+	struct stat	filestats;
 
-	if(direction == F_OUTPUT_FILE) {	/* The file just received */
-		FileParams = &((IoLines[Index].InFileParams)[DecimalStreamNumber]);
-		sprintf(InputFile, "%s/%s%d_%d.%s", BITNET_QUEUE, TEMP_R_FILE,
-			Index, DecimalStreamNumber, TEMP_R_EXT);
+	if (direction == F_OUTPUT_FILE) { /* The file just received */
+	  /* FileParams = &IoLines[Index].InFileParams[Stream]; */
+	} else {	/* The sending file - change the flag to ABORT */
+	  /* FileParams = &IoLines[Index].OutFileParams[Stream];*/
 	}
-	else {	/* The sending file - change the flag to ABORT */
-		FileParams = &((IoLines[Index].OutFileParams)[DecimalStreamNumber]);
-		flag = RN_HOLD_ABORT;
-		sprintf(InputFile, "%s", FileParams->OrigFileName);
-	}
+	strcpy(InputFile, FileParams->SpoolFileName);
+	sprintf( line, "%s/",BITNET_QUEUE );
 
-/* File is of format ASCII or EBCDIC ? */
-	if((p = strchr(FileParams->To, '@')) != NULL)
+	if (flag == RN_NORMAL)
+	  strcat(line, FileParams->line);
+	else if (flag == RN_JUNK)
+	  strcat(line, "BAD-JUNK");
+	else
+	  strcat(line, "HOLD-ABORT");
+	strcat(line,"/");
+
+	if ((p = strchr(FileParams->To, '@')) != NULL)
 		strcpy(ToNode, ++p);
 	else	*ToNode = '\0';
-	if(FileParams->format == ASCII)
-		sprintf(line, "%s/ASC_%s_%04d", BITNET_QUEUE, ToNode, FileCounter++);
-	else
-		sprintf(line, "%s/EBC_%s_%04d", BITNET_QUEUE, ToNode, FileCounter++);
-	FileCounter %= 999;	/* Make it modulo 1000 */
-/* What line will it go to ??? */
-	strcat(line, ".");
-	if(flag == RN_NORMAL)
-		strcat(line, FileParams->line);
-	else
-	if(flag == RN_HOLD)
-		strcat(line, "HOLD");
-	else
-		strcat(line, "HOLD$ABORT");
 
-	if(rename(InputFile, line) == -1)
-		logger(1, "UNIX: Can't rename '%s' to '%s'. Error: %s\n",
-			InputFile, line, PRINT_ERRNO);
+	p = line + strlen(line);
+
+	stat(InputFile,&filestats); /* It MUST exist.. */
+	/* Name to be unique within the disk, and at most 14 chars.. */
+	memcpy(UnderScores,"________",8);
+	UnderScores[8-strlen(ToNode)] = 0; /* Chop it off.. */
+	sprintf(p, "%s%s%06ld", ToNode, UnderScores, filestats.st_ino);
+
+	/* What line will it go to ??? */
+	if (rename(InputFile, line) == -1) {
+	  make_dirs( line );	/* [mea] Make sure we have this dir... */
+	  if (rename(InputFile, line) == -1) {
+	    logger(1, "UNIX: Can't rename '%s' to '%s'. Error: %s\n",
+		   InputFile, line, PRINT_ERRNO);
+	  } else strcpy( FileParams->SpoolFileName,line );
+	} else strcpy( FileParams->SpoolFileName,line );
+
 	return line;	/* Return the new file name */
 }
 
 
-/*
- | Return the file size in 512 bytes blocks (to be compatible with VMS).
- */
+int
 get_file_size(FileName)
-char	*FileName;
+const char	*FileName;
 {
 	struct	stat	Stat;
 
-	if(stat(FileName, &Stat) == -1) {
-		logger(1, "UNIX, Can't stat file '%s'. error: %s\n",
-			FileName, PRINT_ERRNO);
-		return 0;
+	if (stat(FileName, &Stat) == -1) {
+	  logger(1, "UNIX, Can't stat file '%s'. error: %s\n",
+		 FileName, PRINT_ERRNO);
+	  return 0;
 	}
-	return (int)((Stat.st_size / 512) + 1);
+	return Stat.st_size;
 }
 
 
 /*
- | Return the date in IBM's format. IBM's date starts at 1/1/1900, and UNIX starts
- | at 1/1/1970; IBM use 64 bits, where counting the microseconds at
+ | Return the date in IBM's format. IBM's date starts at 1/1/1900, and UNIX
+ | starts at 1/1/1970; IBM use 64 bits, where counting the microseconds at
  | the 50 or 51 bit (thus counting to 1.05... seconds of the lower bit of the
  | higher word). In order to compute the IBM's time, we compute the number of
  | days passed from Unix start time, add the number of days between 1970 and
- | 1900, thus getting the number of days since 1/1/1900. Then we multiply by the
- | number of seconds in a day, add the number of seconds since midnight and write
- | in IBM's quadword format - We count in 1.05.. seconds interval. The lower
- | longword is zeroed.
+ | 1900, thus getting the number of days since 1/1/1900. Then we multiply by
+ | the number of seconds in a day, add the number of seconds since midnight
+ | and write in IBM's quadword format - We count in 1.05.. seconds interval.
+ | The lower longword is zeroed.
  */
+
+#define	IBM_TIME_ORIGIN	2106649018L	/* Number of seconds between
+					   1900 and 1970 */
+#define	BIT_32_SEC	1.048565841	/* The number of seconds
+					   the 32th bit counts */
+
+
+void
 ibm_time(QuadWord)
 unsigned long	*QuadWord;
 {
-	QuadWord[1] = (long)(((float)(time(0)) / (float)(BIT_32_SEC)) +
-			IBM_TIME_ORIGIN);
-	QuadWord[0] = 0;
+	QuadWord[0] = htonl((unsigned long) (((float)time(0) / BIT_32_SEC) +
+					     IBM_TIME_ORIGIN));
+	QuadWord[1] = 0;
 }
 
+/* Return UNIX time from given IBM time.. [mea] */
+unsigned long
+ibmtime2unixtime(QuadWord)
+const unsigned long *QuadWord;
+{
+	unsigned long t = (unsigned long)((float)(ntohl(QuadWord[0])
+						  - (unsigned long)IBM_TIME_ORIGIN)
+					  * BIT_32_SEC );
+	return t;
+}
+
+/*
+ *  int makedir( char *path )
+ *
+ * Makes recursively given set of dirs (with current UID/GID)
+ * thru whole path.  Given path must be absolute!  '/foo/bat/'
+ * (By [mea] - Lifted from GNU gtar)
+ */
+
+int
+make_dirs(pathname)
+	char *pathname;
+{
+	char *p;			/* Points into path */
+	int madeone = 0;		/* Did we do anything yet? */
+	int save_errno = errno;		/* Remember caller's errno */
+	int check;
+
+	for (p = strchr(pathname, '/'); p != NULL; p = strchr(p+1, '/')) {
+	  /* Avoid mkdir of empty string, if leading or double '/' */
+	  if (p == pathname || p[-1] == '/')
+	    continue;
+	  /* Avoid mkdir where last part of path is '.' */
+	  if (p[-1] == '.' && (p == pathname+1 || p[-2] == '/'))
+	    continue;
+	  *p = 0;				/* Truncate the path there */
+	  check = mkdir (pathname, 0770);	/* Try to create it as a dir */
+	  if (check == 0) {
+	    madeone++;		/* Remember if we made one */
+	    *p = '/';
+	    continue;
+	  }
+	  *p = '/';
+	  if (errno == EEXIST)		/* Directory already exists */
+	    continue;
+	  /*
+	   * Some other error in the mkdir.  We return to the caller.
+	   */
+	  break;
+	}
+
+	errno = save_errno;		/* Restore caller's errno */
+	return madeone;			/* Tell them to retry if we made one */
+}
+
+
+
+void
+read_ebcasc_table(filepath)
+char *filepath;
+{
+	int fd;
+	static unsigned char ebuf[8+512+10];
+	int rc;
+
+	if (!*filepath) return;
+
+	fd = open(filepath,O_RDONLY,0);
+	if (fd < 0) {
+	  logger(1,
+		 "UNIX: read_ebcasc_table('%s') -- bad file path, errno=%d\n",
+		 filepath,errno);
+	  return;
+	}
+	rc = read(fd,ebuf,sizeof(ebuf));
+	close(fd);
+	if (rc != 522 ||
+	    memcmp("ASC<=>EBC\n",ebuf,10) != 0) {
+	  logger(1,"UNIX: configuration item EBCDICTBL defined, but file pointed by it is not of proper format.\n");
+	  return;
+	}
+	memcpy(ASCII_EBCDIC,ebuf+10,    256);
+	memcpy(EBCDIC_ASCII,ebuf+10+256,256);
+
+	/* Right, we are called in only once..  Reuse that buffer */
+
+#ifdef  HAS_PUTENV
+        sprintf(ebuf,"EBCDICTBL=%s",filepath);
+        putenv(ebuf);
+#else
+        setenv ("EBCDICTBL", filepath, 1);
+#endif
+}

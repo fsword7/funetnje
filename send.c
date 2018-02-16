@@ -1,4 +1,4 @@
-/* SEND.C	V1.3
+/* SEND.C	V1.3-mea
  | Copyright (c) 1988,1989,1990 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -20,167 +20,227 @@
  |            or:  send /message User@Node message...
  | Please note the space between SEND and the qualifier.
  |
- | V1.1 - Do not append any more the local site name to the sender userID.
- |        this is done from now by UNIX.C
- | V1.2 - 7/3/90 - Scan the user's message text and remove all controls. This
- |        will disbale users ability to play with screen controls on others
- |        terminals.
- | V1.3 - 26/3/90 - Add -m, -message, -c, -command as valid flags.
  */
-#include "consts.h"
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 
-unsigned long	LOCAL_ADDRESS;
+#include "prototypes.h"
+#include "clientutils.h"
+
+#define LINESIZE 256
+#define CMD_MSG 0
+#define CMD_CMD 1
+
+void
+usage()
+{
+	printf("Usage: send [-u fromuser|-s] [-c{ommand}] [[@]node [command string]]\n");
+	printf("       send [-u fromuser|-s] [-m{essage}] [user@node [message text]]\n");
+}
 
 
+char LOCAL_NAME   [10];
+char BITNET_QUEUE [80];
+char LOG_FILE     [80] = "-";	/* STDERR as the default */
+
+int LogLevel = 1;
+FILE *LogFd = NULL;
+
+extern int send_nje();
+
+int
 main(cc, vv)
 char	**vv;
 int	cc;
 {
-	struct	hostent	*HostEntry;
-	char	text[LINESIZE], address[LINESIZE], *p;
-	int	type,	/* Message or command */
-		mode;		/* Interactive or not */
+	char	text[LINESIZE], address[LINESIZE], from[32], *p;
+	int	type = 0,	/* Message or command */
+		mode = 0;	/* Interactive or not */
+	struct stat stdstats;
+	int	noprompt = 0;
 
-	if((HostEntry = gethostbyname("localhost")) == NULL) {
-		perror("GetHostByName");
-		exit(0);
-	}
 
-	if(HostEntry->h_length != 4) {	/* Illegal */
-		printf("Illegal address length=%d\n", HostEntry->h_length);
-		exit(0);
-	}
+	setbuf (stdout,NULL);	/* No buffering on stdout,
+				   no need to flush... */
+	fstat(fileno(stdin),&stdstats); /* This MUST succeed! */
+	if (!S_ISCHR(stdstats.st_mode))
+	  noprompt = 1;
 
-	LOCAL_ADDRESS =
-		((HostEntry->h_addr)[0] << 24) +
-		((HostEntry->h_addr)[1] << 16) +
-		((HostEntry->h_addr)[2] << 8) +
-		((HostEntry->h_addr)[3]);
+	read_configuration();
+	read_etable();
+	*from = 0;
 
-/* Get the command line and command parameters.*/
-	if(cc < 2) {	/* No /Mode - tell user and exit */
-		printf("Usage: SEND /COMMAND or SEND /MESSAGE\n");
-		exit(0);
+	/* Get the command line and command parameters.*/
+	if (cc < 2) {	/* No /Mode or no address.. - tell user and exit */
+	  usage();
+	  exit(1);
 	}
 
 /* Get the switch */
-	cc -= 2;	/* 1 = Prog name. 2 = this qualifier */
-	*vv++;		/* Point to the qualifier */
-	if((strcmp(*vv, "/message") == 0) ||
-	   (strcmp(*vv, "-message") == 0) ||
-	   (strcmp(*vv, "-m") == 0))
-		type = CMD_MSG;
-	else
-	if((strcmp(*vv, "/command") == 0) ||
-	   (strcmp(*vv, "-command") == 0) ||
-	   (strcmp(*vv, "-c") == 0))
-		type = CMD_CMD;
-	else {
-		printf("Valid qualifiers are /COMMAND or /MESSAGE only\n");
-		exit(0);
+	++vv;		/* Point to the qualifier */
+	if (strcasecmp(*vv,"-u") == 0) {
+	  ++vv;
+	  cc -= 2;
+	  if (*vv)
+	    strncpy(from,*vv,sizeof(from)-1);
+	  else {
+	    fprintf(stderr,"SEND: -u option requires one parameter!\n");
+	    exit(9);
+	  }
+	  ++vv;
 	}
+	if (strcasecmp(*vv,"-s") == 0) {
+	  ++vv;
+	  --cc;
+	  strcpy(from,"@");
+	  if (getuid() >= LuserUidLevel) {
+	    type = -1;
+	    fprintf(stderr,"SEND: -s option requires priviledges!\n");
+	    exit(10);
+	  }
+	  type = CMD_MSG;
+	} else if ((strcasecmp(*vv, "/message") == 0) ||
+		   (strcasecmp(*vv, "-message") == 0) ||
+		   (strcasecmp(*vv, "-m") == 0)) {
+	  type = CMD_MSG;
+	  --cc;
+	  ++vv;
+	} else if((strcasecmp(*vv, "/command") == 0) || 
+		  (strcasecmp(*vv, "-command") == 0) ||
+		  (strcasecmp(*vv, "-c") == 0)) {
+	  type = CMD_CMD;
+	  --cc;
+	  ++vv;
+	} else if (**vv == '/' || **vv == '-') {
+	  printf("Valid qualifiers are `-c{ommand}' and `-m{essage}' only\n");
+	  exit(1);
+	} else
+	  type = -1;	/* No qualified defined.. */
 
 /* Get the address (if exists) */
-	if(cc < 1) {	/* No parameters - prompt for address and enter interactive mode */
-		printf("_Address: "); fgets(address, sizeof address, stdin);
-		if((p = (char*)strchr(address, '\n')) != NULL) *p = '\0';
-		mode = 1;	/* Interactive mode */
+	if (cc < 1) {	/* No parameters - prompt for address and enter interactive mode */
+	  while (1) {
+	    if (type == CMD_CMD)
+	      printf("_Host_Address: ");
+	    else if (type == CMD_MSG)
+	      printf("_User@Host_Address: ");
+	    else
+	      printf("_Address: ");
+	    if (fgets(address, sizeof address, stdin)== NULL) /* EOF */
+	      exit(0);
+	    if ((p = strchr(address, '\n')) != NULL) *p = '\0';
+	    mode = 1;		/* Interactive mode */
+	    if (*address == 0) continue;	/* Blank address.. */
+	    if (*address == '@') {
+	      strcpy(address,address+1);
+	      type = CMD_CMD;
+	      break;
+	    } else if ((p = strchr(address,'@')) != NULL) {
+	      type = CMD_MSG;
+	      break;
+	    } else if (type == -1) { /* Not defined! */
+	      type = CMD_MSG;
+	      break;
+	    }
+	    break;
+	  }
+	} else {		/* Get the available parameters */
+	  if (!*vv) {
+	    fprintf(stderr,"Mandatory parameter (target address) is missing!\n");
+	    exit(9);
+	  }
 
-	}
-	else {		/* Get the available parameters */
-		strcpy(address, *++vv);	/* We have at least the address there */
-		if(cc == 1) {	/* Nothing more than it */
-			mode = 1;	/* Interactive mode */
-		}
-		else {	/* Reconstruct the parameters as the text */
-			*text = '\0';
-			while(--cc > 0) {
-				strcat(text, *++vv); strcat(text, " ");
-			}
-			text[strlen(text) - 1] = '\0';	/* Remove the last blank */
-			mode = 0;
-		}
+	  strcpy(address, *vv); /* We have at least the address there */
+	  ++vv;
+	  --cc;
+
+	  if (*address == '@') {
+	    strcpy(address,address+1);
+	    type = CMD_CMD;
+	  } else if ((p = strchr(address,'@')) != NULL)
+	    type = CMD_MSG;
+	  else if (type == -1) {
+	    sprintf(address,"%s@%s",vv[-1],LOCAL_NAME);
+	    type = CMD_MSG;
+	  }
+	  
+	  if (cc <= 1) {		/* Nothing more than it */
+	    mode = 1;		/* Interactive mode */
+	  }
+	  else {		/* Reconstruct the parameters as the text */
+	    *text = '\0';
+	    while (cc > 0 && *vv) {
+	      strcat(text, *vv);
+	      strcat(text, " ");
+	      ++vv; --cc;
+	    }
+	    text[strlen(text) - 1] = '\0'; /* Remove the last blank */
+	  }
 	}
 
-	if(mode == 0) {		/* Batch mode */
-		send_nje(type, address, text);	/* Send it to the daemon */
-		exit(0);
+	/* Create the sender's address */
+	if (getuid() >= LuserUidLevel && *from ) {
+	  fprintf(stderr,"SEND: -u option not allowed, insufficient priviledges.\nForcing uname to your login id.   Your uid = %d\n",(int)getuid());
+	  *from = 0;
+	}
+	if (*from == 0)
+	  cuserid(from);
+
+	if (mode == 0) {		/* Batch mode */
+	  send_nje(type, from, address, text);	/* Send it to the daemon */
+	  exit(0);
 	}
 
-/* We have to read it interactively. Loop untill blank line */
-	printf("Hit your message/command. End with empty line\n");
-	for(;;) {
-		printf("%s: ", address);
-		if(fgets(text, sizeof text, stdin) == NULL)
-			break;	/* Null line */
-		if((p = (char*)strchr(text, '\n')) != NULL) *p = '\0';
-		if(*text == '\0') break;	/* Another sign of empty line */
-		send_nje(type, address, text);
+/* We have to read it interactively. Loop until blank line */
+	if (!noprompt)
+	  printf("Hit your message/command. End with EOF (usually Ctrl-D)\n");
+	while (!feof(stdin) && !ferror(stdin)) {	/* [mea] */
+	  if (!noprompt)
+	    printf("%s: ", address);
+	  *text = 0;
+	  if (fgets(text, sizeof text, stdin) == NULL)
+	    break;		/* EOF */
+	  if ((p = (char*)strchr(text, '\n')) != NULL) *p = '\0';
+	  send_nje(type, from, address, text);
 	}
 	exit(0);
 }
 
 
-send_nje(type, address, text)
+int
+send_nje(type, from, address, text)
 int	type;
-char	*address, *text;
+char	*from, *address, *text;
 {
-	char	line[LINESIZE], from[LINESIZE], *p;
-	struct	sockaddr_in	SocketName;
-	int	Socket, i;
+	char	line[LINESIZE], *p;
 	int	size;
 
-/* Remove all controls */
-	for(p = text; *p != NULL; *p++)
-		if((*p < ' ') || (*p > '\176')) *p = ' ';
+	/* Remove all controls */
+	for (p = text; *p != '\0'; p++)
+	  if((*p < ' ') || (*p > 126)) *p = ' ';
 
-/* Create the sender's address */
-	cuserid(from);
-
-	if(type == CMD_CMD) {
-/* Uppercase the message's text */
-		for(p = text; *p != '\0'; p++)
-			if((*p >= 'a') && (*p <= 'z')) *p -= ' ';
-		*line = CMD_SEND_COMMAND;
+	if (type == CMD_CMD) {
+	  /* Uppercase the message's text */
+	  upperstr(text);
+	  *line = CMD_SEND_COMMAND;
 	}
 	else
-		*line = CMD_SEND_MESSAGE;
+	  *line = CMD_SEND_MESSAGE;
 
-	if(type == CMD_CMD)	/* Add the @ to address */
-		sprintf(&line[2], "%s @%s ", from, address);
+	if (type == CMD_CMD)	/* Add the @ to address */
+	  sprintf(&line[2], "%s @%s ", from, address);
 	else			/* Address already has @ */
-		sprintf(&line[2], "%s %s ", from, address);
+	  sprintf(&line[2], "%s %s ", from, address);
 
-/* Upper-case the addresses. If this is a command - uppercase it also */
-	for(p = &line[2]; *p != '\0'; *p++)
-		if((*p >= 'a') && (*p <= 'z')) *p -= ' ';
-	if(type == CMD_CMD)
-		for(p = text; *p != '\0'; *p++)
-			if((*p >= 'a') && (*p <= 'z')) *p -= ' ';
+	/* Upper-case the addresses.
+	   If this is a command - uppercase it also */
+	upperstr(line+2);
+	if (type == CMD_CMD)
+	  upperstr(text);
 
 	line[1] = strlen(&line[2]) + 2;	/* Where the text begins */
 	strcat(&line[2], text);
 
-	size = strlen(&line[1]) + 1;	/* 1 for the command code */
+	size = strlen(&line[1]) + 2;	/* 2 for the command code, and string
+					   end NULL */
 
-/* Create a local socket */
-	if((Socket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-		perror("Can't create command socket");
-		return;
-	}
-
-/* Create the connect request. We connect to our local machine */
-	SocketName.sin_family = (AF_INET);
-	SocketName.sin_port = htons(COMMAND_MAILBOX);
-	SocketName.sin_addr.s_addr = htonl(LOCAL_ADDRESS);
-	for(i = 0; i < 8; i++)
-		(SocketName.sin_zero)[i] = 0;
-	if(sendto(Socket, line, size, 0, &SocketName, sizeof(SocketName)) == -1) {
-		perror("Can't send command");
-	}
-	close(Socket);
+	return send_cmd_msg(line, size, 0); /* Must be ONLINE! */
 }

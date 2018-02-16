@@ -1,4 +1,4 @@
-/* SEND_FILE.C		V2.1
+/* SEND_FILE.C		V2.1/mea-1.3
  | Copyright (c) 1988,1989,1990,1991 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -11,49 +11,27 @@
  |
  | Send a file to the other side. This module fills a buffer and send it to
  | the other side.
- | When sending a NetData file, if the file has empty lines we convert them to
- | lines with one space. If we leave them as empty lines than IBM won't eat it...
- | TO DO: 1. When sending NETDATA, we have to see whether a record have place
- |           inside the block. We currently check whether there is place for
- |           90 characters (4 for punch headers and 4 for SCBs). This check should
- |           be improved to take the size after the compression.
- | It currently supports only stream #0.
- | There is no check thAT the compressed line fits inside it's compression buffer.
- | The way that a line which had no room in  the buffer is saved for the next
- | one should be changed when converting to multiple streams.
- | Currently we can send NET DATA files of records up to 512 bytes only.
- | We do not confirm reception of NetData, even if requested so.
+
+ | V2.1-mea - 14/9/93 - Rip out the Netdata processing from the transport!
+ |	  If format == EBCDIC, let all kinds of records thru, else (that is,
+ |	  with  format == BINARY) strip out NJH, DSH, and NJT -blocks.
+ |	  Later one simplifies user-initiated file transfer.
+ |	- 5/10/93 - Moved  send_njh_dsh_record(), and send_njt() into here.
  |
- | When we send a file, we currently send it with SRCB of "No carriage control".
- |
- | V1.1 - SEND_FILE_BUFFER - transpose the last two blocks in the function
- |        (the one that sends the buffer and the one that sets the line's state)
- |        for Unix compatibility (the ACK after send is not AST, thus delivered
- |        before we set the correct line's state).
- | V1.2 - Make the sending file more efficient. Remove unnecessary characters
- |        moves.
- | V1.3 - NetData bug 5 was replaced from a fatal bugcheck to error message in
- |        logfile. The file processing continues.
- | V1.4 - Correct a bug when the last INMR06 is placed in buffer. There was no
- |        closing SCB...
- | V1.5 - Correct another bug with INMR: if the last record is exactly 80 characters,
- |        there is an extra null RCB. Remove it...
- | V1.6 - Change the NetData section to handle binary records and other records
- |        which are up to 512 bytes long.
- | V1.7 - Correct a bug sending files with records longer than 253 bytes. We sent
- |        segments which are identical, since we did not advance in the input
- |        record while segmenting it.
- | V1.8 - 21/2/90 - Replace BCOPY calls with memcpy() calls.
- | V1.9 - 27/3/90 - Make this module more modular = split some functions.
- | V2.0 - 11/3/91 - Add MultiStream support.
- | V2.1 - 7/5/91 - When the file is of type PRINT and ASA raise the line
- |        length by 1 as JES2 does.
+ | Document:
+ |   Network Job Entry - Formats and Protocols (IBM)
+ |	SC23-0070-01
+ |	GG22-9373-02 (older version)
  */
+
 #include "consts.h"
 #include "headers.h"
+#include "prototypes.h"
 
-EXTERNAL struct	LINE	IoLines[MAX_LINES];
-char	*strchr(), *strrchr();
+EXTERNAL struct JOB_HEADER	NetworkJobHeader;
+EXTERNAL struct DATASET_HEADER	NetworkDatasetHeader;
+EXTERNAL struct JOB_TRAILER	NetworkJobTrailer;
+
 
 /* Macro to estimate the length of the line after compression. Since we do not
    compress repeatitive characters, it is simply the number of characters
@@ -69,638 +47,447 @@ char	*strchr(), *strrchr();
  | it is saved to the next call to this routine in a
  | static buffer.
  */
+void
 send_file_buffer(Index)
-int	Index;
+const int	Index;
 {
-	register int	MaxSize, CurrentSize, i, TempVar;
-	register unsigned char	*p;
-	unsigned char	OutputLine[MAX_BUF_SIZE];
+	register int	MaxSize, CurrentSize, i;
+	unsigned char	OutputLine[MAX_BUF_SIZE],
+			InputBuffer[MAX_BUF_SIZE];
 	struct	FILE_PARAMS	*FileParams;
-	int	DecimalStreamNumber, compress_scb(), uread();
+	int	Stream, SYSIN;
 	struct	LINE	*temp;
 
 	temp = &IoLines[Index];
-	DecimalStreamNumber = temp->CurrentStream;
+	Stream = temp->CurrentStream;
 
-/* retreive the buffer size from the lines database */
-	FileParams = &((IoLines[Index].OutFileParams)[DecimalStreamNumber]);
-	MaxSize = IoLines[Index].MaxXmitSize;
-	MaxSize -= 14;
+	FileParams = &((temp->OutFileParams)[Stream]);
+	SYSIN = FileParams->type & F_JOB;
+
+	/* retreive the buffer size from the lines database */
+
+	MaxSize = temp->MaxXmitSize;
 	/* Leading BCB, FCS, DLE+..., trailing PAD, 2*crc, DLE+ETB, last SCB,
 	   last RCB */
+	MaxSize -= 14;
+
 	CurrentSize = 0;	/* Empty output buffer */
 
-/* Check whether there is something left from before */
-	if(temp->XmitSavedSize[DecimalStreamNumber] > 0) {
-		MaxSize -= EXPECTED_SIZE(temp->XmitSavedSize[DecimalStreamNumber]);
-		if(MaxSize < 0)
-			bug_check("SEND_FILE, Saved punch record too long.");
-		FileParams->RecordsCount += 1;	/* Increment records count */
-		OutputLine[CurrentSize++] = (((DecimalStreamNumber + 9) << 4) | 0x9);
-/* If the file is of type EBCDIC, the recrd already contains the SRCB. If ASCII,
-   add wither ASA CC if user reuqested so. If not - use no CC.
-*/
-		if(FileParams->format == ASCII) {
-			if((FileParams->type & F_ASA) != 0)
-				OutputLine[CurrentSize++] = CC_ASA_SRCB;
-			else
-				OutputLine[CurrentSize++] = CC_NO_SRCB;
-			CurrentSize +=
-				compress_scb(temp->XmitSavedLine[DecimalStreamNumber],
+	/* Fill the buffer until there is no place in it */
+	while ((i = uread(Index, Stream,
+			  &InputBuffer[1], sizeof(InputBuffer) - 1)) > 0) {
+
+	  /* Put into the current block if there is space for it */
+
+	  MaxSize -= EXPECTED_SIZE( i );
+	  if (MaxSize >= 0) {
+
+	    int InpSRCB = InputBuffer[1] & 0xf0;
+
+	    if (InpSRCB == NJH_SRCB ||
+		InpSRCB == DSH_SRCB ||
+		InpSRCB == NJT_SRCB) {
+
+	      /* If we are not running transparent Store & Forward,
+		 we have to strip spurious NJH, DSH, and NJT headers */
+	      if (FileParams->format != EBCDIC) {
+		i = 0; /* Discard it.. */
+		continue;
+	      }
+
+	      /* The NJH, DSH, and NJT - they must be the only
+		 record in their block */
+
+	      if (CurrentSize != 0)
+		/* If we already put there something */
+		break;
+	    }
+
+	    if (FileParams->RecordsCount >= 0)
+	      FileParams->RecordsCount += 1;
+	    else
+	      FileParams->RecordsCount -= 1;
+
+	    /* there is room for this string */
+	    if (SYSIN)
+	      OutputLine[CurrentSize++] = ((Stream + 9) << 4) | 0x8;
+	    else
+	      OutputLine[CurrentSize++] = ((Stream + 9) << 4) | 0x9;
+
+	    /* SRCB is the second character in the saved string. */
+
+	    OutputLine[CurrentSize++] = InpSRCB;
+
+	    CurrentSize += compress_scb(&InputBuffer[2],
 					&OutputLine[CurrentSize],
-					temp->XmitSavedSize[DecimalStreamNumber]);
-		}
-		else {	/* EBCDIC - the SRCB is the second character in saved
-			   string. */
-			OutputLine[CurrentSize++] = temp->XmitSavedLine[DecimalStreamNumber][1];
-			CurrentSize +=
-				compress_scb(&temp->XmitSavedLine[DecimalStreamNumber][2],
-					&OutputLine[CurrentSize],
-					temp->XmitSavedSize[DecimalStreamNumber] - 1);
-		}
-		temp->XmitSavedSize[DecimalStreamNumber] = 0;
+					i-1);
+
+	    i = 0;	/* Stored nicely, mark it so */
+
+	    if (InpSRCB == NJH_SRCB ||
+		InpSRCB == DSH_SRCB ||
+		InpSRCB == NJT_SRCB) {
+
+	      /* The NJH, DSH, and NJT - they must be the only
+		 record in their block */
+
+	      break;
+	    }
+	  } else
+	    break;		/* No room - abort loop */
 	}
 
-/* Fill the buffer untill there is no place in it */
-	while((i = uread(Index, temp->CurrentStream, &(temp->XmitSavedLine[DecimalStreamNumber][1]),
-	  sizeof(IoLines[0].XmitSavedLine[DecimalStreamNumber]) - 1)) >= 0) {
-		temp->XmitSavedSize[DecimalStreamNumber] = i;
-		if(FileParams->format == ASCII) {
-/* Truncate long records to 80/132 characters, and pad short ones to this size */
-			if((FileParams->type & F_PRINT) != 0) {
-/* Print format is: 132 for non-CC, 133 for print with CC */
-				if((FileParams->type & F_ASA) != 0) {
-					if(i > 133) i = 133;
-				} else {
-					if(i > 132) i = 132;
-				}
-			}
-			else {	/* All others are sent as punch */
-				if(i > 80) i = 80;
-			}
-			p = &(temp->XmitSavedLine[DecimalStreamNumber][1]);
-			ASCII_TO_EBCDIC(p, p, i);
-/* Read and write into the same string ^^^ */
-/* Write the expected length into the length count field. If the real length
-   is smaller, then the remote side will pad with blanks.
-*/
-			if((FileParams->type & F_PRINT) != 0) {
-				if((FileParams->type & F_ASA) != 0) /* Add 1 for CC */
-					*temp->XmitSavedLine[DecimalStreamNumber] = (unsigned char)(133);
-				else
-					*temp->XmitSavedLine[DecimalStreamNumber] = (unsigned char)(132);
-			} else
-				*temp->XmitSavedLine[DecimalStreamNumber] = (unsigned char)(80);
-			i++;	/* Text length + count length */
-			temp->XmitSavedSize[DecimalStreamNumber] = i;
-		}
-		/* if EBCDIC, no need for translation */
-		else {
-/* If the file is S&F, the NJT is a normal record in it. However, it must be
-   the first in a block - so check it.
-*/
-			if(temp->XmitSavedLine[DecimalStreamNumber][1] == NJT_SRCB) {
-			/* The NJT must be on start of block */
-				if(CurrentSize != 0)
-					break;
-			}
-		}
+	/* If not stored nicely, rewind to the begining of the record */
+	if (i > 0)
+	  fseek(temp->InFds[Stream], -i-2, 1);
 
-/* Put into the current block if there is space for */
-		if((MaxSize -= EXPECTED_SIZE(temp->XmitSavedSize[DecimalStreamNumber])) >= 0) {
-/* In S&F files the NJH and DSH are the first two records in the file. Identify
-   them, and send each one as a separate block.
-*/
-			if(FileParams->format != ASCII) {
-				if(FileParams->RecordsCount < 3) {
-			/* The NJH and DSH - they must be the only record in block */
-					if(CurrentSize != 0)
-			/* If we already put there something */
-						break;
-				}
-			}
-			FileParams->RecordsCount += 1;
-			/* there is room for this string */
-			OutputLine[CurrentSize++] =
-				(((DecimalStreamNumber + 9) << 4) | 0x9);
-			if(FileParams->format == ASCII) {
-				if((FileParams->type & F_ASA) != 0)
-					OutputLine[CurrentSize++] = CC_ASA_SRCB;
-				else
-					OutputLine[CurrentSize++] = CC_NO_SRCB;
-				CurrentSize +=
-					compress_scb(temp->XmitSavedLine[DecimalStreamNumber],
-						&OutputLine[CurrentSize],
-						temp->XmitSavedSize[DecimalStreamNumber]);
-			}
-			else {	/* EBCDIC - the SRCB is the second character in saved
-				   string. */
-				OutputLine[CurrentSize++] =
-					temp->XmitSavedLine[DecimalStreamNumber][1];
-				CurrentSize +=
-					compress_scb(&temp->XmitSavedLine[DecimalStreamNumber][2],
-						&OutputLine[CurrentSize],
-						temp->XmitSavedSize[DecimalStreamNumber] - 1);
-			}
-			temp->XmitSavedSize[DecimalStreamNumber] = 0;
-		}
-		else {
-			break;	/* No room - abort loop */
-		}
+	/* Now see if it was an EOF */
+	if (i < 0) {
+	  if (FileParams->format != EBCDIC)
+	    /* We will have to generate, and send the NJT */
+	    temp->OutStreamState[Stream] = S_EOF_FOUND;
+	  else
+	    /* NJT was sent already as part of file */
+	    temp->OutStreamState[Stream] = S_NJT_SENT;
+	  temp->OutFileParams[Stream].FileSize = ftell(temp->InFds[Stream]);
+logger(2,"SEND_FILE: EOF on line %s stream %d\n",temp->HostName,Stream);
 	}
 
-/* Now check why loop has been terminated */
-	if(temp->XmitSavedSize[DecimalStreamNumber] == 0) {	/* End of file - mark it */
-		if(FileParams->format == ASCII)	/* We will have to send NJT */
-			IoLines[Index].OutStreamState[DecimalStreamNumber] = S_EOF_FOUND;
-		else
-			IoLines[Index].OutStreamState[DecimalStreamNumber] = S_NJT_SENT;
-			/* NJT was sent already as part of file */
-	}
+	logger(4,"SEND_FILE: Built an output buffer, CurrentSize=%d, MaxSize=%d, loop condition var=%d\n",CurrentSize,MaxSize,i);
+	
 
-/* Send the buffer filled */
-	if(CurrentSize > 0) {	/* Something was filled in buffer - send it */
-		/* Add EOR RCB */
-		OutputLine[CurrentSize++] = 0;
-		send_data(Index, OutputLine, CurrentSize, (int)(ADD_BCB_CRC));
+	/* Send the buffer filled */
+	if (CurrentSize > 0) {	/* Something was filled in buffer - send it */
+	  /* Add EOR RCB */
+	  OutputLine[CurrentSize++] = 0;
+	  send_data(Index, OutputLine, CurrentSize, ADD_BCB_CRC);
 	}
 	return;
 }
 
 
-/*
- | Send a file in Netdata format. The flag tells whether this a start of file
- | (0) and we have to send the INMR's, or whether we are in the middle of a
- | file (1).
- */
-#define	INMFTIME	0x1024
-#define	INMLRECL	0x42
-#define	INMNUMF		0x102f
-#define	INMFNODE	0x1011
-#define	INMFUID		0x1012
-#define	INMTNODE	0x1001
-#define	INMTUID		0x1002
-#define	INMSIZE		0x102c
-#define	INMDSORG	0x3c
-#define	INMUTILN	0x1028
-#define	INMRECFM	0x49
-#define	INMDSNAM	0x2
-#define	PHYSICAL	0x4000	/* File organization - Physical */
-#define	VAR		0x4000	/* Record format - Variable */
-#define	ASA_CC		0x400	/* ASA carriage control */
 
-/* Take the Netdata buffer, and separate it into Punch records: */
-#define	FILL_NETDATA_BUFFER { \
-	OutputLinePosition = 0; \
-	while(temp->XmitSavedSize[DecimalStreamNumber] > 80) {	/* Split it */ \
-		if(90 > MaxSize) \
-			break;	/* No room for this record */ \
-		FileParams->RecordsCount += 1;	/* Increment Punch records count */ \
-		OutputLine[CurrentPosition++] = (((DecimalStreamNumber + 9) << 4) | 0x9); \
-		OutputLine[CurrentPosition++] = CC_NO_SRCB; \
-		OutputLine[CurrentPosition++] = 0xc1; \
-		OutputLine[CurrentPosition++] = 80; \
-		j = compress_scb(&temp->XmitSavedLine[DecimalStreamNumber][OutputLinePosition], \
-			&OutputLine[CurrentPosition], (int)(80)); \
-		CurrentPosition += j; \
-		OutputLinePosition += 80; \
-		MaxSize -= (j + 4); \
-		temp->XmitSavedSize[DecimalStreamNumber] -= 80; \
-	} \
+/*
+ | Send the Network Job headers record or the Dataset header.
+ | If the message is of type FILE, the class in DSH is set to A; if it is
+ | MAIL, that class is set to M. However, if the user explicitly specified
+ | another class, we use that class.
+ | The class fields in NJH are set to A.
+ | If a job number was assigned by the user's agent - use it. If not - assign
+ | one of ourself.
+ | The maximum record length stored in NDH should be read from FAB.
+ */
+#define CREATE_NJH_FIELD(FIELD, USER, NODE) {\
+	strcpy(TempLine, FIELD); \
+	upperstr(TempLine); \
+	if((p = strchr(TempLine, '@')) != NULL) *p++ = '\0'; \
+		/* Separate the sender and receiver */ \
+	else p = TempLine; \
+	p[8] = '\0';	/* Delimit to 8 characters */ \
+	i = strlen(p); \
+	ASCII_TO_EBCDIC(p, NODE, i); \
+	PAD_BLANKS(NODE, i, 8); \
+	TempLine[8] = '\0'; \
+	if(strcmp(TempLine, "SYSTEM") == 0) \
+		*TempLine = '\0';	/* IBM forbids SYSTEM */ \
+	i = strlen(TempLine); \
+	ASCII_TO_EBCDIC(TempLine, (USER), i); \
+	PAD_BLANKS((USER), i, 8); }
+
+int
+send_njh_dsh_record(Index, flag, SYSIN)
+const int	Index, flag, SYSIN;
+{
+	struct	LINE	*temp;
+	struct	FILE_PARAMS	*FileParams;
+	int	i, TempVar;	/* For CREATE_NJH... macro */
+	int	NDHsize = 0, NDHRSCSsize = 0;
+	int	NDHpriority = 50;
+	short	Ishort;
+	char		*p, Afield[10],
+			TempLine[350];	/* For CREATE_NJH... macro */
+	unsigned char	FromUser[10], FromNode[10],
+			ToUser[10], ToNode[10],
+			FileName[16], FileExt[16];
+	int		SerialNumber,	/* We have to divide xmission */
+			SizeSent;	/* How much of DSH we already sent */
+	unsigned char	SmallTemp[32],	/* For composing small buffers */
+			*NetworkDatasetHeaderPointer;	/* For easy manipulations */
+
+	temp = &(IoLines[Index]);
+	FileParams = &(temp->OutFileParams[temp->CurrentStream]);
+
+	logger(3,"SEND_FILE: send_njh_dsh_record(%s:%d, flag=%d, SYS%s)\n",
+	       temp->HostName,temp->CurrentStream,flag,SYSIN?"IN":"OUT");
+
+	/* SYSINs don't have DSH -- "Simulate" it! */
+	if (flag != SEND_NJH && SYSIN) return 0;
+
+	/* ================ Common bits ================ */
+
+	/* Prepare the username and site name in EBCDIC,
+	   blanks padded to 8 characters */
+	CREATE_NJH_FIELD(FileParams->From, FromUser, FromNode);
+	CREATE_NJH_FIELD(FileParams->To,   ToUser,   ToNode);
+
+	if (SYSIN && ToUser[0] == E_SP)
+	  memset(ToUser,0,8);
+
+	i = strlen(FileParams->FileName);
+	upperstr(FileParams->FileName);
+	ASCII_TO_EBCDIC(FileParams->FileName, FileName, i);
+	PAD_BLANKS(FileName, i, 12);
+	i = strlen(FileParams->FileExt);
+	upperstr(FileParams->FileExt);
+	ASCII_TO_EBCDIC(FileParams->FileExt, FileExt, i);
+	PAD_BLANKS(FileExt, i, 12);
+
+
+	if (flag == SEND_NJH) {
+	  /* ================  NJH  ================ */
+
+	  /* Fill the NJH record */
+
+	  if (FileParams->FileId == 0)
+	    FileParams->FileId = FileParams->OurFileId;
+	  NetworkJobHeader.NJHGJID = htons(FileParams->OurFileId);
+	  sprintf(TempLine, "NJE_%04ld", FileParams->OurFileId); /* Job name */
+
+	  /* For informational purpose */
+	  memcpy(FileParams->JobName, TempLine, 9);
+	  ASCII_TO_EBCDIC(TempLine, NetworkJobHeader.NJHGJNAM, 8);
+
+	  /* NJH header */
+	  /* Log the transaction */
+	  /* logger(3, "=> Sending file/mail %s.%s from %s to %s (line %s)\n",
+	     FileParams->FileName, FileParams->FileExt,
+	     FileParams->From, FileParams->To, temp->HostName);		*/
+	  /* Insert the time in IBM format */
+	  ibm_time(NetworkJobHeader.NJHGETS);
+	  memcpy(NetworkJobHeader.NJHGUSID, FromUser, 8);
+	  memcpy(NetworkJobHeader.NJHGORGN, FromNode, 8);
+	  memcpy(NetworkJobHeader.NJHGORGR, FromUser, 8);
+	  memcpy(NetworkJobHeader.NJHGXEQN, ToNode,   8);
+	  memcpy(NetworkJobHeader.NJHGXEQU, ToUser,   8);
+
+	  /* Following two are usually the same as "From"... */
+	  CREATE_NJH_FIELD(FileParams->PrtTo, FromUser, FromNode);
+	  memcpy(NetworkJobHeader.NJHGPRTN, FromNode, 8);
+	  memcpy(NetworkJobHeader.NJHGPRTR, FromUser, 8);
+
+	  CREATE_NJH_FIELD(FileParams->PunTo, FromUser, FromNode);
+	  memcpy(NetworkJobHeader.NJHGPUNN, FromNode, 8);
+	  memcpy(NetworkJobHeader.NJHGPUNR, FromUser, 8);
+
+	  if (SYSIN)
+	    NetworkJobHeader.NJHGFLG1 = 0x08;
+	  else
+	    NetworkJobHeader.NJHGFLG1 = 0x0c;
+	  
+
+	} else {
+	  /* ================  DSH header  ================ */
+
+	  if (flag != SEND_DSH2) {
+	    /* Don't generate this front part for frag 2 */
+
+	    /* Fill the general section */
+	    memcpy(NetworkDatasetHeader.NDH.NDHGNODE, ToNode, 8);
+	    memcpy(NetworkDatasetHeader.NDH.NDHGRMT,  ToUser, 8);
+	    memcpy(NetworkDatasetHeader.NDH.NDHGPROC, FileName, 8);
+	    memcpy(NetworkDatasetHeader.NDH.NDHGSTEP, FileExt,  8);
+
+	    /* Set the maximum record length */
+	    if ((FileParams->type & F_PRINT) != 0) { /* Print format = 132 */
+	      NetworkDatasetHeader.NDH.NDHGLREC = htons(132);
+	      NetworkDatasetHeader.NDH.NDHGFLG2  = 0x80; /* Print flag */
+	      NetworkDatasetHeader.RSCS.NDHVIDEV = 0x41; /* One of the
+							    IBM printers  */
+	      memset(NetworkDatasetHeader.NDH.NDHGXWTR, 0, 8);
+	    } else {		/* All others will be 80 at present */
+	      memcpy(NetworkDatasetHeader.NDH.NDHGXWTR, ToUser, 8);
+	      NetworkDatasetHeader.NDH.NDHGLREC = htons(80);
+	      NetworkDatasetHeader.NDH.NDHGFLG2  = 0x40; /* Punch flag */
+	      NetworkDatasetHeader.RSCS.NDHVIDEV = 0x82; /* Punch file */
+	      /* why not: 0x81 ?? [mea] */
+	    }
+
+	    NetworkDatasetHeader.NDH.NDHGCLAS = ASCII_EBCDIC[(int)FileParams->JobClass];
+
+	    /*  If  FormsName  is defined, use it for this, if not,
+		set the form code to QUIET if bit F_NOQUIET is not set.	*/
+	    memcpy(NetworkDatasetHeader.NDH.NDHGFORM, EightSpaces, 8);
+	    if (*FileParams->FormsName != 0) {
+	      ASCII_TO_EBCDIC(FileParams->FormsName,
+			      NetworkDatasetHeader.NDH.NDHGFORM,
+			      strlen(FileParams->FormsName));
+	    } else if ((FileParams->type & F_NOQUIET) == 0) {
+	      strcpy(Afield, "QUIET");
+	      ASCII_TO_EBCDIC(Afield, NetworkDatasetHeader.NDH.NDHGFORM,
+			      strlen(Afield));
+	    }
+
+	    /* Fill in the Dataset header record count -- we DON'T KNOW IT!
+	       Except that we get it from the ASCII header.. */
+	    if (FileParams->RecordsCount > 0)
+	      NetworkDatasetHeader.NDH.NDHGNREC = htonl(FileParams->RecordsCount);
+	    else
+	      NetworkDatasetHeader.NDH.NDHGNREC = htonl(1);
+
+	    /* Fill the RSCS section */
+	    NetworkDatasetHeader.RSCS.NDHVCLAS = ASCII_EBCDIC[(int)FileParams->JobClass];
+	    memcpy(NetworkDatasetHeader.RSCS.NDHVFNAM, FileName, 12);
+	    memcpy(NetworkDatasetHeader.RSCS.NDHVFTYP, FileExt, 12);
+
+	    i = strlen(FileParams->DistName);
+	    ASCII_TO_EBCDIC(FileParams->DistName, SmallTemp, i);
+	    upperstr(SmallTemp);
+	    PAD_BLANKS(SmallTemp, i, 8);
+	    memcpy(NetworkDatasetHeader.RSCS.NDHVDIST, SmallTemp, 8);
+
+	  }
+	  /* When fragmenting, chops in the middle of RSCS TAG.. */
+	  /* Store the TAG field (or not, if empty..) */
+	  i = strlen(FileParams->tag);
+	  if (i > 0) {
+	    ASCII_TO_EBCDIC(FileParams->tag,
+			    NetworkDatasetHeader.RSCS.NDHVTAGR, i);
+	    PAD_BLANKS((NetworkDatasetHeader.RSCS.NDHVTAGR), i, 136);
+	    NDHsize = sizeof(NetworkDatasetHeader);
+	    NDHRSCSsize = sizeof(NetworkDatasetHeader.RSCS);
+	  } else {
+	    NDHsize = (sizeof(NetworkDatasetHeader) -
+		       sizeof(NetworkDatasetHeader.RSCS.NDHVTAGR));
+	    NDHRSCSsize = (sizeof(NetworkDatasetHeader.RSCS) -
+			   sizeof(NetworkDatasetHeader.RSCS.NDHVTAGR));
+	  }
+
+	  /* Should these *_4's be the current value  -4 ?
+	     NJH, and NJT leads towards this assumtion,
+	     but several tests claim opposite!		  */
+
+	  NetworkDatasetHeader.LENGTH        = htons(NDHsize);
+	  NetworkDatasetHeader.NDH.LENGTH_4  = htons(sizeof(struct DATASET_HEADER_G));
+	  NetworkDatasetHeader.RSCS.LENGTH_4 = htons(NDHRSCSsize);
+	  NetworkDatasetHeader.RSCS.NDHVPRIO = htons(NDHpriority);
+
+	}
+
+	/* Send the data to the other side */
+	TempVar = 0;
+
+	if (flag == SEND_NJH) {
+	  if (SYSIN)
+	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x8);
+	  else
+	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x9);
+	  TempLine[TempVar++] = NJH_SRCB;
+	  TempVar += compress_scb(&NetworkJobHeader, &(TempLine[2]),
+				  (sizeof(struct JOB_HEADER)));
+	  TempLine[TempVar++] = 0; /* Closing SCB */
+	  /* Send  as usual */
+	  send_data(Index, TempLine, TempVar, ADD_BCB_CRC);
+	  return 0;		/* Sent OK */
+	}
+
+	/* We process the DSH now */
+
+	/* The DSH content may be large enough to need fragmenting. If so,
+	   we fragment.  The DSH  TAG  data may get re-generated while
+	   we are at the task, but that is a small penalty for genericity
+	   of this routine.						*/
+
+	NetworkDatasetHeaderPointer = (unsigned char*)&NetworkDatasetHeader;
+
+	/* Have to fragment the entry */
+	/* Jump over the first 4 bytes as we rebuild them now */
+	NetworkDatasetHeaderPointer += 4;
+	SizeSent = 4;	/* 4 - since we re-generate the first 4 bytes */
+	SerialNumber = 0;
+
+	/* Point to the second fragment, and proceed as with the first.. */
+	if (flag == SEND_DSH2) {
+	  NetworkDatasetHeaderPointer += 252;
+	  SizeSent += 252;
+	  SerialNumber += 1;
+	}
+	/* When there is something to send */
+	i = 0; /* If  i > 252,  then more fragments will follow */
+	if (SizeSent <= NDHsize) {
+	  TempVar = 0;
+	  if (SYSIN)
+	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x8);
+	  else
+	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x9);
+	  TempLine[TempVar++] = DSH_SRCB;
+	  /* If the size if smaller than 252 then this is the last fragment */
+	  if ((i = (NDHsize - SizeSent)) <= 252) {
+	    Ishort = htons(i + 4);
+	    memcpy(SmallTemp, &Ishort, 2);
+	    SmallTemp[2] = 0;
+	    SmallTemp[3] = SerialNumber; /* Last one */
+	    TempVar += compress_scb(SmallTemp, &(TempLine[TempVar]), 4);
+	    --TempVar;		/* Remove the closing SCB */
+	    TempVar += compress_scb(NetworkDatasetHeaderPointer,
+				    &(TempLine[TempVar]), i);
+	    TempLine[TempVar++] = 0; /* Closing SCB */
+	  } else {
+	    Ishort = htons(256); /* 252 payload + 4 header */
+	    memcpy(SmallTemp, &Ishort, 2);
+	    SmallTemp[2] = 0;
+	    SmallTemp[3] = 0x80 + (SerialNumber++);
+	    TempVar += compress_scb(SmallTemp, &(TempLine[TempVar]), 4);
+	    --TempVar;		/* Remove the closing SCB */
+	    TempVar += compress_scb(NetworkDatasetHeaderPointer,
+				    &(TempLine[TempVar]), 252);
+	    TempLine[TempVar++] = 0; /* Closing SCB */
+	  }			
+	  temp->flags |= F_XMIT_CAN_WAIT; /* We support TCP lines here */
+	  send_data(Index, TempLine, TempVar, ADD_BCB_CRC); /* Send  as usual */
+	  temp->flags &= ~F_XMIT_CAN_WAIT;
+	}
+	return (i > 252);
 }
 
-send_netdata_file(Index, flag)
-int	Index, flag;
+
+/*
+ | Send the job trailer. Add the count of lines in the file.
+ */
+void
+send_njt(Index, SYSIN)
+const int	Index, SYSIN;
 {
-	char		line[LINESIZE], TempLine[MAX_BUF_SIZE];
-	unsigned char	OutputLine[MAX_BUF_SIZE];
-	register int	j, i, size, CurrentPosition,	/* Position in Punch buffer */
-			OutputLinePosition,	/* Position in NetData buffer */
-			MaxSize,	/* Size of xmission buffer */
-			InputPosition;	/* While decomposing long records */
-	int		TempVar;
-	register char	*p, *q;
-	struct	FILE_PARAMS	*FileParams;
-	int	DecimalStreamNumber, insert_text_unit();
+	unsigned char	OutputLine[LINESIZE];
+	int	TempVar, position;
 	struct	LINE	*temp;
 
 	temp = &IoLines[Index];
-	DecimalStreamNumber = temp->CurrentStream;
-	FileParams = &((IoLines[Index]).OutFileParams)[DecimalStreamNumber];
 
-	CurrentPosition = 0;
+	logger(3,"SEND_FILE: send_njt(%s:%d, SYS%s)\n",
+	       temp->HostName,temp->CurrentStream, SYSIN?"IN":"OUT");
 
-	if(flag == 0)
-		/* We have to send the first INMR's. */
-		size = fill_inmr01(Index, temp, FileParams);
-
-/* Add normal records to the Net data. */
-	MaxSize = IoLines[Index].MaxXmitSize;	/* Our buffer size */
-	MaxSize -= 20;
-	OutputLinePosition = 0;
-
-/*
- | Add records as long as we have them. Read records into NetData buffer as long
- | as we have place for the longest record. When we don't have such a place, we
- | start creating the punch records. After that, we try reading again NetData
- | records; this is because the records are probably shorter than the maximum
- | length, so we can add more records into the sending block. Not very nice
- | algorithm, but more efficient...
- */
-	while((i = uread(Index, temp->CurrentStream, TempLine, (int)(sizeof TempLine))) >= 0) {
-ReadAgain:	if(i > 512) i = 512;	/* Truncate record */
-/* Add one space to blank lines, otherwise IBM won't eat it... */
-		if(i == 0) {
-			*TempLine = ' ';
-			i++;
-		}
-		if((i + temp->XmitSavedSize[DecimalStreamNumber] + 6) >	/* +6 for 3 Netdata records */
-		    sizeof(IoLines[Index].XmitSavedLine[DecimalStreamNumber])) {
-			logger((int)(1),
-				"SEND_FILE: No room for Netdata record.\
- Line=%d, Class=%c, format=%d, from=%s, to=%s\n",
-	Index, FileParams->JobClass, FileParams->format, FileParams->From,
-	FileParams->To);
-			logger((int)(1), "  SavedSize=%d, Record length=%d, total\
- buffer size allowed=%d\n",
-				temp->XmitSavedLine[DecimalStreamNumber], i, sizeof(IoLines[Index].XmitSavedLine[DecimalStreamNumber]));
-			i = 0; continue;
-		}
-/* Append to previous NetData buffer. If longer than 253 characters then separate
-   to NetData segments. Each segment is followed by 2-bytes header.
-*/
-		if(i <= 253) {	/* One segment */
-				/* Two bytes header: */
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = i + 2;
-				/* Length of data + 2 header bytes */
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 0xc0;
-				/* C0 = data record (not splitted). */
-			p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]];
-			if(FileParams->format == ASCII) {
-				ASCII_TO_EBCDIC(TempLine, p, i);
-			} else {
-				memcpy(p, TempLine, i);
-			}
-			temp->XmitSavedSize[DecimalStreamNumber] += i;
-		}
-		else {
-/* Separate the block into smaller segments */
-			/* Put the first record */
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 255;
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 0x80;
-				/* 80 = First part of data record. */
-			p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]];
-			if(FileParams->format == ASCII) {
-				ASCII_TO_EBCDIC(TempLine, p, 253);
-			} else {
-				memcpy(p, TempLine, 253);
-			}
-			temp->XmitSavedSize[DecimalStreamNumber] += 253; i -= 253;
-			InputPosition = 253;	/* Next character position in TempLine */
-			/* The middle segments */
-			while(i > 253) {
-				temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 255;
-				temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 0;
-					/* 0 = middle segment */
-				p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]];
-				q = (char*)&TempLine[InputPosition];
-				if(FileParams->format == ASCII) {
-					ASCII_TO_EBCDIC(q, p, 253);
-				} else {
-					memcpy(p, q, 253);
-				}
-				temp->XmitSavedSize[DecimalStreamNumber] += 253; i -= 253;
-				InputPosition += 253;
-			}
-			/* The last segment */
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = i + 2;
-			temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 0x40;
-				/* 40 = Last segment of data record */
-			p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]];
-			q = (char*)&TempLine[InputPosition];
-			if(FileParams->format == ASCII) {
-				ASCII_TO_EBCDIC(q, p, i);
-			} else {
-				memcpy(p, q, i);
-			}
-			temp->XmitSavedSize[DecimalStreamNumber] += i;
-		}
-
-/* Now, just to be sure, check that there is no overflow of the buffer */
-		if(temp->XmitSavedSize[DecimalStreamNumber] >= sizeof(IoLines[Index].XmitSavedLine[DecimalStreamNumber])) {
-			logger((int)(1), "SEND_FILE: NetData buffer overflow on line %d\n",
-				Index);
-			bug_check("NetData buffer overflow");
-		}
-
-/* Do we have more space in input buffer for the longest line?. Do not replace
-   this line with a continue (so the outer loop will do the read), since I
-   value is checked outside this loop. */
-		if((temp->XmitSavedSize[DecimalStreamNumber] + 512 + 6) < sizeof(IoLines[Index].XmitSavedSize[DecimalStreamNumber])) {
-			/* 512 is the block size; +6 for 3 segment headers */
-			/* Yes - we have the place */
-			if((i = uread(Index, temp->CurrentStream, TempLine, (int)(sizeof TempLine))) >= 0)
-				goto ReadAgain;
-		}
-
-	/* Can we now create one full punch record? */
-		OutputLinePosition = 0;
-		FILL_NETDATA_BUFFER;
-		if(temp->XmitSavedSize[DecimalStreamNumber] > 0) {
-			/* Move it to start of buffer */
-			p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][OutputLinePosition];
-			memcpy(temp->XmitSavedLine[DecimalStreamNumber], p, temp->XmitSavedSize[DecimalStreamNumber]);
-		}
-		if(90 > MaxSize)
-			break;	/* No room for next record */
-	}
-
-
-/* Check why loop has been terminated */
-	if(i < 0) {	/* End of file - mark it */
-		IoLines[Index].OutStreamState[DecimalStreamNumber] = S_EOF_FOUND;
-		if((temp->XmitSavedSize[DecimalStreamNumber] + 8) > sizeof(IoLines[Index].XmitSavedLine[DecimalStreamNumber])) {
-			/* No room for last INMR06. Should never happen */
-			logger((int)(1), "SEND_FILE: Sending netdata, bug=1\n");
-			exit(2);
-		}
-		temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 8;
-		temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]++] = 0xe0;
-		p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]];
-		strcpy(TempLine, "INMR06");
-		ASCII_TO_EBCDIC(TempLine, p, 6);
-		temp->XmitSavedSize[DecimalStreamNumber] += 6;
-	}
-
-/* Deblock last NetData buffer into punch records. Leave in buffer the last
-   segment that can't fill a whole block */
-	FILL_NETDATA_BUFFER;
-
-/* Check whether we have to null fill the last buffer */
-	if(IoLines[Index].OutStreamState[DecimalStreamNumber] == S_EOF_FOUND) {
-		if((temp->XmitSavedSize[DecimalStreamNumber] + 10) > MaxSize) {
-			IoLines[Index].OutStreamState[DecimalStreamNumber] = S_SENDING_FILE;
-			/* So we'll send the next records */
-			/* Remove the last INMR06, since it'll be added again
-			   on next call */
-			if(temp->XmitSavedSize[DecimalStreamNumber] < 8)	/* It is not there... */
-				logger((int)(1),
-					"SEND_FILE, Netdata bug=5. Please inform INFO@HUJIVMS");
-				/* Leave it there. We'll have double INMR06... */
-			else	/* It is there - remove it. */
-				temp->XmitSavedSize[DecimalStreamNumber] -= 8;
-		}
-		else {
-			OutputLine[CurrentPosition++] = (((DecimalStreamNumber + 9) << 4) | 0x9);
-			OutputLine[CurrentPosition++] = CC_NO_SRCB;
-			OutputLine[CurrentPosition++] = 0xc1;
-			OutputLine[CurrentPosition++] = 80;
-			j = compress_scb(&temp->XmitSavedLine[DecimalStreamNumber][OutputLinePosition],
-				&OutputLine[CurrentPosition], temp->XmitSavedSize[DecimalStreamNumber]);
-			CurrentPosition += j;
-			j = 80 - temp->XmitSavedSize[DecimalStreamNumber];	/* Number of Nulls we have to pad */
-			temp->XmitSavedSize[DecimalStreamNumber] = 0;
-			if(j > 0) {	/* Have to extend string. Remoce last SCB=0 */
-					CurrentPosition--;
-				while(j > 31) {
-					OutputLine[CurrentPosition++] = 0xbf;
-					OutputLine[CurrentPosition++] = 0;
-					j -= 31;
-				}
-				OutputLine[CurrentPosition++] = 0xa0 + j;
-				OutputLine[CurrentPosition++] = 0;
-				OutputLine[CurrentPosition++] = 0;	/* Closing SCB */
-			}
-		}
-	}
-
-	if(temp->XmitSavedSize[DecimalStreamNumber] > 0) {
-		/* Move it to start of buffer */
-		p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][OutputLinePosition];
-		memcpy(temp->XmitSavedLine[DecimalStreamNumber], p, temp->XmitSavedSize[DecimalStreamNumber]);
-	}
-
-/* Send the buffer filled */
-	if(CurrentPosition > 0) {	/* Something was filled in buffer - send it */
-		/* Add EOR RCB */
-		OutputLine[CurrentPosition++] = 0;	/* EOR RCB */
-		send_data(Index, OutputLine, CurrentPosition, (int)(ADD_BCB_CRC));
-	}
-}
-
-
-/*
- | Start of a Netdata file. Fill the first 3 INMR's into the buffer.
- */
-fill_inmr01(Index, temp, FileParams)
-int	Index;
-struct	LINE	*temp;
-struct	FILE_PARAMS	*FileParams;
-{
-	char	TempLine[MAX_BUF_SIZE], line[LINESIZE];
-	register int	size, CurrentPosition,	/* Position in Punch buffer */
-			OutputLinePosition,	/* Position in NetData buffer */
-			i, TempVar;
-	register char	*p;
-	int	DecimalStreamNumber, insert_text_unit();
-
-	DecimalStreamNumber = temp->CurrentStream;
-	temp->XmitSavedSize[DecimalStreamNumber] = 0;
-	size = 1;	/* We use SavedLine as temporary storage
-			   We start from the second position, since
-			   the first one will be the length */
-	temp->XmitSavedLine[DecimalStreamNumber][size++] = 0xe0;	/* Control record */
-
-	p = (char*)&(temp->XmitSavedLine[DecimalStreamNumber][size]);
-	strcpy(TempLine, "INMR01");
-	ASCII_TO_EBCDIC(TempLine, p, 6);
-	size += 6;
-	strcpy(line, FileParams->From);
-	if((p = (char*)strchr(line, '@')) == NULL) p = line;
-	*p++ = '\0';	/* Separate username from nodename */
-	i = strlen(line); 	/* Username */
-	ASCII_TO_EBCDIC(line, line, i);
-	size += insert_text_unit((int)(INMFUID), (int)(0), line,
-		i, (int)(1), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-	i = strlen(p);		/* Node name */
-	ASCII_TO_EBCDIC(p, p, i);
-	size += insert_text_unit((int)(INMFNODE), (int)(0), p,
-		i, (int)(1), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-
-	strcpy(line, FileParams->To);
-	if((p = (char*)strchr(line, '@')) == NULL) p = line;
-	*p++ = '\0';	/* Separate username from nodename */
-	i = strlen(line); 	/* Username */
-	ASCII_TO_EBCDIC(line, line, i);
-	size += insert_text_unit((int)(INMTUID), (int)(0), line,
-		i, (int)(1), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-	i = strlen(p);		/* Node name */
-	ASCII_TO_EBCDIC(p, p, i);
-	size += insert_text_unit((int)(INMTNODE), (int)(0), p,
-		i, (int)(1), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-
-/* Create a dummy time stamp */
-	strcpy(TempLine, "19880101");
-	i = strlen(TempLine);
-	ASCII_TO_EBCDIC(TempLine, line, i);
-	size += insert_text_unit((int)(INMFTIME), (int)(0), line,
-		i, (int)(1), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-	size += insert_text_unit((int)(INMLRECL), (int)(80), (int)(0),
-		(int)(0), (int)(0), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-	size += insert_text_unit((int)(INMNUMF), (int)(1), (int)(0),
-		(int)(0), (int)(0), &(temp->XmitSavedLine[DecimalStreamNumber][size]));
-
-/* Second INMR */
-	temp->XmitSavedLine[DecimalStreamNumber][0] = size;
-	temp->XmitSavedSize[DecimalStreamNumber] = size;
-	size = 1;
-
-	temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size] = 0xe0; size++;
-	p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][size + temp->XmitSavedSize[DecimalStreamNumber]];
-	strcpy(TempLine, "INMR02");
-	ASCII_TO_EBCDIC(TempLine, p, (int)(6));
-	size += 6;
-	p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][size + temp->XmitSavedSize[DecimalStreamNumber]];
-	memcpy(p, "\0\0\0\1", (int)(4)); /* one file */
-	size += 4;
-	strcpy(TempLine, "INMCOPY");
-	i = strlen(TempLine);
-	ASCII_TO_EBCDIC(TempLine, line, i);
-	size += insert_text_unit((int)(INMUTILN), (int)(0), line,
-		i, (int)(1), &temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMDSORG), (int)(PHYSICAL),
-		(int)(0), (int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMLRECL), (int)(256), (int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	if((FileParams->type & F_ASA) != 0)
-		i = VAR | ASA_CC;
+	/* Since number of lines not written - send anyway */
+	position = 0;
+	if (SYSIN)
+	  OutputLine[position++] = (((temp->CurrentStream + 9) << 4) | 0x8);	/* RCB */
 	else
-		i = VAR;	/* Variable records, no CC */
-	size += insert_text_unit((int)(INMRECFM), i, (int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMSIZE),
-		(int)(IoLines[Index].OutFileParams[DecimalStreamNumber].FileSize),
-		(int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-/* Create the file name as "A File-name File-Ext". The A is for IBM and must
-   be the first */
-	sprintf(line, "A %s %s", FileParams->FileName,
-			FileParams->FileExt);
-	i = strlen(line);
-	ASCII_TO_EBCDIC(line, line, i);
-	size += insert_text_unit((int)(INMDSNAM), (int)(0), line,
-		i, (int)(1), &temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]] = size;
-	temp->XmitSavedSize[DecimalStreamNumber] += size;
-	size = 1;
+	  OutputLine[position++] = (((temp->CurrentStream + 9) << 4) | 0x9);	/* RCB */
+	OutputLine[position++] = NJT_SRCB;	/* SRCB */
 
-/* Third INMR */
-	temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size] = 0xe0; size++;
-	p = (char*)&temp->XmitSavedLine[DecimalStreamNumber][size + temp->XmitSavedSize[DecimalStreamNumber]];
-	strcpy(TempLine, "INMR03");
-	ASCII_TO_EBCDIC(TempLine, p, (int)(6));
-	size += 6;
-	if((FileParams->type & F_ASA) != 0)
-		i = VAR | ASA_CC;
+	TempVar = temp->OutFileParams[temp->CurrentStream].RecordsCount;
+
+	if (TempVar > 0)
+	  TempVar = htonl(TempVar);
 	else
-		i = VAR;	/* Variable records, no CC */
-	size += insert_text_unit((int)(INMRECFM), i, (int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMLRECL), (int)(80), (int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMDSORG), (int)(0x4000), (int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	size += insert_text_unit((int)(INMSIZE),
-		(int)(IoLines[Index].OutFileParams[DecimalStreamNumber].FileSize),
-		(int)(0),
-		(int)(0), (int)(0),
-		&temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber] + size]);
-	temp->XmitSavedLine[DecimalStreamNumber][temp->XmitSavedSize[DecimalStreamNumber]] = size;
-	temp->XmitSavedSize[DecimalStreamNumber] += size;
+	  TempVar = htonl(1);
 
-	return size;
-}
+	memcpy(&(NetworkJobTrailer.NJTGALIN),
+	       &TempVar, sizeof(NetworkJobTrailer.NJTGALIN));
+	memcpy(&(NetworkJobTrailer.NJTGCARD),
+	       &TempVar, sizeof(NetworkJobTrailer.NJTGCARD));
 
-
-/*
- | Insert a signle text unit into the output line. The input is either string
- | or numeric. In case of string, the size of a string is limited to 80
- | characters.
- | The returned value is the number of characters written to OutputLine.
- | Input parameters:
- |     InputKey - The keyword (a number).
- |     InputParameter - A numeric value if the keyword needs numeric data.
- |     InputString - the parameter when keyword needs string data.
- | (Either InputParameter or InputString is used, but not both).
- |     InputSize - size of the string (if exists).
- |     InputType = Do we have to use InputParam or InputString?
- */
-int
-insert_text_unit(InputKey, InputParameter, InputString, InputSize, InputType,
-	OutputLine)
-int	InputKey, InputType, InputParameter, InputSize;
-unsigned char	*InputString, *OutputLine;
-{
-	int	size, i, j, TempVar;
-	unsigned char	TextUnits[3][SHORTLINE];
-	int	NumTextUnits;
-	size = 0;
-
-	OutputLine[size++] = ((InputKey & 0xff00) >> 8);
-	OutputLine[size++] = (InputKey & 0xff);
-
-	if(InputType == 0) {		/* Number */
-		OutputLine[size++] = 0;
-		OutputLine[size++] = 1;		/* One item only */
-		OutputLine[size++] = 0;	/* Count is 2 or 4, so the high order byte
-					   count is always zero */
-		/* Test whether it fits in 2 bytes or needs 4 bytes: */
-		if(InputParameter <= 0xffff) {
-			OutputLine[size++] = 2;	/* We use 2 bytes integer */
-			OutputLine[size++] = ((InputParameter & 0xff00) >> 8);
-			OutputLine[size++] = (InputParameter & 0xff);
-			return size;
-		} else {
-			OutputLine[size++] = 4;	/* We use 4 bytes integer */
-			OutputLine[size++] = ((InputParameter & 0xff000000) >> 24);
-			OutputLine[size++] = ((InputParameter & 0xff0000) >> 16);
-			OutputLine[size++] = ((InputParameter & 0xff00) >> 8);
-			OutputLine[size++] = (InputParameter & 0xff);
-			return size;
-		}
-	}
-
-/* String: */
-/* Check whether the string has more than one value (separated by spaces).
-   If so, convert it to separate text units */
-	NumTextUnits = 0; j = 0;
-	for(i = 0; i < InputSize; i++) {
-		if(InputString[i] == E_SP) {	/* Space found */
-			TextUnits[NumTextUnits][0] = j;	/* Size */
-			NumTextUnits++;	/* We do not check for overflow */
-			j = 0;
-		} else {
-			TextUnits[NumTextUnits][j + 1] = InputString[i];
-			j++;
-		}
-	}
-	TextUnits[NumTextUnits++][0] = j;	/* Size */
-
-	OutputLine[size++] = 0;
-	OutputLine[size++] = NumTextUnits;		/* One item only */
-	for(i = 0; i < NumTextUnits; i++) {
-		OutputLine[size++] = 0;
-		OutputLine[size++] = (TextUnits[i][0] & 0xff);
-		memcpy(&OutputLine[size], &(TextUnits[i][1]),
-			(int)(TextUnits[i][0] & 0xff));
-		size += TextUnits[i][0] & 0xff;
-	}
-	return size;
+	position += compress_scb(&NetworkJobTrailer, &OutputLine[position],
+			(sizeof(struct JOB_TRAILER)));
+	OutputLine[position++] = 0;	/* End of block */
+	send_data(Index, OutputLine, position, ADD_BCB_CRC);
 }

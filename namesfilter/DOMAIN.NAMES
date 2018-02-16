@@ -1,0 +1,810 @@
+:nick.VERS9309      :mailer.MAILER@BITNIC       BSMTP  3  :mformat.ND PU
+:site.September 1993 DOMAIN NAMES
+:gatemast.DOMAINS@BITNIC
+:nick..AE           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.United Arab Emirates Internet Domain
+:gatemast.GETTES@PUCC, lootah@uugulf.net.ae   :interconnect.MX
+:nick..AG           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Antigua and Barbuda Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..AL           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Albania Internet Domain
+:gatemast.GETTES@PUCC           :interconnect.MX
+:nick..AQ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Antartica Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..AR           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Argentina Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..ARPA         :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Advanced Research Projects Agency - US DOD
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..AT           :mailer.MAILER@AWIUNI11          BSMTP  3  :mformat.ND PU
+:site.Academic Networks in Austria
+:gatemast.K000163@AEARN         :interconnect.NO
+:nick..AU           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Australian Internet Domain
+:gatemast.postmaster@munnari.OZ.AU    :interconnect.MX
+:nick..BB           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Barbados Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick.BE            :mailer.MAILER@BEARN             BSMTP  3  :mformat.ND PU
+:site.Belgian Research Network
+:gatemast.FNTA80@BUCLLN11       :interconnect.MX
+:nick..BF           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Burkina Faso Internet Domain
+:gatemast.GETTES@PUCC, tankoano@esi.sn     :interconnect.MX
+:nick..BG           :mailer.MAILER@AEARN      BSMTP  3
+:site.Bulgaria Internet Domain
+:gatemast.K000160@AEARN         :interconnect.MX
+:nick..BM           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Bermuda Internet Domain
+:gatemast.GETTES@PUCC, tom@bercol.dmc.com  :interconnect.MX
+:nick..BO           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Bolivia Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..BR   :mailer.SMTPUSER@BRFAPESP          BSMTP  3  :mformat.ND PU
+:site.ANSP - Academic Network at Sao Paulo for Brazil
+:gatemast.GOMIDE@BRFAPESP       :interconnect.NO
+:nick..BS           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Bahamas Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..BW           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Botswana Internet Domain
+:gatemast.GETTES@PUCC, uninet@frd.ac.za        :interconnect.MX
+:nick..BZ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Belize Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..CA           :mailer.MAILER@UTORUGW    BSMTP  3
+:site.Canada mail domain
+:gatemast.TED@UTORONTO, MOLNAR@UTORUGW        :interconnect.MX
+:nick..CH           :mailer.MAILER@CEARN             BSMTP  3  :mformat.ND PU
+:site.Swiss University Mail Network(s)
+:gatemast.postmaster@CERNVAX, eppenberger@verw.switch.ch :interconnect.NO
+:nick..CL           :mailer.MAILER@UCHCECVM   BSMTP  3
+:site.Chile Internet Domain
+:gatemast.FUTRERAS@UCHCECVM     :interconnect.MX
+:nick..CN           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.People's Republic of China Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..CO           :mailer.MAILER@ANDESCOL         BSMTP  3  :mformat.PU ND
+:site.Colombia Internet Domain
+:gatemast.BITSERV@ANDESCOL      :interconnect.NO
+:nick..HAC.COM      :mailer.SMTPUSER@YMIR     BSMTP  3
+:site.Hughes Aircraft Co. LAN
+:gatemast.NED@YMIR              :interconnect.MX
+:nick.JOINER.COM   :mailer.MAILER@JOINER   BSMTP  3  :served.YES
+:site.Joiner Associates Inc.
+:gatemast.ARNOLD@JOINER         :interconnect.NO
+:nick..STARGATE.COM :mailer.SMTP@UIUCVMD      BSMTP  3
+:site.Stargate Information Service
+:gatemast.paul@uxc.cso.uiuc.edu :interconnect.MX
+:nick..COM          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Commerical clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..CR           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Costa Rica Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..CS           :mailer.SMTP@CSEARN     BSMTP  3
+:site.Czechoslovakia Internet Domain
+:gatemast.pkl@csearn            :interconnect.MX
+:nick..CU           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Cuban Internet Domain
+:gatemast.GETTES@PUCC, peter%tinored@apc.org   :interconnect.MX
+:nick..CY           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Cyprus Internet Domain
+:gatemast.GETTES@PUCC, agatho@cyearn           :interconnect.MX
+:nick..CZ           :mailer.SMTP@CSEARN     BSMTP  3
+:site.Czech Republic Internet Domain
+:gatemast.pkl@csearn            :interconnect.MX
+:nick..DBP.DE       :mailer.MAILER@DFNGATE       BSMTP  3  :mformat.PU ND
+:site.German X.400 National Network
+:gatemast.MABOGEN@DFNGATE, X400MNT@DFNGATE   :interconnect.NO
+:nick..D400.DE       :mailer.MAILER@DFNGATE       BSMTP  3  :mformat.PU ND
+:site.German X.400 National Network
+:gatemast.MABOGEN@DFNGATE, X400MNT@DFNGATE   :interconnect.NO
+:nick..DE           :mailer.MAILER@DEARN          BSMTP  3  :mformat.PU ND
+:site.EARN view of German academic networks
+:gatemast.MABOGEN@DEARN, NCC@DEARN :interconnect.MX
+:nick..DK           :mailer.MAILER@NEUVM1     BSMTP  3
+:site.Denmark Internet Domain
+:gatemast.XMAILER@NEUVM1        :interconnect.MX
+:nick..DM           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Dominica Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..DO           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Dominican Republic Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..EC           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Ecuador Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick.ALBANY.EDU  :mailer.SMTP@ALBNYVM1           BSMTP  3  :mformat.ND PU
+:site.State University of New York at Albany - Computing Services
+:gatemast.BEC@ALBNYVM1, Postmaster@uacsc2.ALBANY.EDU  :interconnect.MX
+:nick.MUSIC.ALLEG.EDU   :mailer.MAILER@ALLEGVM    BSMTP  3
+:site.Allegheny College
+:gatemast.PGIFFORD@ALLEGVM      :interconnect.NO
+:nick..AMERICAN.EDU   :mailer.MAILER@AUVM          BSMTP  3  :mformat.ND PU
+:site.American University LAN
+:gatemast.JIM@AUVM              :interconnect.YES
+:nick.AMHERST.EDU :mailer.MAILER@AMHERST         BSMTP  3  :mformat.ND PU
+:site.Amherst College
+:gatemast.BITMGR@AMHERST        :interconnect.MX
+:nick..APPSTATE.EDU   :mailer.MAILER@APPSTATE          BSMTP  3  :mformat.ND PU
+:site.Appalachian State University LAN
+:gatemast.COMBSTM@APPSTATE      :interconnect.YES
+:nick.ARIZONA.EDU   :mailer.SMTPUSER@ARIZONA          BSMTP  3  :mformat.ND PU
+:site.University of Arizona, Tucson
+:gatemast.ZAEPFEL@ARIZONA       :interconnect.MX
+:nick.ASU.EDU        :mailer.MAILER@ASU               BSMTP  3  :mformat.ND PU
+:site.Arizona State University
+:gatemast.POSTMASTER@ASU      :interconnect.MX
+:nick.BERKELEY.EDU  :mailer.MAILER@UCBCMSA    BSMTP  3
+:site.University of California at Berkeley Campus Mail Network
+:gatemast.BITINFO@UCBCMSA       :interconnect.MX
+:nick..BROWN.EDU   :mailer.MAILER@BROWNVM           BSMTP  3  :mformat.ND PU
+:site.Brown University
+:gatemast.CMSMAINT@BROWNVM      :interconnect.MX
+:nick.BU.EDU        :mailer.MAILER@BUACCA     BSMTP  3
+:site.Boston University LAN
+:gatemast.GATEWAY@BUACCA        :interconnect.MX
+:nick..BUFFALO.EDU  :mailer.SMTP@UBVM                BSMTP  3  :mformat.ND PU
+:site.State University of New York at Buffalo
+:gatemast.GERLAND@UBVM, Postmast@Ubvm.CC.BUFFALO.EDU  :interconnect.YES
+:nick..BUTLER.EDU   :mailer.MAILER@BUTLERU    BSMTP 3
+:site.Butler University
+:gatemast.POSTMASTER@BUTLERU    :interconnect.MX
+:nick..BYU.EDU  :mailer.MAILER@BYUVAX           BSMTP 3
+:site.Brigham Young University Campus Network
+:gatemast.MALQUIST@BYUVAX               :interconnect.YES
+:nick.CALTECH.EDU   :mailer.MAILER@HAMLET     BSMTP  3
+:site.California Institute of Technology LAN
+:gatemast.POSTMAST@HAMLET       :interconnect.MX
+:nick.CITADEL.EDU :mailer.MAILER@CITADEL             BSMTP  3  :mformat.ND PU
+:site.The Citadel
+:gatemast.POSTMAST@CITADEL :interconnect.YES
+:nick..CLAREMONT.EDU :mailer.SMTPUSER@YMIR    BSMTP  3
+:site.Claremont Colleges LAN
+:gatemast.NED@YMIR              :interconnect.MX
+:nick..CLARKSON.EDU :mailer.MAILER@CLVM       BSMTP  3
+:site.Clarkson University LAN
+:gatemast.NETMAINT@CLVM         :interconnect.MX
+:nick..CLU.EDU      :mailer.SMTPUSER@UPRENET  BSMTP  3
+:site.University of Puerto Rico
+:gatemast.POSTMASTER@UPRENET    :interconnect.MX
+:nick..CMICH.EDU   :mailer.MAILER@CMUVM          BSMTP  3  :mformat.ND PU
+:site.Central Michigan University
+:gatemast.34AAQ77@CMUVM         :interconnect.YES
+:nick..COLORADO.EDU :mailer.SMTPUSER@COLORADO BSMTP  3
+:site.University of Colorado at Boulder LAN
+:gatemast.JONES@COLORADO        :interconnect.MX
+:nick.COLUMBIA.EDU  :mailer.MAILER@CUVMA      BSMTP  3
+:site.Columbia University LAN
+:gatemast.EACUS@CUVMA           :interconnect.MX
+:nick..CONNCOLL.EDU   :mailer.MAILER@CONNCOLL   BSMTP  3
+:site.Connecticut College Local Area Network
+:gatemast.GATEH@CONNCOLL        :interconnect.YES
+:nick..CORNELL.EDU  :mailer.MAL@CRNLBIT       BSMTP  3
+:site.Cornell University
+:gatemast.MAB@CORNELLC          :interconnect.MX
+:nick..CUN.EDU      :mailer.SMTPUSER@UPRENET  BSMTP  3
+:site.University of Puerto Rico
+:gatemast.POSTMASTER@UPRENET    :interconnect.MX
+:nick..CUNY.EDU     :mailer.SMTP@CUNYVM       BSMTP  3
+:site.City University of New York
+:gatemast.GETTES@PUCC          :interconnect.YES
+:nick.DARTMOUTH.EDU :mailer.MAILER@DARTCMS1         BSMTP  3  :mformat.ND PU
+:site.Dartmouth College LAN
+:gatemast.DAVID@DARTCMS1        :interconnect.MX
+:nick.EDUCOM.EDU   :mailer.MAILER@BITNIC            BSMTP  3  :mformat.ND PU
+:site.Educom
+:gatemast.SNODGRAS@BITNIC       :interconnect.MX
+:nick..EKU.EDU   :mailer.SMTPUSER@EKU   BSMTP  3
+:site.Eastern Kentucky University
+:gatemast.ACSALCORN@EKU         :interconnect.NO
+:nick.FERRIS.EDU :mailer.MAILER@FERRIS        BSMTP  3 :served.YES  :mformat.ND PU
+:site.Ferris State University - Michigan U.S.A.
+:gatemast.A000@FERRIS           :interconnect.NO
+:nick.GATECH.EDU    :mailer.MAILER@GITVM1     BSMTP  3
+:site.Georgia Institute of Technology LAN
+:gatemast.DBUECHNE@GTRI01       :interconnect.MX
+:nick..GEORGETOWN.EDU   :mailer.SMTPUSER@GUVAX   BSMTP  3
+:site.Georgetown University
+:gatemast.SCOTT@GUVAX           :interconnect.MX
+:nick.GETTYSBURG.EDU   :mailer.MAILER@GBURG   BSMTP  3
+:site.Gettysburg College LAN
+:gatemast.NETMAINT@GBURG        :interconnect.NO
+:nick.GSU.EDU :mailer.MAILER@GSUVM1   BSMTP   3
+:site.Georgia State University
+:gatemast.GSUMAINT@GSUVM1       :interconnect.MX
+:nick.HARVARD.EDU   :mailer.MAILER@HARVNOC     BSMTP  3
+:site.Harvard University LAN
+:gatemast.SOB@HSDNDEV.HARVARD.EDU  :interconnect.MX
+:nick..HAWAII.EDU   :mailer.MAILER@UHUNIX     BSMTP  3
+:site.University of Hawaii LAN
+:gatemast.POSTMASTER@UHUNIX     :interconnect.MX
+:nick.IASTATE.EDU   :mailer.MAILER@ISUMVS     BSMTP  3
+:site.Iowa State University LAN
+:gatemast.GG.WSF@ISUMVS         :interconnect.MX
+:nick.ITHACA.EDU :mailer.MAILER@ITHACA        BSMTP  3 :served.YES  :mformat.ND PU
+:site.Ithaca College LAN
+:gatemast.PAYNE@ITHACA          :interconnect.NO
+:nick.IUP.EDU       :mailer.MAILER@IUP          BSMTP  3
+:site.Indiana University of Pennsylvania
+:gatemast.MJSTRAW@IUP           :interconnect.MX
+:nick..JCSTATE.EDU   :mailer.SMTPUSER@JCSVAX1 BSMTP 3  :served.YES
+:site.Jersey City State College
+:gatemast.JULIO@JCSVAX1         :interconnect.NO
+:nick..KSU.EDU      :mailer.MAILER@KSUVM             BSMTP  3  :mformat.ND PU
+:site.Kansas State University
+:gatemast.BAV@KSUVM             :interconnect.YES
+:nick..LATECH.EDU   :mailer.SMTP@LATECH     BSMTP  3
+:site.Louisiana Tech University Local Area Network
+:gatemast.SPGRB@LATECH          :interconnect.MX
+:nick..LOYOLA.EDU   :mailer.SMTPUSER@LOYVAX   BSMTP  3
+:site.Loyola College in Maryland
+:gatemast.POSTMASTER@LOYVAX     :interconnect.NO
+:nick..LSU.EDU      :mailer.SMTPUSER@LSUVAX   BSMTP  3
+:site.Louisiana State University LAN
+:gatemast.JACOBSON@LSUVAX       :interconnect.MX
+:nick.LTU.EDU   :mailer.MAILER@LTUVAX   BSMTP  3  :served.YES
+:site.Lawrence Technological University Local Area Network
+:gatemast.POSTMAST@LTUVAX  :interconnect.NO
+:nick..MARIST.EDU   :mailer.MAILER@MARIST        BSMTP  3  :mformat.ND PU
+:site.Marist College
+:gatemast.HARRY@MARIST          :interconnect.YES
+:nick..MAYO.EDU     :mailer.SMTPUSER@UMNACVX  BSMTP  3
+:site.Mayo Clinic LAN, Minnesota Regional Network
+:gatemast.PWF@UMNACVX           :interconnect.MX
+:nick.MEDCOLPA.EDU  :mailer.MAILER@MEDCOLPA BSMTP 3 :served.YES
+:site.Medical College of Pennsylvania Local Area Network
+:gatemast.POSTMAST@MEDCOLPA  :interconnect.NO
+:nick..MIDDLEBURY.EDU   :mailer.MAILER@MIDD   BSMTP  3
+:site.Middlebury College LAN
+:gatemast.KNUTSON@MIDD          :interconnect.NO
+:nick.MIT.EDU       :mailer.MAILER@MITVMA     BSMTP  3
+:site.MIT LAN
+:gatemast.AZARY@MITVMA          :interconnect.MX
+:nick..MONTANA.EDU   :mailer.MAILER@MTSUNIX1   BSMTP   3
+:site.Montana State University LAN
+:gatemast.OSYGB@MTSUNIX1        :interconnect.MX
+:nick.NAIC.EDU   :mailer.SMTPUSER@UPRENET   BSMTP  3
+:site.National Astronomy and Ionosphere Center
+:gatemast.POSTMASTER@NAIC       :interconnect.MX
+:nick.ND.EDU        :mailer.MAILER@IRISHVMA          BSMTP  3  :mformat.ND PU
+:site.University of Notre Dame
+:gatemast.NLAFLAMM@IRISHVMA     :interconnect.MX
+:nick..NIU.EDU   :mailer.MAILER@NIU   BSMTP  3
+:site.Northern Illinois University
+:gatemast.A01MES1@NIU       :interconnect.MX
+:nick..NYU.EDU  :mailer.MAILER@NYUACF         BSMTP  3  :mformat.VD ND PU
+:site.New York University
+:gatemast.POSTMASTER@NYUACF     :interconnect.MX
+:nick.OHIO-STATE.EDU    :mailer.MAILER@OHSTBH        BSMTP  3  :mformat.ND PU
+:site.The Ohio State University
+:gatemast.STEELE@OHSTBH         :interconnect.MX
+:nick.OSC.EDU    :mailer.MAILER@OHSTBH         BSMTP  3  :mformat.ND PU
+:site.Ohio Supercomputer Center
+:gatemast.STEELE@OHSTBH         :interconnect.YES
+:nick..PDX.EDU   :mailer.MAILER@PSUORVM          BSMTP  3  :mformat.ND PU
+:site.Portland State University Network
+:gatemast.FRED@PSUORVM          :interconnect.YES
+:nick..PEPPERDINE.EDU :mailer.MAILER@PEPVAX          BSMTP  3  :mformat.PU ND
+:site.Pepperdine University
+:gatemast.VANNOY@PEPVAX         :interconnect.MX
+:nick.PRINCETON.EDU :mailer.VMMAIL@PUCC       BSMTP  3
+:site.Princeton University LAN
+:gatemast.MAINTCMS@PUCC         :interconnect.MX
+:nick..PSU.EDU   :mailer.MAILER@PSUVM          BSMTP  3  :mformat.ND PU
+:site.Penn State University
+:gatemast.WHV@PSUVM             :interconnect.YES
+:nick..PURDUE.EDU   :mailer.MAILER@PURCCVM          BSMTP  3  :mformat.ND PU
+:site.Purdue University Campus Network
+:gatemast.REXB@PURCCVM          :interconnect.MX
+:nick..RICE.EDU     :mailer.MAILER@RICEVM1           BSMTP  3  :mformat. ND PU
+:site.Rice University LAN
+:gatemast.SCHAFER@RICEVM1       :interconnect.YES
+:nick.ROLLINS.EDU  :mailer.MAILER@ROLLINS   BSMTP  3 :served.YES  :mformat.ND PU
+:site.Rollins College Local Area Network
+:gatemast.POSTMAST@ROLLINS  :interconnect.NO
+:nick.RPI.EDU        :mailer.MAILER@RPITSVM   BSMTP  3
+:site.Rensselaer Polytechnic Institute
+:gatemast.POSTMAST@RPITSMTS     :interconnect.YES
+:nick..RUTGERS.EDU   :mailer.MAILER@RUTVM1            BSMTP  3  :mformat.ND PU
+:site.Rutgers University
+:gatemast.A024012@RUTVM1        :interconnect.MX
+:nick..SCU.EDU      :mailer.SMTPUSER@SCU      BSMTP  3
+:site.Santa Clara University
+:gatemast.DAIR@SCU              :interconnect.YES
+:nick..SDSC.EDU     :mailer.MAILER@SDSC       BSMTP  3
+:site.San Diego Supercomputer Center
+:gatemast.POSTMAST@SDSC         :interconnect.YES
+:nick..SMSU.EDU   :mailer.SMTP@SMSVMA   BSMTP  3
+:site.Southwest Missouri State University Campus Network
+:gatemast.MFH043W@SMSVMA        :interconnect.YES
+:nick..SPC.EDU   :mailer.MAILER@SPCVXA BSMTP 3
+:site.Saint Peter's College
+:gatemast.TERRY@SPCVXA          :interconnect.MX
+:nick..SRU.EDU      :mailer.MAILER@SRU        BSMTP  3
+:site.Slippery Rock University of Pennsylvania
+:gatemast.FJH@SRU               :interconnect.YES
+:nick.SLAC.STANFORD.EDU   :mailer.MAILER@SLACVM     BSMTP  3
+:site.Stanford Linear Accelerator Center
+:gatemast.JXH@SLACVM            :interconnect.MX
+:nick.STANFORD.EDU  :mailer.MAILER@STANFORD   BSMTP  3
+:site.Stanford University LAN
+:gatemast.GG.JWS@STANFORD       :interconnect.MX
+:nick..STOLAF.EDU   :mailer.SMTPUSER@UMNACVX  BSMTP  3
+:site.St. Olaf College LAN, Minnesota Regional Network
+:gatemast.PWF@UMNACVX           :interconnect.MX
+:nick.SYR.EDU      :mailer.BITMAIL@SUVM             BSMTP  3  :mformat.ND PU
+:site.Syracuse University LAN
+:gatemast.NETMAN@SUVM           :interconnect.MX
+:nick..TAIU.EDU     :mailer.MAILER@TAIVM1     BSMTP  3  :mformat.ND PU
+:site.Texas A&I University Network
+:gatemast.POSTMAST@TAIVM1       :interconnect.YES
+:nick..TARLETON.EDU   :mailer.MAILER@TARLETON     BSMTP  3  :mformat.PU ND
+:site.Tarleton State University Computing Services
+:gatemast.JLAIRD@TARLETON       :interconnect.YES
+:nick..TAYLORU.EDU   :mailer.SMTPUSER@TAYLORU   BSMTP  3
+:site.Taylor University VAX Network
+:gatemast.DVWOODALL@TAYLORU     :interconnect.NO
+:nick..TCU.EDU     :mailer.MAILER@TCUAVMS    BSMTP  3
+:site.Texas Christian University Campus Network
+:gatemast.POSTMAST@TCUAVMS       :interconnect.YES
+:nick..TORONTO.EDU  :mailer.MAILER@UTORUGW    BSMTP  3
+:site.University of Toronto LAN
+:gatemast.G8MASTER@UTORUGW      :interconnect.MX
+:nick..TOWSON.EDU   :mailer.MAILER@TOWSONVX   BSMTP  3
+:site.Towson State University Network
+:gatemast.E7OPDAN@TOWSONVX      :interconnect.MX
+:nick.TRINITY.EDU   :mailer.MAILER@TRINITY    BSMTP  3
+:site.Trinity University
+:gatemast.LGINDLER@TRINITY      :interconnect.YES
+:nick.TUSK.EDU   :mailer.MAILER@TUSK                 BSMTP  3  :mformat.ND PU
+:site.Tuskegee University Local Area Network
+:gatemast.POSTMAST@TUSK         :interconnect.MX
+:nick..UAB.EDU      :mailer.MAILER@UABDPO            BSMTP  3  :mformat.ND PU
+:site.University of Alabama at Birmingham
+:gatemast.POSTMAST@UABDPO       :interconnect.MX
+:nick.UAKRON.EDU   :mailer.MAILER@AKRONVM           BSMTP  3  :mformat.ND PU
+:site.University of Akron Campus Network
+:gatemast.SPONSELL@AKRONVM      :interconnect.YES
+:nick..UALR.EDU     :mailer.SMTP@UALR         BSMTP  3
+:site.University of Arkansas at Little Rock
+:gatemast.LMCOUNTS@UALR         :interconnect.MX
+:nick..UCAR.EDU     :mailer.MAILER@NCARIO   BSMTP  3
+:site.National Center for Atmospheric Research Bldr CO
+:gatemast.WOODS@NCARIO          :interconnect.YES
+:nick..UCHICAGO.EDU :mailer.MAILER@UCHIMVS1   BSMTP  3
+:site.University of Chicago LAN
+:gatemast.SYSRONT@UCHIMVS1      :interconnect.NO
+:nick..UCLA.EDU     :mailer.MAILER@UCLAMVS    BSMTP  3
+:site.University of California Los Angeles
+:gatemast.CSYSMAS@UCLAMVS       :interconnect.MX
+:nick..UCONN.EDU  :mailer.MAILER@UCONNVM  BSMTP  3
+:site.University of Connecticut
+:gatemast.MAILMNT@UCONNVM       :interconnect.MX
+:nick..UCOP.EDU   :mailer.MAILER@UCCVMA            BSMTP  3  :mformat.ND PU
+:site.University of California Systemwide Administration
+:gatemast.OPSRJH@UCCVMA         :interconnect.YES
+:nick..UCSB.EDU     :mailer.MAILER@UCSBUXB    BSMTP  3
+:site.University of California, Santa Barbara
+:gatemast.9531ALIX@UCSBUXB      :interconnect.YES
+:nick..UCSD.EDU     :mailer.MAILER@UCSD       BSMTP  3
+:site.University of California at San Diego Campus Mail Network
+:gatemast.POSTMAST@UCSD         :interconnect.MX
+:nick..UCSF.EDU     :mailer.MAILER@UCSFVM     BSMTP  3
+:site.Univ of California San Francisco Network
+:gatemast.YOSSIE@UCSFVM         :interconnect.MX
+:nick..UFL.EDU      :mailer.MAILER@NERVM             BSMTP  3  :mformat.ND PU
+:site.University of Florida, Gainesville, FL
+:gatemast.JHB@NERVM             :interconnect.YES
+:nick..UGA.EDU      :mailer.MAILER@UGA               BSMTP  3  :mformat.ND PU
+:site.University of Georgia Campus Network
+:gatemast.HAROLD@UGA            :interconnect.MX
+:nick.UIC.EDU      :mailer.MAILER@UICVM      BSMTP  3
+:site.University of Illinois at Chicago
+:gatemast.U17375@UICVM          :interconnect.YES
+:nick.UIUC.EDU      :mailer.SMTP@UIUCVMD      BSMTP  3
+:site.University of Illinois at Urbana-Champaign LAN
+:gatemast.phil@vmd.cso.uiuc.edu :interconnect.MX
+:nick..UKANS.EDU    :mailer.SMTPUSER@UKANVAX         BSMTP  3  :mformat.PU ND
+:site.University of Kansas
+:gatemast.POSTMAST@UKANVAX      :interconnect.MX
+:nick..UKY.EDU      :mailer.MAILER@UKCC            BSMTP  3  :mformat.ND PU
+:site.University of Kentucky
+:gatemast.SYSDAVE@UKCC          :interconnect.MX
+:nick..UMN.EDU      :mailer.SMTPUSER@UMNACVX  BSMTP  3
+:site.University of Minnesota LAN, Minnesota Regional Network
+:gatemast.PWF@UMNACVX           :interconnect.MX
+:nick..UNCA.EDU   :mailer.SMTPUSER@UNCA   BSMTP  3
+:site.University of North Carolina at Asheville LAN
+:gatemast.RWHITE@UNCA           :interconnect.MX
+:nick..UNCG.EDU   :mailer.SMTPUSER@UNCG   BSMTP  3
+:site.University of North Carolina at Greensboro
+:gatemast.HASSELL@UNCG               :interconnect.MX
+:nick..UNCWIL.EDU :mailer.MAILER@UNCWIL       BSMTP  3  :mformat.ND PU
+:site.UNC Wilmington Local Area Network
+:gatemast.SYSMIKE@UNCWIL :interconnect.YES
+:nick..UNL.EDU      :mailer.SMTPUSER@UNLVAX1  BSMTP  3
+:site.University of Nebraska Lincoln
+:gatemast.CSUNDERM@UNLVAX1      :interconnect.MX
+:nick..UNM.EDU   :mailer.SMTP@UNMVMA   BSMTP  3
+:site.University of New Mexico
+:gatemast.king@unmvma.unm.edu  :interconnect.MX
+:nick..UNOMAHA.EDU   :mailer.SMTPUSER@UNLVAX1   BSMTP  3
+:site.University of Nebraska at Omaha Local Area Network
+:gatemast.CSUNDERM@UNLVAX1       :interconnect.MX
+:nick..HQ.UNU.EDU   :mailer.MAILER@JPNUNU00   BSMTP  3
+:site.The United Nations University Headquarters
+:gatemast.JUST@JPNUNU00       :interconnect.NO
+:nick..URI.EDU   :mailer.MAILER@URIACC            BSMTP  3  :mformat.PU ND
+:site.Univ. of Rhode Island LAN
+:gatemast.FNA104@URIACC         :interconnect.MX
+:nick..URICH.EDU    :mailer.SMTPUSER@URVAX    BSMTP  3
+:site.University of Richmond network
+:gatemast.GATEMAST@URVAX        :interconnect.MX
+:nick..USC.EDU      :mailer.MAILER@USCVM        BSMTP  3
+:site.University of Southern California, Los Angeles
+:gatemast.POSTMAST@USCVM        :interconnect.MX
+:nick..USU.EDU   :mailer.SMTPUSER@USU   BSMTP  3
+:site.Utah State University LAN
+:gatemast.RAY@USU               :interconnect.MX
+:nick..UTA.EDU   :mailer.MAILER@UTARLVM1   BSMTP  3
+:site.Univ of Texas at Arlington Campus Network
+:gatemast.c130rdc@UTARLVM1      :interconnect.MX
+:nick..UTAH.EDU     :mailer.SMTPUSER@UTAHCCA  BSMTP  3
+:site.University of Utah Computer Center
+:gatemast.COLE@UTAHCCA          :interconnect.MX
+:nick..UTC.EDU      :mailer.MAILER@UTCVM        BSMTP  3  :mformat.ND PU
+:site.University of Tennessee at Chattanooga Network
+:gatemast.JOEY@UTCVM            :interconnect.NO
+:nick..UTK.EDU   :mailer.MAILER@UTKVM1         BSMTP  3  :mformat.ND PU
+:site.The University of Tennessee, Knoxville, LAN
+:gatemast.POSTMAST@UTKVM1       :interconnect.MX
+:nick..UTOLEDO.EDU  :mailer.SMTPUSER@UOFT02   BSMTP  3
+:site.University of Toledo LAN
+:gatemast.POSTMASTER@UOFT02     :interconnect.MX
+:nick..UVCC.EDU     :mailer.SMTPUSER@UTAHCCA  BSMTP  3
+:site.Utah Valley Community College
+:gatemast.COLE@UTAHCCA          :interconnect.NO
+:nick..UVM.EDU   :mailer.SMTPUSER@UVMVAX          BSMTP  3  :mformat.ND PU
+:site.University of Vermont LAN
+:gatemast.RGS@UVMVAX            :interconnect.NO
+:nick..UWEC.EDU   :mailer.SMTPUSER@UWECVAXA   BSMTP  3
+:site.University of Wisconsin - Eau Claire Campus Network
+:gatemast.STREIF@UWECVAXA       :interconnect.YES
+:nick..UWF.EDU      :mailer.MAILER@UWF               BSMTP  3  :mformat.ND PU
+:site.University of West Florida, Pensacola, FL.
+:gatemast.CRAIG@UWF             :interconnect.YES
+:nick..UWPLATT.EDU   :mailer.SMTPUSER@UWPLATT    BSMTP  3
+:site.University of Wisconsin-Platteville
+:gatemast.POSTMASTER@UWPLATT    :interconnect.MX
+:nick..VCU.EDU      :mailer.MAILER@VCURUBY  BSMTP  3
+:site.Virginia Commonwealth University Internetwork
+:gatemast.PMDFMGR@VCUVAX        :interconnect.MX
+:nick..WASHINGTON.EDU :mailer.MAILER@UWAVM    BSMTP  3
+:site.University of Washington LAN
+:gatemast.DEROEST@UWAVM         :interconnect.MX
+:nick..WCU.EDU   :mailer.MAILER@WCUVAX1   BSMTP  3
+:site.Western Carolina University LAN
+:gatemast.MCKENZIE@WCUVAX1      :interconnect.YES
+:nick..WESLEYAN.EDU :mailer.MAILER@WESLEYAN   BSMTP  3
+:site.Wesleyan University LAN
+:gatemast.POSTMASTER@WESLEYAN   :interconnect.YES
+:nick..WISC.EDU     :mailer.SMTPUSER@WISCMAC3 BSMTP  3
+:site.University of Wisconsin LAN
+:gatemast.POSTMAST@WISCMAC3     :interconnect.MX
+:nick..WRIGHT.EDU  :mailer.SMTPUSER@WSU   BSMTP  3
+:site.Wright State University Turnpike
+:gatemast.POSTMASTER@WSU        :interconnect.MX
+:nick..WUSTL.EDU    :mailer.LMAIL@WUVMD        BSMTP  3  :mformat.ND PU
+:site.Washington University LAN
+:gatemast.HARVEY@WUVMD          :interconnect.MX
+:nick..WVNET.EDU    :mailer.MAILER@WVNVAXA           BSMTP  3  :mformat.ND PU
+:site.West Virginia Network for Educational Telecomputing
+:gatemast.COOK@WVNVAXA          :interconnect.MX
+:nick..WVU.EDU   :mailer.MAILER@WVNVAXA          BSMTP  3  :mformat.ND PU
+:site.West Virginia University
+:gatemast.COOK@WVNVAXA       :interconnect.MX
+:nick.YALE.EDU      :mailer.SMTP@YALEVM             BSMTP  3  :mformat.ND PU
+:site.Yale University LAN
+:gatemast.OWEN@YALEVM, POSTMASTER@YALEVM.YCC.YALE.EDU  :interconnect.MX
+:nick..YSU.EDU      :mailer.MAILER@YSUB              BSMTP  3  :mformat.ND PU
+:site.Youngstown State University
+:gatemast.BOB@YSUB              :interconnect.YES
+:nick..EDU          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Academic clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..EE           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Estonia Internet Domain
+:gatemast.GETTES@PUCC, elippmaa@kbfi.ee        :interconnect.MX
+:nick..EG   :mailer.SMTPUSER@EGFRCUVX   BSMTP  3        :served.YES
+:site.Egyptian Universities Network
+:gatemast.MONDO@EGFRCUVX        :interconnect.NO
+:nick..ES           :mailer.SMTPUSER@ESGBOX   BSMTP  3
+:site.Spanish Internet Domain
+:gatemast.POSTMAST@ESGBOX       :interconnect.MX
+:nick..FI           :mailer.MAILER@FIGBOX    BSMTP  3
+:site.Finland Internet Domain
+:gatemast.POSTMAST@FIGBOX     :interconnect.MX
+:nick..FJ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Fiji Internet Domain
+:gatemast.GETTES@PUCC, s.kumar@usp.ac.nz       :interconnect.MX
+:nick..FO           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Faroe Islands Internet Domain
+:gatemast.GETTES@PUCC, Lis.Hansen@nsavn.fo     :interconnect.MX
+:nick..FR           :mailer.MAILER@FRMOP11    BSMTP  3
+:site.French Internet Domain
+:gatemast.BRUCH@FRMOP11         :interconnect.MX
+:nick..GB           :mailer.MAILER@UKACRL     BSMTP  3
+:site.United Kingdom University/Research Network (Janet)
+:gatemast.PEB@IB.RL.AC.UK       :interconnect.MX
+:nick..GD           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Grenada Internet Domain
+:gatemast.GETTES@PUCC, r_loaran@racin.clu.net  :interconnect.MX
+:nick..GE           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Georgia Internet Domain
+:gatemast.GETTES@PUCC, andro@sasco.georgia.su  :interconnect.MX
+:nick..ANL.GOV     :mailer.MAILER@ANLVM   BSMTP  3
+:site.Argonne National Laboratory
+:gatemast.POSTMASTER@ANLVM      :interconnect.YES
+:nick..DOE.GOV      :mailer.MAILER@DOEVM      BSMTP  3
+:site.U.S. Department of Energy Headquarters
+:gatemast.POSTMASTER@DOEVM      :interconnect.YES
+:nick.LBL.GOV       :mailer.MAILER@LBL        BSMTP  3
+:site.Lawrence Berkeley Laboratory
+:gatemast.POSTMAST@LBL          :interconnect.MX
+:nick..GSFC.NASA.GOV :mailer.MAILER@GIBBS   BSMTP  3
+:site.NASA Goddard Space Flight Center
+:gatemast.XRHAH@GIBBS           :interconnect.MX
+:nick..JPL.NASA.GOV :mailer.MAILER@HAMLET     BSMTP  3
+:site.Jet Propulsion Laboratory
+:gatemast.POSTMAST@HAMLET       :interconnect.MX
+:nick..NIH.GOV   :mailer.MAILER@NIHCU   BSMTP  3
+:site.National Institutes of Health
+:gatemast.RAF@NIHCU             :interconnect.MX
+:nick..NIST.GOV  :mailer.SMTPUSER@NBSENH   BSMTP  3
+:site.National Institute of Standards and Technology
+:gatemast.POSTMASTER@NBSENH     :interconnect.MX
+:nick..ORAU.GOV   :mailer.SMTPUSER@ORAU          BSMTP  3  :mformat.ND
+:site.Oak Ridge Associated Universities LAN
+:gatemast.RUSSELLM@ORAU3        :interconnect.NO
+:nick..GOV          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Government clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..GR           :mailer.MAILER@GREARN     BSMTP  3
+:site.Greek Internet Domain
+:gatemast.POSTMAST@GREARN       :interconnect.NO
+:nick..GT           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Guatemala Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..HEPNET       :mailer.MAILER@LBL        BSMTP  3
+:site.High Energy Physics Network
+:gatemast.GRAVES@LBL            :interconnect.NO
+:nick..HK   :mailer.SMTPUSER@HKUJNT   BSMTP  3
+:site.HARNET - Hong Kong Academic and Research Network
+:gatemast.POSTMAST@HKUJNT       :interconnect.YES
+:nick..HR           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Croatia Internet Domain
+:gatemast.GETTES@PUCC, imaric@srce.ac.hr  :interconnect.MX
+:nick..KFKI.HU   :mailer.MAILER@CEARN          BSMTP  3  :mformat.ND PU
+:site.Central Research Institute for Physics  Local Area Network
+:gatemast.MARTIN@CEARN, CSG@RMK530.RMKI.KFKI.HU    :interconnect.NO
+:nick..HU   :mailer.MAILER@HUEARN  BSMTP 3
+:site.Hungarian Academy of Sciences
+:gatemast.IB001ARA@HUEARN        :interconnect.NO
+:nick..ID           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Indonesia Internet Domain
+:gatemast.GETTES@PUCC, ibrahim@ogah.cs.ui.ac.id :interconnect.MX
+:nick.IE            :mailer.MAILGATE@IEGBOX BSMTP  3
+:site.Ireland Internet Domain
+:gatemast.POSTMASTER@IEGBOX     :interconnect.MX
+:nick..IL           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Israeli Academic Research Network
+:gatemast.HANK@VM.TAU.AC.IL     :interconnect.YES
+:nick..IN           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.India Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..INT          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - International clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..IS           :mailer.MAILER@SEARN             BSMTP  3  :mformat.ND PU
+:site.Icelands Internet Domain
+:gatemast.ERIC@SEARN            :interconnect.MX
+:nick..IT           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Italian National Network
+:gatemast.postmaster@nis.garr.it   :interconnect.MX
+:nick..JM           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Jamaica Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..JP           :mailer.MAILER@JPNSUT00   BSMTP  3
+:site.Japanese Network
+:gatemast.KOKI@JPNSUT10         :interconnect.NO
+:nick..KE          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Kenyan Internet Domain
+:gatemast.shem@uon.ac.ke       :interconnect.MX
+:nick..KN           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Saint Kitts and Nevis Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..KR          :mailer.MAILER@KRSNUCC1   BSMTP  3
+:site.Korea Education Network
+:gatemast.EGKIM@KRSNUCC1       :interconnect.MX
+:nick..KW           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Kuwait Internet Domain
+:gatemast.GETTES@PUCC, ali@kems.rain.com      :interconnect.MX
+:nick..LC           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Saint Lucia Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..LI           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Liechtenstein Internet Domain
+:gatemast.GETTES@PUCC, ronny@lis.li  :interconnect.MX
+:nick..LK   :mailer.SMTP@INTERBIT   BSMTP  3
+:site.Sri Lanka Internet Domain
+:gatemast.postmaster@cse.mrt.ac.lk       :interconnect.MX
+:nick..LS           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Lesotho Internet Domain
+:gatemast.GETTES@PUCC, lls@mopheme.nul.ls      :interconnect.MX
+:nick..LT           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Lithuania Internet Domain
+:gatemast.GETTES@PUCC, a.pakstas@ma-mii.lt.su  :interconnect.MX
+:nick..LU   :mailer.SMTP@INTERBIT   BSMTP  3
+:site.Luxembourg Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..LV           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Latvia Internet Domain
+:gatemast.GETTES@PUCC, ugis.berzins@fls.n495.z2.fidonet.org  :interconnect.MX
+:nick..MIL          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Military clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..MO           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Macau Internet Domain
+:gatemast.bal@uealab.umac.mo    :interconnect.MX
+:nick..MT           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Malta Internet Domain
+:gatemast.GETTES@PUCC, mriz@unimt.mt  :interconnect.MX
+:nick..MX           :mailer.SMTP@INTERBIT           BSMTP  3  :mformat.ND PU
+:site.Mexican Internet Domain
+:gatemast.POSTMAST@TECMTYVM     :interconnect.MX
+:nick..MY           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Malaysia Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..MZ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Mozambique Internet Domain
+:gatemast.GETTES@PUCC, masingue@dzowo.uem.mz   :interconnect.MX
+:nick..NA           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Namibia Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..NATO         :mailer.SMTP@INTERBIT     BSMTP  3
+:site.NATO Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..CLU.NET      :mailer.SMTPUSER@UPRENET  BSMTP  3
+:site.University of Puerto Rico
+:gatemast.POSTMASTER@UPRENET    :interconnect.MX
+:nick..EU.NET       :mailer.MAILER@MCVAX      BSMTP  3
+:site.European Unix System User Group Backbone Network
+:gatemast.PIET@MCVAX, postmaster@mcsun.EU.NET   :interconnect.MX
+:nick..NORDU.NET    :mailer.MAILER@SEARN             BSMTP  3  :mformat.ND PU
+:site.Nordic countries University Network
+:gatemast.ERIC@SEARN            :interconnect.MX
+:nick..NET          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Network gateways
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..NI           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Nicaragua Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..NL           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Netherlands Internet Domain
+:gatemast.INFO@Surfnet.nl       :interconnect.MX
+:nick..NO           :mailer.MAILER@NORUNIX           BSMTP  3  :mformat.ND PU
+:site.Norwegian Internet domain
+:gatemast.postmaster@NORUNIX    :interconnect.MX
+:nick..NZ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.The New Zealand Academic and Research Network
+:gatemast.gatemaster@waikato.ac.nz         :interconnect.MX
+:nick.VMSFAM.DECUS.ORG :mailer.MAILER@DECUS     BSMTP  3  :mformat.ND PU
+:site.DECUS U.S. Chapter National Symposia
+:gatemast.POSTMAST@DECUS :interconnect.MX
+:nick..ORG          :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - Organizational clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..PE           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Peru Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..PG           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Papua New Guinea Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..PH           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Phillipines University Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..PK           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Pakistan Internet Domain
+:gatemast.GETTES@PUCC, ashar%ashar@uunet.uu.net    :interconnect.MX
+:nick..PL           :mailer.SMTP@PLEARN       BSMTP  3
+:site.EARN-Poland, Informatics Center of the Warsaw University
+:gatemast.OEK05@PLEARN          :interconnect.YES
+:nick..PR           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Puerto Rico Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..PT           :mailer.SMTP@PTEARN      BSMTP  3  :served.YES
+:site.National Scientific Computation Network (of Portugal)
+:gatemast.AMORIM@PTIFM          :interconnect.NO
+:nick..PY           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Paraguay Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..RO           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Romania Internet Domain
+:gatemast.GETTES@PUCC, PAUNESCU@ROEARN      :interconnect.MX
+:nick..SE           :mailer.MAILER@SEARN             BSMTP  3  :mformat.ND PU
+:site.SUNET, Swedish University Network
+:gatemast.ERIC@SEARN            :interconnect.MX
+:nick..SG           :mailer.MAILER@NUSVM      BSMTP  3
+:site.Singapore National Network
+:gatemast.CCECL@NUSCC.NUS.SG    :interconnect.MX
+:nick..SI   :mailer.MAILER@ITSAREA   BSMTP  3
+:site.ARNES (Academic and Research Network of Slovenia)
+:gatemast.POSTMAST@ITSAREA, jauk@ijs.si,  :interconnect.NO
+:nick..SK           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Slovakia Internet Domain
+:gatemast.GETTES@PUCC, ivan@eunet.sk       :interconnect.MX
+:nick..SN   :mailer.MAILER@ITSAREA   BSMTP  3
+:site.Senegal Internet Domain
+:gatemast.GETTES@PUCC, corenthi@orstom.sn  :interconnect.MX
+:nick..SR           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Suriname Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..SU           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Soviet Union Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..SZ           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Swaziland Domain
+:gatemast.GETTES@PUCC, ccfj@hippo.ru.ac.za :interconnect.MX
+:nick..TH           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Thailand Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..TN           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Tunisia Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..TR           :mailer.MAILER@TREARN     BSMTP  3  :served.YES
+:site.Turkish Academic Research Network (TUVAKA)
+:gatemast.ESRA@TREARN           :interconnect.NO
+:nick..TT           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Trinidad and Tobago Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..TW           :mailer.MAILER@TWNMOE10   BSMTP  3
+:site.Taiwan academic network (Ministry of Education)
+:gatemast.ZCHEN@TWNMOE10        :interconnect.NO
+:nick..UA           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Ukraine Internet Domain
+:gatemast.GETTES@PUCC, sia%lot.cs.kiev.ua@ussr.eu.net  :interconnect.MX
+:nick..AC.UK        :mailer.MAILER@UKACRL     BSMTP  3
+:site.United Kingdom University/Research Network (Janet)
+:gatemast.PEB@IB.RL.AC.UK       :interconnect.MX
+:nick..UK           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.United Kingdom Domain
+:gatemast.PEB@IB.RL.AC.UK       :interconnect.MX
+:nick..US           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Internet - USA clients
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..UUCP         :mailer.MAILER@UUCPGATE          BSMTP  3  :mformat.PU ND
+:site.Unix Network
+:gatemast.MAINTCMS@PUCC, POSTMASTER@PUCC  :interconnect.NO
+:nick..UY           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Uruguay Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..VC           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Saint Vincent and the Grenadines Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..VE           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Venezuela Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..YU           :mailer.MAILER@DFNGATE       BSMTP  3  :mformat.PU ND
+:site.YUNAC - Yugoslav Network for Academic Community
+:gatemast.sostaric@RCUM.UNI.JUMAIL.YU, MABOGEN@DFNGATE :interconnect.NO
+:nick..ZA           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.South Africa Internet Domain - UNINET Project
+:gatemast.GETTES@PUCC          :interconnect.MX
+:nick..ZW           :mailer.SMTP@INTERBIT     BSMTP  3
+:site.Zimbabwe Internet Domain
+:gatemast.GETTES@PUCC          :interconnect.MX

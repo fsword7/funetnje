@@ -1,4 +1,4 @@
-/* RECV_FILE.C	V3.0
+/* RECV_FILE.C	V3.0-mea1.0
  | Copyright (c) 1988,1989,1990,1991,1992 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -8,92 +8,60 @@
  |   This software is gievn without any warranty, and the Hebrew University
  | of Jerusalem assumes no responsibility for any damage that might be caused
  | by use or misuse of this software.
+
+ | Copyright (c) 1993,1994 by
+ | Finnish University and Research Network, FUNET.
  |
- | Receive a file from the remote. Really, it just parses the incoming
- | record that starts with an RCB that points to SYSOUT-n.
- | We are called each time with one record only - It's format is:
- | RCB SRCB LENGTH record data.
- | The routine that writes a record to output file currently does minimal
- | SRCB processing: ASA control is left as first character of text, and
- | machine CC is converted into ASA one (and I hope it is correct...).
- | In parse_net_data, the buffer is copied to its beginning each time a record
- | is parsed. Change it to use cyclic buffer.
- | NetData control records are partially parsed for information only. Enhance
- | this feature. At present, control fields with count=0 are not supported.
- | Does not support more than one file in Netdata transmission.
- | NETDATA: Fragments of splitted records are written as separate records.
- | this will be corrected in the future.
- |
- | V1.1 - The saved dataset and job header were kept in a single storage for all
- |        lines. The memory allocated has been moved for a per-line bases (in the
- |        IoLines module).
- | V1.2 - Save the file size returned by the close function and pass it to the
- |        routine that requeues the file to another line.
- | V1.3 - Accept SYSIN files also (they don't have NDH) <=== Have to debugged !!!
- | V1.4 - Get the file size when queuing the file to another link.
- |        Store the job id in FID envelope field.
- |        Honor the QUIET option used in NDHGFORM field.
- | V1.5 - Keep a second fragment of job-header is arrives.
- | V1.6 - Add parameters in call to Inform-Mailer for Unix version.
- | V1.7 - 4/1/90 - In unix, the inform-mailer returns the text to send  the
- |        originator as an NMR message.
- | V1.8 - 15/1/90 - A modification to the Unix's change (V1.8) - The Inform-mailer
- |        function sends all the NMRs, so we don't have to deal with them here.
- | V1.9 - 4/2/90 - If a received file is NetData and has class N, do not translate
- |        it to ASCII.
- | V2.0 - Replace BCOPY() calls with memcpy();
- | V2.1 - 18/3/90 - Correct binary file handling. In the internal strucutres we
- |        saved incorrectly ASCII value for binary files.
- | V2.2 - 27/3/90 - make this module a little bit more modular = split some long
- |        functions.
- | V2.3 - 29/3/90 - When looking for a file's destination, replace the call to
- |        get_route_record() with find_line_index(); Here we assume that
- |        files whose destination is LOCAL are ASCII and those whose destination
- |        is anything else are EBCDIC.
- | V2.4 - 31/7/90 - Save more than 2 NJH fragments. The third and more fragments
- |        are saved in dynamically allocated memory as these cases are very rare.
- | V2.5 - 14/10/90 - Add multi-stream support.
- | V2.6 - 18/11/90 - Consult the character set requested for each line. This
- |        allows up to keep incoming local mail in EBCDIC.
- | V2.7 - 19/2/91 - Ignore DSH when it arrives in the middle of a file.
- | V2.8 - 14/6/91 - Change some Logger(1) to Logger(2) to make the program less verbose.
- | V2.9 - 26/12/91 - Do not clear file's flags in Parse_headers(). They are
- |        cleared (or set to some value) in OPen_Recv_file().
- | V3.0 - 18/2/92 - Don't hangup the line on double NJT but pass them to the
- |        remote node (or ignore them if the file is for the local node).
+ | The whole system got serious rewrite when spool handling got
+ | adapted in `our' manner..  There is not much left of the original..
+
  */
 #include "consts.h"
 #include "headers.h"
+#include "prototypes.h"
 
-EXTERNAL struct	LINE	IoLines[MAX_LINES];
+static void save_header __(( const int SRCB, const void *buffer, const int BufferSize, const int Index, const int Stream ));
+static int finish_file __(( const int Index, const int Stream, StreamStates *StreamState, const int SYSIN ));
+static int parse_headers __((const int Index, const int Stream, const int WriteIt ));
+static void file_sender_abort __(( const int Index, const int Stream, const int SYSIN ));
+static void abort_file __(( const int Index, const int Stream, const int SYSIN ));
+
 EXTERNAL struct	COMPLETE_FILE	CompleteFile;
 EXTERNAL struct	REJECT_FILE	RejectFile;
 EXTERNAL struct	EOF_BLOCK	EOFblock;
 
-char	*strchr(), *strrchr(), *malloc();
 
-#define	MACHINE_CC	1		/* For Netdata parsing routine */
 
-#define	CALCULATE_NEXT_CC { \
-	switch(c) {	/* Calculate the next one */ \
-	case 0x1:	/* Write with no space */ \
-	case 0x3: \
-		temp->CarriageControl[DecimalStreamNumber] = E_PLUS; break; \
-	case 0x9:	/* Write and 1 space */ \
-	case 0xb: \
-		temp->CarriageControl[DecimalStreamNumber] = E_SP; break; \
-	case 0x11:	/* Double space */ \
-	case 0x13: \
-		temp->CarriageControl[DecimalStreamNumber] = E_0; break; \
-	case 0x19:	/* Triple space */ \
-	case 0x1b: \
-		temp->CarriageControl[DecimalStreamNumber] = E_MINUS; break; \
-	case 0x8b:	/* Jump to next page */ \
-	case 0x8d: \
-		temp->CarriageControl[DecimalStreamNumber] = E_1; break; \
-	default:	/* Use single space */ \
-		temp->CarriageControl[DecimalStreamNumber] = E_SP; break; \
-	} \
+/* [mea]
+ | Do header opening things, especially
+ | the prefix space allocation.
+ | All localized into this module
+ */
+int
+recv_file_open(Index, Stream)
+const int Index;
+const int Stream;
+{
+	int rc;
+	FILE *fd;
+	char buf[512];
+
+	rc = open_recv_file(Index, Stream);
+	if (!rc) return 0;
+
+	fd = IoLines[Index].OutFds[Stream];
+	/* We write a space reserver header, and return to it later
+	   to write the actual NJH/DSH information as it has been
+	   gathered from the line */
+
+	memset(buf,' ',512);
+	memcpy(buf+512-6,"\nEND:\n",6);
+	buf[0] = '*';
+	fwrite(buf,512,1,fd);	/* Prefix size: 512 bytes */
+
+	IoLines[Index].OutFileParams[Stream].RecordsCount = 0;
+
+	return 1;
 }
 
 
@@ -101,90 +69,237 @@ char	*strchr(), *strrchr(), *malloc();
  | Parse one record. This routine returns either 0 or 1. 0 is returned when
  | the main logic should not send ACK, since we sent here some record. 1 is
  | returned when we received something which should be acked normally.
- | This routine calls the net-data routines if the file is in NETDATA format.
  */
-receive_file(Index, buffer, BufferSize)
-int	Index, BufferSize;
-unsigned char	*buffer;
+int
+receive_file(Index, Buffer, BufferSize)
+const int	Index, BufferSize;
+const void	*Buffer;
 {
-	unsigned char	OutputLine[LINESIZE], MessageSender[20];
-	char		*LinkName;
-	char		*p, *rename_file();
-	short		*StreamState;	/* The state of the stream we handle now */
-	register int	i, FileSize;
-	int	parse_headers(), write_record();
+	/* The state of the stream we handle now */
+	StreamStates	*StreamState;
+	unsigned char *buffer = (unsigned char *)Buffer;
+
+	int	Stream;
+	int	SYSIN = 0;
 	struct	FILE_PARAMS	*FileParams;
-#ifdef UNIX
-	char	*inform_mailer();
-#endif
-	int	DecimalStreamNumber;	/* Stream number in the range 0-7 */
+	int	SRCB, RCB;
 
-/* Buffer points to the stream number. */
-	DecimalStreamNumber = ((*buffer & 0xf0) >> 4) - 9;
+	RCB  = buffer[0];
+	SRCB = buffer[1];
 
-/* Check that the stream number is in range */
-	if((DecimalStreamNumber < 0) ||
-	   (DecimalStreamNumber >= IoLines[Index].MaxStreams)) {
-		logger(1, "RECV_FILE: Found illegal RCB=x^%x (line=%s)\n",
-			(int)(*buffer), IoLines[Index].HostName);
-		file_sender_abort(Index, DecimalStreamNumber);
-		return 0;	/* Abort-file already sent some record */
+	Stream = ((RCB & 0xf0) >> 4) - 9;	/* Stream number
+						   in the range 0-7 */
+
+	/* logger(3,"RECV_FILE: receive_file(Line=%s:%d, BufSize=%d)\n",
+	   IoLines[Index].HostName, Stream, BufferSize);
+	   trace(Buffer,BufferSize > 8 ? 8 : BufferSize,3); */
+
+
+	/* SYSINs are  X'N8', SYSOUTs are X'N9' */
+	SYSIN = (RCB & 0x0f) == 8;
+
+	FileParams = &(IoLines[Index].InFileParams[Stream]);
+	if (SYSIN) FileParams->type |= F_JOB;	/* Flag it as a SYSIN job! */
+
+	/* Check that the stream number is in range */
+	if ((Stream < 0) ||
+	    (Stream >= IoLines[Index].MaxStreams)) {
+	  logger(1, "RECV_FILE: Found illegal RCB=x^%x (line=%s:%d, maxstreams=%d)\n",
+		 RCB, IoLines[Index].HostName, Stream,
+		 IoLines[Index].MaxStreams);
+	  file_sender_abort(Index, Stream, SYSIN);
+	  return 0;		/* Abort-file already sent some record */
 	}
 
-/* Test whether we got an abort file (SCB = 0x40). If so, the Uncompress_SCB
-   routine returns -1. The code that calls us adds 2 to the value returned from
-   Uncompress_SCB, so if we get a record length < 2, then we know this is abort.
-*/
-	if(BufferSize < 2) {
-		file_sender_abort(Index, DecimalStreamNumber);
-		return 0;	/* Abort-file already sent some record */
+	/* Test whether we got an abort file (SCB = 0x40).
+	   If so, the Uncompress_SCB routine returns -1.
+	   The code that calls us adds 2 to the value returned from
+	   Uncompress_SCB, so if we get a record length < 2, then
+	   we know this is abort.					*/
+
+	if (BufferSize < 2) {
+	  file_sender_abort(Index, Stream, SYSIN);
+	  return 0;	/* Abort-file already sent some record */
 	}
 
-/* Get the relevant data from the I/O structure */
-	StreamState = &((IoLines[Index]).InStreamState[DecimalStreamNumber]);
+	/* Get the relevant data from the I/O structure */
+	StreamState = &IoLines[Index].InStreamState[Stream];
 
-/* Test whether it is EOF block. If so - it signals end of transmission */
-	if(BufferSize == 2)	/* This is the empty block */
-		return finish_file(Index, DecimalStreamNumber, StreamState);
+	/* Test whether it is EOF block.
+	   If so - it signals end of transmission */
+	if (BufferSize == 2)	/* This is the empty block */
+	  return finish_file(Index, Stream, StreamState, SYSIN);
 
-/* This was a non-EOF record. Check the SRCB and act appropriately */
-	switch((buffer[1]) & 0xf0) {
-/* The headers */
-	case 0xc0:		/* Job header */
-	case 0xd0:		/* Job Trailer */
-	case 0xe0:		/* Data set header */
-		IoLines[Index].CarriageControl[DecimalStreamNumber] = E_SP;	/* Init it to normal spacing */
-		i = parse_headers(buffer, BufferSize, StreamState, Index, DecimalStreamNumber);
-		if(i < 0)	/* Fatal error in headers */
-			return 0;	/* Channel was restarted */
-		else
-			return 1;
-/* The records themselves */
-	case 0x80:
-	case 0x90:
-	case 0xa0:
-	case 0xb0:
-		if((*StreamState == S_NDH_SENT) || (*StreamState == S_NJH_SENT))
-			/* We got either both or just NJH. The latter case happens
-			   in SYSIN files. */
-			*StreamState = S_SENDING_FILE;
-		if(*StreamState != S_SENDING_FILE) {
-			logger(1, "RECV_FILE: line=%s, Illegal state=%d while receiving record\n",
-				IoLines[Index].HostName, (int)(*StreamState));
-			restart_channel(Index);
-			return 0;
-		}
-		i = write_record(buffer, BufferSize, Index, DecimalStreamNumber);
-		if(i < 0)
-			return 0;	/* File abort */
-		else
-			return 1;	/* OK, ack it. */
-	default:
-		logger(1, "RECV_FILE: Line=%s, Illegal SRCB=x^%x\n", IoLines[Index].HostName,
-				(int)(*buffer));
+	/* This was a non-EOF record. Check the SRCB and act appropriately */
+	switch (SRCB & 0xf0) {
+	      /* The headers */
+	      /* Save the headers first, come back to them later.. */
+	  case NJH_SRCB:		/* Job header */
+	      if (*StreamState != S_REQUEST_SENT &&
+		  *StreamState != S_NJH_SENT) {
+		logger(1,"RECV_FILE: Line=%s:%d, Job header arrived when in state %d\n",
+		       IoLines[Index].HostName, Stream, *StreamState);
 		restart_channel(Index);
-		return 0;	/* No explicit ACK */
+		return -1;
+	      }
+	      *StreamState = S_NJH_SENT;
+
+	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
+	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      return 1;
+	      break;
+	  case DSH_SRCB:		/* Data set header */
+	      if (*StreamState != S_NJH_SENT &&
+		  *StreamState != S_NDH_SENT &&
+		  *StreamState != S_SENDING_FILE) {
+		logger(1,"RECV_FILE: Line=%s:%d, A DatasetHeader arrived when in state %d\n",
+		       IoLines[Index].HostName, Stream, *StreamState);
+		restart_channel(Index);
+		return -1;
+	      }
+	      *StreamState = S_NDH_SENT;
+
+	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
+	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      return 1;
+	      break;
+	  case NJT_SRCB:		/* Job Trailer */
+	      if (*StreamState != S_SENDING_FILE) {
+		logger(1,"RECV_FILE: Line=%s:%d, A JobTrailer arrived when in state %d\n",
+		       IoLines[Index].HostName, Stream, *StreamState);
+		restart_channel(Index);
+		return -1;
+	      }
+	      *StreamState = S_NJT_SENT;
+
+	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
+	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      return 1;
+	      break;
+
+	      /* The records themselves */
+	case CC_NO_SRCB:
+	case CC_MAC_SRCB:
+	case CC_ASA_SRCB:
+	case CC_CPDS_SRCB:
+	      if ((*StreamState == S_NDH_SENT) || (*StreamState == S_NJH_SENT))
+		/* We got either both or just NJH. The latter case happens
+		   in SYSIN files. */
+		*StreamState = S_SENDING_FILE;
+	      if (*StreamState != S_SENDING_FILE) {
+		logger(1, "RECV_FILE: line=%s:%d, Illegal state=%d while receiving record\n",
+		       IoLines[Index].HostName, Stream, *StreamState);
+		restart_channel(Index);
+		return 0;
+	      }
+	      /* Save the record */
+	      if (uwrite(Index, Stream, buffer+1, BufferSize-1) == 0) {
+		abort_file(Index, Stream, SYSIN);
+		return 0;
+	      }
+	      FileParams->RecordsCount += 1;
+	      return 1;
+	default:
+	      logger(1, "RECV_FILE: Line=%s:%d, Illegal SRCB=x^%x\n",
+		     IoLines[Index].HostName, Stream, SRCB);
+	      restart_channel(Index);
+	      return 0;	/* No explicit ACK */
 	}
+}
+
+
+/* [mea]
+ | Save header (see SRCB) into proper slot for later analysis.  If
+ | fragmented, like DSH could be (RSCS TAG), combine them here. (XX: combine!)
+ | Do not worry about the place/phase of protocol in this module.
+ */
+
+static void
+save_header(SRCB, buffer, BufferSize, Index, Stream)
+const int SRCB;
+const void *buffer;
+const int BufferSize, Index, Stream;
+{
+	struct LINE	*Line = &IoLines[Index];
+	char	*bufp = NULL;
+	int	*lenp = NULL;
+	int	savesize;
+
+	switch (SRCB & 0xf0) {
+	  case NJH_SRCB:
+	      /* NETWORK JOB HEADER -- fragmented ??? */
+	      bufp = (char*)Line->SavedJobHeader[Stream];
+	      savesize = sizeof(Line->SavedJobHeader[Stream]);
+	      lenp = &(Line->SizeSavedJobHeader[Stream]);
+	      if (!*lenp) {	/* Ok, save into statically allocated buffer */
+		memset(bufp,0,savesize);
+		if (BufferSize < savesize)
+		  savesize = BufferSize;
+		memcpy(bufp,buffer,savesize);
+		*lenp = BufferSize;
+	      } else {
+		/* This is the second fragment -- should be anyway.. */
+		bufp += *lenp; /* Advance somewhat */
+		savesize -= *lenp;
+		if (savesize > 0) {
+		  /* Save the fragment if it fits in.. */
+		  logger(1,"** RECV_FILE: NETWORK JOB HEADER SECOND FRAGMENT RECEIVED?? Wow!  Line=%s:%d, total size=%d\n",
+			 Line->HostName,Stream, *lenp+savesize-4);
+		  memcpy(bufp,(char*)(buffer)+4,savesize-4);
+		  *lenp += (savesize-4);
+		}
+	      }
+	      break;
+	  case DSH_SRCB:
+	      /* DATASET_HEADER - possibly fragmented.. */
+	      bufp = (char*)Line->SavedDatasetHeader[Stream];
+	      savesize = sizeof(Line->SavedDatasetHeader[Stream]);
+	      lenp = &(Line->SizeSavedDatasetHeader[Stream]);
+	      if (!*lenp) {	/* Ok, save into statically allocated buffer */
+		memset(bufp,0,savesize);
+		if (BufferSize < savesize)
+		  savesize = BufferSize;
+		memcpy(bufp,buffer,savesize);
+		*lenp = BufferSize;
+	      } else {
+		/* This is the second fragment -- should be anyway.. */
+		bufp += *lenp; /* Advance somewhat */
+		savesize -= *lenp;
+		if (savesize > 0) {
+		  /* Save the fragment if it fits in.. */
+		  if (((unsigned char *)buffer)[3] != 1) {
+		    /* logger(1,"RECV_FILE: DSH second fragment received with bad serial number: X'%02X'\n",
+		       ((unsigned char *)buffer)[3]); */
+		  } else {
+		    memcpy((void*)bufp,(char*)(buffer)+4,savesize-4);
+		    *lenp += (savesize-4);
+		  }
+		}
+	      }
+	      break;
+	  case NJT_SRCB:
+	      /* NETWORK JOB TRAILER */
+	      bufp = (char*)Line->SavedJobTrailer[Stream];
+	      savesize = sizeof(Line->SavedJobTrailer[Stream]);
+	      lenp = &(Line->SizeSavedJobTrailer[Stream]);
+	      if (!*lenp) {	/* Ok, save into statically allocated buffer */
+		memset(bufp,0,savesize);
+		if (BufferSize < savesize)
+		  savesize = BufferSize;
+		memcpy(bufp,buffer,savesize);
+		*lenp = BufferSize;
+	      } else {
+		/* Whoops -- Defragmenting is left for further study..
+		   It all gets written into the file anyway */
+		logger(1,"** RECV_FILE: NETWORK JOB TRAILER SECOND FRAGMENT RECEIVED???  Line=%s:%d\n",
+		       Line->HostName,Stream);
+	      }
+	      break;
+	  default:
+	      break;
+	}
+	parse_headers(Index, Stream, 0); /* Update whatever data you have.. */
+
 }
 
 
@@ -193,703 +308,489 @@ unsigned char	*buffer;
  | if needed. Also inform sender if no Quiet form.
  | Called from Receive_file().
  */
-finish_file(Index, DecimalStreamNumber, StreamState)
-int	Index, DecimalStreamNumber;
-short	*StreamState;	/* The state of the stream we handle now */
+static int
+finish_file(Index, Stream, StreamState, SYSIN)
+int		Index, Stream, SYSIN;
+StreamStates	*StreamState;	/* The state of the stream we handle now */
 {
 	unsigned char	OutputLine[LINESIZE], MessageSender[20];
-	char		*LinkName;
-	char		*p, *rename_file();
+	char		*FileName;
+	char		*p;
+	time_t		dt;
+	char		ToNode[10], Format[20];
 	register int	i, FileSize;
+	int		PrimLine, AltLine;
 	struct	FILE_PARAMS	*FileParams;
 
-	if(*StreamState != S_NJT_SENT) {	/* Something is wrong */
-		logger(1, "RECV_FILE, line=%s, EOF received when in state %d\n",
-			IoLines[Index].HostName, (int)(*StreamState));
-		abort_file(Index, DecimalStreamNumber);
-		return 0;
+	if (*StreamState != S_NJT_SENT) { /* Something is wrong */
+	  logger(1, "RECV_FILE, line=%s:%d, EOF received when in state %d\n",
+		 IoLines[Index].HostName, Stream, (int)(*StreamState));
+	  abort_file(Index, Stream, SYSIN);
+	  return 0;
 	}
 
-/* All is ok - ack completion, and rename file to reflect its disposition */
-	CompleteFile.SRCB = (((DecimalStreamNumber + 9) << 4) | 0x9);
-	send_data(Index, &CompleteFile,
-		(int)(sizeof(struct COMPLETE_FILE)),
-		(int)(ADD_BCB_CRC));
+	i = parse_headers(Index, Stream, 1);
+	if (i < 0)	/* Fatal error in headers */
+	  return 0;	/* Channel was restarted */
+
+	FileParams = &(IoLines[Index].InFileParams[Stream]);
+
+	if (FileParams->OurFileId == 0)
+	  FileParams->OurFileId = get_send_fileid();
+
+	/* All is ok (?) - ack completion, and rename file to 
+	   reflect its disposition */
+	if (SYSIN)
+	  CompleteFile.SRCB = (((Stream + 9) << 4) | 0x8);
+	else
+	  CompleteFile.SRCB = (((Stream + 9) << 4) | 0x9);
+	send_data(Index, &CompleteFile, sizeof(struct COMPLETE_FILE),
+		  ADD_BCB_CRC);
+
 	*StreamState = S_INACTIVE;	/* Xfer complete - Stream is idle */
+
+	dt = time(0) - FileParams->RecvStartTime;
+	if (dt < 1) dt = 1;
+	logger(2,"RECV_FILE: received SYS%s file on line %s:%d, %d B in %d secs, %d B/sec.\n",
+	       SYSIN ? "IN" : "OUT",
+	       IoLines[Index].HostName, Stream,
+	       IoLines[Index].OutFilePos[Stream], dt,
+	       IoLines[Index].OutFilePos[Stream] / dt);
+
 	/* Because we'll get another EOF or ACK soon... */
-	FileSize = close_file(Index, (int)(F_OUTPUT_FILE), DecimalStreamNumber);
-	p = rename_file(Index, (int)(RN_NORMAL), (int)(F_OUTPUT_FILE),
-		DecimalStreamNumber);
-/* If the file link is LOCAL, then it is for our mailer; so, wakeup the mailer
-   to process it. If the link type is other, queue it for that link.
-   Also send back NMR telling that we've received this file.
-*/
-	FileParams = &(IoLines[Index].InFileParams[DecimalStreamNumber]);
-	LinkName = FileParams->line;
-	if(compare(LinkName, "LOCAL") == 0) {
-#ifdef VMS
-		inform_mailer(p, FileParams->FileName,
-			FileParams->FileExt, FileParams->From,
-			FileParams->To, FileParams->JobClass);
-		sprintf(OutputLine,
-			"Received Job %s for %s, Queued to local mailer",
-			FileParams->JobName,
-			FileParams->To);
-#else
-/* On Unix, there is no mailer. Hence, the Inform-Mailer procedure sends the
-   NMR message to originator */
-		inform_mailer(p, FileParams->FileName,
-			FileParams->FileExt, FileParams->From,
-			FileParams->To, FileParams->JobClass);
-		*OutputLine = '\0';
-#endif
+
+	FileSize = close_file(Index, F_OUTPUT_FILE, Stream);
+	/* A bit later, do  rename_file(...,RN_NORMAL,..) */
+
+	/* Lets find target LINK... */
+	*ToNode = 0;
+
+	strcpy(FileParams->line,"?Unknown?");
+	if ((p = strchr(FileParams->To, '@')) != NULL) {
+		strncpy( ToNode,p+1,sizeof(ToNode)-1 );
 	}
-	else {	/* Queue to link */
-		queue_file(p, FileSize);
-		sprintf(OutputLine,
-			"Job %s received, rerouted on link %s, for %s",
-			FileParams->JobName, LinkName,
-			FileParams->To);
-	}
-	sprintf(MessageSender, "@%s", LOCAL_NAME);
-/* Send message back only if not found the QUIET option. */
-	if(((FileParams->type & F_NOQUIET) != 0) &&
-	   (*OutputLine != '\0'))
+
+	/* Following code lifted from   FILE_QUEUE.C:  queue_file()  */
+
+	switch (i = find_line_index(ToNode,FileParams->line,Format,
+				    &PrimLine,&AltLine)) {
+	  case NO_SUCH_NODE:
+
+	      /* Get a pointer to where ever it is.. */
+	      FileName = rename_file(FileParams,RN_HOLD_ABORT,F_OUTPUT_FILE);
+
+	      /* Log a receive */
+	      rscsacct_log(FileParams,0);
+
+	      logger(1,"RECV_FILE: Line %s:%d,  Got a file from `%s' to `%s', but don't know route!\n",
+		     IoLines[Index].HostName,Stream,
+		     FileParams->From,FileParams->To);
+	      break; /* Hmm.. Local ? */
+
+	  case ROUTE_VIA_LOCAL_NODE:
+	      /* ??? Needed or not ? */
+	      FileName = rename_file(FileParams,RN_NORMAL,F_OUTPUT_FILE);
+
+	      inform_filearrival( FileName,FileParams,OutputLine );
+	      /* Log a receive */
+	      rscsacct_log(FileParams,0);
+
+	      sprintf(MessageSender, "@%s", LOCAL_NAME);
+	      /* Send message back only if not found the QUIET option. */
+	      if (((FileParams->type & F_NOQUIET) != 0) &&
+		  (*OutputLine != 0))
 		send_nmr(MessageSender,
-			FileParams->From,
-			OutputLine, strlen(OutputLine),
-			(int)(ASCII), (int)(CMD_MSG));
+			 FileParams->From,
+			 OutputLine, strlen(OutputLine),
+			 ASCII, CMD_MSG);
+	      else
+		logger(3,"RECV_FILE: Quiet ack of received file - no msg back.\n");
+	      break;
+
+	  case LINK_INACTIVE:	/* No alternate route available... */
+	      /* Get a pointer to where ever it is.. */
+	      FileName = rename_file(FileParams,RN_NORMAL,F_OUTPUT_FILE);
+	      /* Log a receive */
+	      rscsacct_log(FileParams,0);
+
+	      /* Queue it */
+	      add_to_file_queue(FileName, PrimLine, FileSize);
+	      return 0;
+
+	  default:	/* Hopefully a line index */
+	      if ((i < 0) || (i >= MAX_LINES) || IoLines[i].HostName[0] == 0) {
+		/* Get a pointer to where ever it is.. */
+		FileName = rename_file(FileParams,RN_HOLD_ABORT,F_OUTPUT_FILE);
+		/* Log a receive */
+		rscsacct_log(FileParams,0);
+		logger(1, "FILE_QUEUE, Find_line_index() returned erronous index (%d) for node %s\n", i, p);
+		return 0;
+	      }
+
+	      /* Get a pointer to where ever it is.. */
+	      FileName = rename_file(FileParams, RN_NORMAL, F_OUTPUT_FILE);
+	      /* Queue it */
+
+	      add_to_file_queue(FileName, i, FileSize);
+	      break;
+	} /* switch() */
+
 	return 0;	/* We finished here. No need to send ACK */
 }
 
 
 /*
- | Parse the various headers and trailers used by NJE. Currently only stores
- | them in structures.
- | If there is an error in the headers the channel is restarted and the function
- | returns -1. In a normal case it returns zero.
- | the part that parses the NDH should be modified to do it better.
+ | Parse the various headers and trailers used by NJE.
+ | If there is an error in the headers the channel is restarted
+ | and the function returns -1. In a normal case it returns zero.
  */
-int
-parse_headers(buffer, BufferSize, StreamState, Index, DecimalStreamNumber)
-unsigned char	*buffer;
-int		Index, DecimalStreamNumber, BufferSize;
-short		*StreamState;
+static int
+parse_headers(Index, Stream, WriteIt)
+const int	Index, Stream, WriteIt;
 {
-	register int	i, TempVar;
-	unsigned char	*p, line[LINESIZE], TempLine[LINESIZE],
-			Afield[20],	/* USed when translating fields to ASCII */
-			format[20],	/* Message's format (Character set) */
-			CharacterSet[20],	/* Character set requested for this line */
-			*TempP, *TempQ;
-	struct	JOB_HEADER	*LocalJobHeader;
-	struct	DATASET_HEADER	*LocalDatasetHeader;
+	int	i, size;
+	unsigned char	*p,
+			Afield[20];	/* Used when translating
+					   fields to ASCII */
+	struct	JOB_HEADER	*NJHp;
+	struct	DATASET_HEADER	*DSHp;
+	struct	DATASET_HEADER_G    *DSHGp;
+	struct	DATASET_HEADER_RSCS *DSHVp;
+	unsigned char		*DSHcp;
 	struct	FILE_PARAMS	*FileParams;
-	struct	LINE	*temp;
-	int			uwrite();
-	short	Ishort;
+	struct	LINE	*Line;
+	FILE	*fd;
+	struct stat fstats;
+	long	DSHrecords = -1;
 
-	temp = &IoLines[Index];
-/* Create some equivalences */
-	LocalJobHeader = (struct JOB_HEADER *)(&(temp->SavedJobHeader)[DecimalStreamNumber][1]);
-	LocalDatasetHeader =
-		(struct DATASET_HEADER *)(&(temp->SavedDatasetHeader)[DecimalStreamNumber][1]);
-	FileParams = &((temp->InFileParams)[DecimalStreamNumber]);
+	Line = &IoLines[Index];
 
-	switch(buffer[1]) {	/* Dispatch according to SRCB */
-	case 0xc0:	/* Job Header */
-		if(*StreamState == S_NJH_SENT) {	/* Second part of segmented header */
-			if(temp->SizeSavedJobHeader2[DecimalStreamNumber] != 0) {
-/* More than two fragments - allocate memory for them. We use dynamic memory here
-   as more than two fragments are very rare */
-				for(i = 0; i < MAX_NJH_HEADERS; i++)
-					if(temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i] == 0)
-						break;	/* Empty slot found */
-				if(i == MAX_NJH_HEADERS) {
-					logger((int)(1), "RECV_FILE, line=%s, No room for fragmented job header\n",
-						IoLines[Index].HostName);
-				} else {
-					p = temp->SavedJobHeaderMore[DecimalStreamNumber][i] = (unsigned char *)
-						(malloc(BufferSize));
-					if(p == NULL) 
-						bug_check("Can't Malloc() memory for NJH");
-					temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i]
-						= BufferSize - 1;
-					memcpy(p, &buffer[1],
-						temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i]);
-				}
-			} else {	/* Save the second fragment */
-				temp->SizeSavedJobHeader2[DecimalStreamNumber] = BufferSize - 1;
-				p = temp->SavedJobHeader2[DecimalStreamNumber];
-				memcpy(p, &buffer[1],
-					temp->SizeSavedJobHeader2[DecimalStreamNumber]);
-			}
-			return 1;
-		}
-		if(*StreamState != S_REQUEST_SENT) {
-			logger((int)(1),
-				"RECV_FILE: Line=%s, Job header arrived when in state %d\n",
-					IoLines[Index].HostName, *StreamState);
-				restart_channel(Index); return -1;
-		}
-		temp->SizeSavedJobHeader[DecimalStreamNumber] = BufferSize - 1; /* -1 for RCB that we don't save */
-		temp->SizeSavedJobHeader2[DecimalStreamNumber] = 0;	/* Signla that it is empty */
-		for(i = 0; i < MAX_NJH_HEADERS; i++)
-			temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i] = 0;	/* These are also empty */
-		p = temp->SavedJobHeader[DecimalStreamNumber];
-		memcpy(p, &buffer[1], temp->SizeSavedJobHeader[DecimalStreamNumber]);
-		*StreamState = S_NJH_SENT;
-		break;
-	case 0xe0:	/* Dataset header */
-		if(*StreamState == S_NDH_SENT) {	/* Second part of segmented header */
-			if((temp->InFileParams[DecimalStreamNumber].flags & 
-			    FF_LOCAL) == 0) {
-				/* Write it to output file */
-				uwrite(Index, DecimalStreamNumber, &buffer[1], BufferSize - 1);
-			}
-			return 1;
-		}
-		if(*StreamState == S_SENDING_FILE) {	/* JES2 sends DSH in the middle */
-			logger(1, "RECV_FILE, line=%s, Ignoring DSH in the middle of a file.\n",
-				IoLines[Index].HostName);
-			return 1;	/* Simply ignore it */
-		}
-		if(*StreamState != S_NJH_SENT) {
-			logger((int)(1),
-				"RECV_FILE: Line=%s, Dataset header arrived when in state %d\n",
-					IoLines[Index].HostName, *StreamState);
-				restart_channel(Index); return -1;
-		}
+	/* Create some equivalences */
+	NJHp = (struct JOB_HEADER *)    Line->SavedJobHeader[Stream];
+	DSHp = (struct DATASET_HEADER *)Line->SavedDatasetHeader[Stream];
+	DSHcp = (unsigned char *)       Line->SavedDatasetHeader[Stream];
+	DSHGp = &DSHp->NDH;  /* NOTE: These CAN be of different size, */
+	DSHVp = &DSHp->RSCS; /*       than the expected defaults!     */
+	FileParams = &(Line->InFileParams[Stream]);
+	fd = Line->OutFds[Stream];
+	fstat(fileno(fd),&fstats);
 
-		temp->SizeSavedDatasetHeader[DecimalStreamNumber] = BufferSize - 1;	/* -1 for RCB */
-		p = temp->SavedDatasetHeader[DecimalStreamNumber];
-		memcpy(p, &buffer[1], temp->SizeSavedDatasetHeader[DecimalStreamNumber]);
-		*StreamState = S_NDH_SENT;
-		break;
-	case 0xd0:	/* Job trailer */
-		if(*StreamState != S_SENDING_FILE) {
-			logger((int)(1),
-				"RECV_FILE: Line=%s, Job trailer arrived when in state %d\n",
-					IoLines[Index].HostName, *StreamState);
-		}
-/* Some nodes may send multiple NJT, so pass them on if we are S&F. */
-		*StreamState = S_NJT_SENT;
-		/* We don't need NJT, so write it only if EBCDIC file */
-		if((temp->InFileParams[DecimalStreamNumber].flags & FF_LOCAL) ==0)
-			if(uwrite(Index, DecimalStreamNumber, &buffer[1], BufferSize - 1) == 0)
-				abort_file(Index, DecimalStreamNumber);
-		break;
+	strcpy(FileParams->From, "***@***");
+	strcpy(FileParams->To, "***@***");
+	strcpy(FileParams->FileName,"_unknown_");
+	strcpy(FileParams->FileExt, "_unknown_");
+	FileParams->OurFileId = 0;
+	FileParams->tag[0]    = 0;
+
+	/* Init it, just in case we don't have NJH;
+	   like with locally sent files.. */
+	FileParams->NJHtime = fstats.st_mtime;
+
+	if (WriteIt && Line->SizeSavedJobHeader[Stream] == 0) {
+	  /* No JOB HEADER ! */
+	  logger(1,"RECV_FILE: Line=%s:%d, Missing JOB HEADER from a %s!\n",
+		 Line->HostName,Stream,
+		 (FileParams->type & F_JOB) ? "SYSIN JOB" : "file");
+	  abort_file(Index,Stream,FileParams->type & F_JOB);
+	  /*restart_channel(Index);*/
+	  return -1;
+	}
+	if (WriteIt && Line->SizeSavedJobTrailer[Stream] == 0) {
+	  /* No JOB TRAILER ! */
+	  logger(1,"RECV_FILE: Line=%s:%d, Missing JOB TRAILER from a %s!\n",
+		 Line->HostName,Stream,
+		 (FileParams->type & F_JOB) ? "SYSIN JOB" : "file");
+	  abort_file(Index,Stream,FileParams->type & F_JOB);
+	  /*restart_channel(Index);*/
+	  return -1;
 	}
 
-/* If we got both NJH+DSH, then we can write the mailer's header */
-	if(*StreamState == S_NDH_SENT) {
-		FileParams->type = 0;
-		/* Convert the from address */
-		EBCDIC_TO_ASCII(LocalJobHeader->NJHGORGR, Afield, (int)(8));
-			/* For Username */
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-			/* Remove the trailing spaces */
-		Afield[i++] = '@';
-		p = &Afield[i];  i += 8;
-		EBCDIC_TO_ASCII(LocalJobHeader->NJHGORGN, p, (int)(8));
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		strcpy(FileParams->From, Afield);
-		sprintf(line, "FRM: %s", Afield);
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGRMT, Afield, 8);
-			/* To Username */
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i++] = '@';
-		p = &Afield[i]; i += 8;
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGNODE, p, 8);
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		strcpy(FileParams->To, Afield);
-		sprintf(line, "TOA: %s", Afield);
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGPROC, Afield, 8);
-			/* Filename */
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		strcpy(FileParams->FileName, Afield);
-		sprintf(line, "FNM: %s", Afield);
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGSTEP, Afield, 8);
-			/* Filename extension */
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		strcpy(FileParams->FileExt, Afield);
-		sprintf(line, "EXT: %s", Afield);
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		if((LocalDatasetHeader->NDH).NDHGCLAS == E_M) {
-			sprintf(line, "TYP: MAIL");
-			FileParams->type = F_MAIL;
-		}
-		else {
-/* Test whether it is PRINT file */
-			if((((LocalDatasetHeader->NDH).NDHGFLG2) & 0x80) != 0) {
-			sprintf(line, "TYP: PRINT");
-			FileParams->type = F_FILE | F_PRINT;
-			}
-			else {
-				sprintf(line, "TYP: FILE");
-				FileParams->type = F_FILE;
-			}
-		}
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		FileParams->JobClass =
-			EBCDIC_ASCII[(LocalDatasetHeader->NDH).NDHGCLAS];
-		sprintf(line, "CLS: %c", FileParams->JobClass);
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-/* Check for the QUIET option */
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGFORM, Afield, 8);
-		Afield[8] = '\0';
-		if(strncmp(Afield, "QUIET", 5) != 0)	/* Don't be quiet */
-			FileParams->type |= F_NOQUIET;
-/* Some default values: */
-		FileParams->NetData = 0;	/* Assume not NetData */
-		FileParams->RecordsCount = 0;
-/* Get the job name */
-		EBCDIC_TO_ASCII(LocalJobHeader->NJHGJNAM, Afield, 8);
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		strcpy(FileParams->JobName, Afield);
-
-/* Test whether this file should be in ASCII or EBCDIC */
-		EBCDIC_TO_ASCII((LocalDatasetHeader->NDH).NDHGNODE, Afield, 8);
-		/* To Node */
-/*		if(get_route_record(Afield, TempLine, sizeof TempLine) == 0) { */
-/* We have to remove trailing blanks for Find_line_index to work properly */
-		i = 8;
-		while((i > 0) && (Afield[--i] == ' ')); i++;
-		Afield[i] = '\0';
-		switch(find_line_index(Afield, FileParams->line, CharacterSet)) {
-		case NO_SUCH_NODE:	/* Pass to local mailer. */
-			strcpy(format, CharacterSet);
-			FileParams->flags |= FF_LOCAL;	/* So we know not to save NJE headers */
-			strcpy(FileParams->line, "UNKNOWN"); /* No such site */
-			FileParams->format = ASCII;
-			sprintf(line, "FMT: ASCII");
-			strcpy(FileParams->line, "LOCAL");	/* So mailer will catch it */
-			break;
-		case ROUTE_VIA_LOCAL_NODE:
-			strcpy(format, CharacterSet);
-			FileParams->flags |= FF_LOCAL;	/* So we know not to save NJE headers */
-/* Local file. Check whether to leave code conversion to mailer or do it here */
-			if(compare(CharacterSet, "EBCDIC") == 0)
-				FileParams->format = EBCDIC;
-			else
-				FileParams->format = ASCII;
-/* The file should be translated to ASCII. If it is of class N change it to BINAR */
-			if(FileParams->JobClass == 'N') {
-				FileParams->format = BINARY;
-				sprintf(line, "FMT: BINARY");
-			}
-			else
-				sprintf(line, "FMT: %s", format);
-			uwrite(Index, DecimalStreamNumber, "VIA: NJE", 8);
-			break;
-		default:
-			strcpy(format, "EBCDIC");	/* Default */
-			FileParams->format = EBCDIC;
-			sprintf(line, "FMT: EBCDIC");
-		}
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-
-/* Store the file id number */
-		memcpy(&Ishort, &(LocalJobHeader->NJHGJID), sizeof(short));
-		sprintf(line, "FID: %d", ntohs(Ishort));
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		sprintf(line, "END:");
-		uwrite(Index, DecimalStreamNumber, line, strlen(line));
-		logger(3,
-			"=> Receiving file %s.%s from %s to %s, format=%d, type=%d, class=%c\n",
-			FileParams->FileName, FileParams->FileExt,
-			FileParams->From, FileParams->To,
-			FileParams->format, FileParams->type,
-			FileParams->JobClass);
-
-/* If the format is EBCDIC, save the NJH and DSH in the file */
-/* Add one to the count because of the SRCB */
-		if((FileParams->format == EBCDIC) &&
-		   ((FileParams->flags & FF_LOCAL) == 0)) {
-			if(uwrite(Index, DecimalStreamNumber, temp->SavedJobHeader[DecimalStreamNumber],
-			   temp->SizeSavedJobHeader[DecimalStreamNumber]) == 0) {
-				abort_file(Index, DecimalStreamNumber); return 0;
-			}
-			if(temp->SizeSavedJobHeader2[DecimalStreamNumber] != 0)
-				uwrite(Index, DecimalStreamNumber, temp->SavedJobHeader2[DecimalStreamNumber],
-				   temp->SizeSavedJobHeader2[DecimalStreamNumber]);
-/* If there were more fragments for the saved job header write them */
-			for(i = 0; temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i] != 0; i++) {
-				if(i == MAX_NJH_HEADERS) break;
-				uwrite(Index, DecimalStreamNumber, temp->SavedJobHeaderMore[DecimalStreamNumber][i],
-				   temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i]);
-				free(temp->SavedJobHeaderMore[DecimalStreamNumber][i]);	/* Free the memory */
-			}
-			if(uwrite(Index, DecimalStreamNumber, temp->SavedDatasetHeader[DecimalStreamNumber],
-				temp->SizeSavedDatasetHeader[DecimalStreamNumber]) == 0) {
-					abort_file(Index, DecimalStreamNumber); return 0;
-			}
-		}
-/* If this is ASCII file we still have to clear the memory used by fragmented
-   job headers */
-		else {
-			for(i = 0; temp->SizeSavedJobHeaderMore[DecimalStreamNumber][i] != 0; i++) {
-				if(i == MAX_NJH_HEADERS) break;
-				free(temp->SavedJobHeaderMore[DecimalStreamNumber][i]);	/* Free the memory */
-			}
-		}
+	if (WriteIt) {
+	  fflush(fd);
+	  fseek(fd,0,0);	/* Seek to the begin of the file,
+				   we rewrite the ASCII header.    */
 	}
+
+	/* ================ Common things ================ */
+	FileParams->format = EBCDIC;
+	if (WriteIt)
+	  fprintf(fd, "FMT: EBCDIC\n");
+
+	if (Line->SizeSavedJobHeader[Stream] != 0) {
+	  /* Convert the from address */
+	  /* For Username */
+	  EBCDIC_TO_ASCII(NJHp->NJHGORGR, Afield, 8);
+	  if (Afield[0] == 0 || Afield[0] == ' ')
+	    EBCDIC_TO_ASCII(NJHp->NJHGUSID, Afield, 8);
+	  /* Remove the trailing spaces */
+	  i = despace(Afield,8);
+	  p = Afield + i;
+	  *p++ = '@';
+	  EBCDIC_TO_ASCII(NJHp->NJHGORGN, p, 8);
+	  despace(p,8);
+	  strcpy(FileParams->From, Afield);
+	  if (WriteIt)
+	    fprintf(fd, "FRM: %-17s\n", Afield);
+
+	  /* Get the job name */
+	  EBCDIC_TO_ASCII(NJHp->NJHGJNAM, Afield, 8);
+	  despace(Afield,8);
+	  strcpy(FileParams->JobName, Afield);
+	  if (WriteIt)
+	    fprintf(fd,"JNM: %-8s\n",Afield);
+
+	  /* Store the file id number */
+	  FileParams->FileId = ntohs(NJHp->NJHGJID);
+	  FileParams->OurFileId = FileParams->FileId;
+	  if (WriteIt)
+	    fprintf(fd, "FID: %04ld\nOID: %04ld\n",
+		    FileParams->FileId, FileParams->FileId);
+
+	  FileParams->NJHtime = ibmtime2unixtime(NJHp->NJHGETS);
+	}
+
+
+	/* ================== SYSIN vs. SYSOUT ================== */
+	/* See which type of task this is: A SYSIN, or a SYSOUT ? */
+	if (FileParams->type & F_JOB) {
+	  /* ============================================ */
+	  /* A SYSIN, thus we have only  NJH, (data), NJT */
+
+	  if (WriteIt)
+	    fprintf(fd,"TYP: JOB\n");
+
+
+	  if (Line->SizeSavedDatasetHeader[Stream] != 0) {
+	    /* Spurious DATASET HEADER ! */
+	    logger(1,"RECV_FILE: Line=%s:%d, Spurious DATASET HEADER from a SYSIN JOB!\n",
+		   Line->HostName,Stream);
+	    restart_channel(Index);
+	    return -1;
+	  }
+
+	  if (Line->SizeSavedJobHeader[Stream] != 0) {
+	    FileParams->JobClass = EBCDIC_ASCII[NJHp->NJHGJCLS];
+	    if (WriteIt)
+	      fprintf(fd, "CLS: %c\n", FileParams->JobClass);
+
+	    /* To Username */
+	    EBCDIC_TO_ASCII(NJHp->NJHGXEQU, Afield, 8);
+	    i = despace(Afield,8);
+	    /* Commonly the username is NULL, rewrite it as `JOB' */
+	    /* if (Afield[0] == 0) {
+	       strcpy(Afield,"JOB");
+	       i = 3;
+	       } */
+	    p = Afield + i;
+	    *p++ = '@';
+	    EBCDIC_TO_ASCII(NJHp->NJHGXEQN, p, 8);
+	    despace(p,8);
+	    strcpy(FileParams->To, Afield);
+
+	    strcpy(FileParams->FormsName, DefaultForm);
+	    strcpy(FileParams->FileName,  FileParams->JobName);
+	    strcpy(FileParams->FileExt,   "JOB");
+	    strcpy(FileParams->DistName,  "SYSTEM");
+	    if (WriteIt) {
+	      fprintf(fd, "TOA: %-17s\n", FileParams->To);
+	      fprintf(fd, "FOR: %-8s\n", FileParams->FormsName);
+	      fprintf(fd, "FNM: %-8s\n", FileParams->FileName);
+	      fprintf(fd, "EXT: %-8s\n", FileParams->FileExt);
+	      fprintf(fd, "DIS: %-8s\n", FileParams->DistName);
+	    }  	
+	     
+	    /* PRT To Username */
+	    EBCDIC_TO_ASCII(NJHp->NJHGPRTR, Afield, 8);
+	    i = despace(Afield,8);
+	    p = Afield + i;
+	    *p++ = '@';
+	    EBCDIC_TO_ASCII(NJHp->NJHGPRTN, p, 8);
+	    despace(p,8);
+	    if (WriteIt)
+	      fprintf(fd, "PRT: %-17s\n", Afield);
+
+	    /* PUN To Username */
+	    EBCDIC_TO_ASCII(NJHp->NJHGPUNR, Afield, 8);
+	    i = despace(Afield,8);
+	    p = Afield + i;
+	    *p++ = '@';
+	    EBCDIC_TO_ASCII(NJHp->NJHGPUNN, p, 8);
+	    despace(p,8);
+	    if (WriteIt)
+	      fprintf(fd, "PUN: %-17s\n", Afield);
+	  }
+
+
+	} else {
+	  /* =================================================== */
+	  /* A SYSOUT, which means we have NJH. DSH, (data), NJT */
+
+	  if (WriteIt && Line->SizeSavedDatasetHeader[Stream] == 0) {
+	    /* No DATASET HEADER ! */
+	    logger(1,"RECV_FILE: Line=%s:%d, Missing DATASET HEADER from a file!\n",
+		   Line->HostName,Stream);
+	    restart_channel(Index);
+	    return -1;
+	  }
+
+	  if ((size = Line->SizeSavedDatasetHeader[Stream]) != 0) {
+
+	    /* Test whether it is PRINT file */
+	    if ((DSHGp->NDHGFLG2 & 0x80) != 0) {
+	      FileParams->type = F_PRINT;
+	      if (WriteIt)
+		fprintf(fd, "TYP: PRINT\n");
+	    } else {
+		FileParams->type = F_PUNCH;
+		if (WriteIt)
+		  fprintf(fd, "TYP: PUNCH\n");
+	    }
+
+	    DSHrecords = ntohl(DSHGp->NDHGNREC);
+
+	    if (ntohs(DSHGp->LENGTH_4) != sizeof(struct DATASET_HEADER_G)){
+	      /* Hmm.. General section is not of expected size! */
+	      int offset = (ntohs(DSHGp->LENGTH_4) -
+			    sizeof(struct DATASET_HEADER_G));
+	      DSHVp = (struct DATASET_HEADER_RSCS *)(((char *)DSHVp) + offset);
+
+	      /* If the offset isn't multiple of 4, we propably crash soon! */
+	      if ((offset % 4) != 0) {
+		logger(1,"RECV_FILE: Dataset Header  General Section's size varies from expected by %d bytes! Immediate crash due to non-alignment propable!\n",offset);
+		logger(1,"   From: %s  To: %s  JobName: %s\n",
+		       FileParams->From,FileParams->To,FileParams->JobName);
+	      }
+	    }
+
+	    FileParams->JobClass = EBCDIC_ASCII[DSHGp->NDHGCLAS];
+	    if (WriteIt)
+	      fprintf(fd, "CLS: %c\n", FileParams->JobClass);
+
+	    /* To Username */
+	    EBCDIC_TO_ASCII(DSHGp->NDHGRMT, Afield, 8);
+	    if (Afield[0] == 0 || Afield[0] == ' ')
+	      EBCDIC_TO_ASCII(DSHGp->NDHGXWTR, Afield, 8);
+	    i = despace(Afield,8);
+	    p = Afield + i;
+	    *p++ = '@';
+	    EBCDIC_TO_ASCII(DSHGp->NDHGNODE, p, 8);
+	    despace(p,8);
+	    strcpy(FileParams->To, Afield);
+	    if (WriteIt)
+	      fprintf(fd, "TOA: %-17s\n", FileParams->To);
+
+	    /* Check for the QUIET option */
+	    EBCDIC_TO_ASCII(DSHGp->NDHGFORM, Afield, 8);
+	    Afield[8] = '\0';
+	    strcpy(FileParams->FormsName,Afield);
+	    if (WriteIt)
+	      fprintf(fd, "FOR: %-8s\n",FileParams->FormsName);
+
+	    if (strncmp(Afield, "QU", 2) != 0) /* Don't be quiet */
+	      FileParams->type |= F_NOQUIET;
+	    /* Note: Recommendation says: detect by two first chars! */
+
+
+#define RSCS_SECTION 0x87 /* Section ID byte */
+	    if (DSHVp->ID == RSCS_SECTION) {
+	      /* Ok, process it, if it is RSCS section. MVS can put
+		 there DATASTREAM_SECTION, which we don't know.. */
+
+	      /* Filename */
+	      EBCDIC_TO_ASCII(DSHVp->NDHVFNAM, Afield, 8);
+	      /* if (Afield[0] == 0 || Afield[0] == ' ')
+		 EBCDIC_TO_ASCII(NJHp->NJHGJNAM, Afield, 8); */
+	      despace(Afield,8);
+	      strcpy(FileParams->FileName, Afield);
+	      if (WriteIt)
+		fprintf(fd, "FNM: %-8s\n", Afield);
+
+	      /* Filename extension */
+	      EBCDIC_TO_ASCII(DSHVp->NDHVFTYP, Afield, 8);
+	      despace(Afield,8);
+	      /* if (Afield[0] == 0 || Afield[0] == ' ')
+		 strcpy(Afield, "OUTPUT");	*/
+	      strcpy(FileParams->FileExt, Afield);
+	      if (WriteIt)
+		fprintf(fd, "EXT: %-8s\n", Afield);
+
+	      /* RSCS DIST information */
+	      EBCDIC_TO_ASCII(DSHVp->NDHVDIST,
+			      FileParams->DistName, 8);
+	      despace(FileParams->DistName,8);
+	      if (WriteIt)
+		fprintf(fd, "DIS: %-8s\n",FileParams->DistName);
+
+	      /* If there is no RSCS TAG, we have zeros, which map to zeros..*/
+	      EBCDIC_TO_ASCII(DSHVp->NDHVTAGR,
+			      FileParams->tag,136);
+	      FileParams->tag[136] = 0;
+	      /* Don't write the TAG here yet.. */
+
+	    } /* End of RSCS section processing */
+	    else {
+	      /* No RSCS section available, build it like
+		 the VM/370 RSCS has the style.. */
+
+	      strcpy(FileParams->FileName, FileParams->JobName);
+	      if (WriteIt)
+		fprintf(fd, "FNM: %-8s\n", FileParams->FileName);
+
+	      /* Filename extension */
+	      strcpy(FileParams->FileExt, "OUTPUT");
+	      if (WriteIt)
+		fprintf(fd, "EXT: OUTPUT  \n");
+
+	      strcpy(FileParams->DistName,"SYSTEM");
+	      if (WriteIt)
+		fprintf(fd, "DIS: SYSTEM  \n");
+
+	    } /* End of no RSCS section available */
+
+	  } /* End of "Saved DSH available" */
+
+	  if (WriteIt)
+	    logger(3,
+		   "=> Receiving file %s.%s from %s to %s, format=%d, type=%d, class=%c\n",
+		   FileParams->FileName, FileParams->FileExt,
+		   FileParams->From, FileParams->To,
+		   FileParams->format, FileParams->type,
+		   FileParams->JobClass);
+
+	} /* End of SYSOUT files */
+
+	if (FileParams->tag[0] == 0 /* No tag present.. */) {
+	  strcpy(Afield,FileParams->From);
+	  /* Pick the userid and node separate.. */
+	  if ((p = (unsigned char *)strchr(Afield,'@')) != NULL) *p++ = 0;
+	  else p = Afield;
+	  sprintf(FileParams->tag,"FILE (%04ld) ORIGIN %-8s %-8s",
+		  FileParams->FileId, p, Afield);
+/*XX:??*/
+	  if (FileParams->NJHtime != 0) {
+	    struct tm *tm_var = localtime(&FileParams->NJHtime);
+	    p = (unsigned char *)(FileParams->tag + strlen(FileParams->tag));
+	    strftime(p,sizeof(FileParams->tag)-1-strlen(FileParams->tag),
+		     "  %D %T %Z",tm_var);
+	  }
+	} /* When no TAG:, generate one! */
+	if (WriteIt)	/* Now print the TAG */
+	  fprintf(fd,"TAG: %-136s\n",FileParams->tag);
+
+	/* Records counts.. */
+	if (WriteIt) {
+	  fprintf(fd, "REC: %8ld (%ld)",FileParams->RecordsCount,DSHrecords);
+	}
+
+	/* fprintf(fd,"END:");  -- this is pre-written */
+
+	if (WriteIt) {
+	  fflush(fd);
+	  fseek(fd,0,2);	/* Seek to the END of the file,
+				   we rewrote the ASCII header.    */
+	}
+
 	return 1;	/* All ok */
-}
-
-
-/*
- | Write a record to output file. Return -1 if error, something else otherwise.
- | The initialization of INMR01 is ugly, but Unix can't use pre-initialization.
- | SRCB is currently ignored. We'll use it later in development...
- | If the record is from Netdata file, call the routine that handles it.
- */
-int
-write_record(buffer, BufferSize, Index, DecimalStreamNumber)
-unsigned char	*buffer;
-int		BufferSize, Index, DecimalStreamNumber;
-{
-	register int	i, TempVar;
-	unsigned char	Aline[LINESIZE];
-	int		uwrite();
-	unsigned char	c, *p, inmr01[10];
-	struct	LINE	*temp;
-
-	strcpy(inmr01, "\311\325\324\331\360\361");	/* INMR01 */
-	temp = &(IoLines[Index]);
-
-/* Check whether this is NETDATA file and for us. If so, procees accordingly */
-	 if(((temp->InFileParams[DecimalStreamNumber]).flags & FF_LOCAL) != 0) {
-		if((temp->InFileParams[DecimalStreamNumber]).RecordsCount == 0) { /* First record */
-			if(((temp->InFileParams[DecimalStreamNumber]).type & F_FILE) != 0) {
-				if(strncmp(&buffer[5], inmr01, 6) == 0) {
-					/* It's in NetData */
-					(temp->InFileParams[DecimalStreamNumber]).NetData = 1;
-				}
-			}
-		}
-	}
-
-/* If the length is shorter than the real length, then the trailing blanks were
-   suppressed. Add them back. The 3rd byte is the record's length.
-*/
-	if(BufferSize <= (buffer[2] + 2))	/* Need to pad with blanks */
-		for(i = BufferSize; i <= buffer[2] + 3; i++) /* +3 for RCB+SRCB+COUNT */
-			buffer[i] = E_SP;
-	BufferSize = buffer[2];	/* Length of line without the length field */
-
-	if((temp->InFileParams[DecimalStreamNumber]).NetData != 0) {
-		parse_net_data(Index, DecimalStreamNumber, &buffer[3], BufferSize);
-		return 1;
-	}
-
-/* Not NETDATA - it is PUNCH format */
-	/* If it is local write a record without the SRCB and length */
-	(temp->InFileParams[DecimalStreamNumber]).RecordsCount += 1;	/* Increment records count */
-	if(((temp->InFileParams[DecimalStreamNumber]).flags & FF_LOCAL) != 0) {
-/* Test the carriage control format. Act accordingly */
-		switch(buffer[1] & 0x30) {
-		case 0x10:	/* Machine carriage control - translat to ASA */
-			c = buffer[3];	/* This carriage control */
-			buffer[3] = temp->CarriageControl[DecimalStreamNumber];	/* The previous one */
-			if((temp->InFileParams[DecimalStreamNumber]).format != ASCII)
-				buffer[3] = ASCII_EBCDIC[buffer[3]];	/* Convert back to EBCDIC */
-			CALCULATE_NEXT_CC;
-		case 0x0:		/* No carriage control */
-		case 0x20:		/* ASA carriage control */
-		case 0x30:		/* CPDS carriage control */
-		/* Print the record as-is, including control character (if present) */
-			p = &buffer[3];
-/* Convert to ASCII only if needed */
-			if((temp->InFileParams[DecimalStreamNumber]).format == ASCII) {
-				EBCDIC_TO_ASCII(p, Aline, BufferSize); p = Aline;
-			}
-			if(uwrite(Index, DecimalStreamNumber, p, BufferSize) == 0) {	/* Write output line */
-				abort_file(Index, DecimalStreamNumber); return 0;
-			}
-			break;
-		}
-	}
-/* If EBCDIC, write the line including the length count and SRCB */
-	else {
-		if(uwrite(Index, DecimalStreamNumber, &buffer[1], BufferSize + 2) == 0) {
-			abort_file(Index, DecimalStreamNumber);
-			return 0;
-		}
-	}
-	return 1;
-}
-
-
-/*
- | Parse NetData files. Currently, simply de-compose the records and write them
- | as they are into the output file. If the file is of class N, we do not convert
- | it to ASCII.
- */
-parse_net_data(Index, DecimalStreamNumber, buffer, size)
-int	Index, DecimalStreamNumber, size;
-unsigned char	*buffer;
-{
-	int	length, i, *RecordsCount, TempVar, ClassNflag;	/* Is it class N file? */
-	unsigned char	c, *p, Aline[LINESIZE],
-			*TempQ, *TempP;
-	int		uwrite();
-	struct	LINE	*temp;
-
-	temp = &IoLines[Index];
-
-/* Save the class of the file. We assume class N files are binary. */
-	if((temp->InFileParams[DecimalStreamNumber].JobClass) == 'N')
-		ClassNflag = 1;
-	else	ClassNflag = 0;
-
-	RecordsCount = &(temp->InFileParams[DecimalStreamNumber].RecordsCount);
-	if(*RecordsCount == 0)
-		temp->SavedNdPosition[DecimalStreamNumber] = 0;	/* Init on first record */
-
-/* Append to previous saved buffer */
-	(*RecordsCount) += 1;	/* Increment records count */
-	if((size + temp->SavedNdPosition[DecimalStreamNumber]) >
-	   (sizeof(IoLines[0].SavedNdLine[DecimalStreamNumber])))
-		bug_check("RECV_FILE: Netdata buffer overflow. Aborting.\n");
-
-	p = &(temp->SavedNdLine[DecimalStreamNumber][temp->SavedNdPosition[DecimalStreamNumber]]);
-	memcpy(p, buffer, size);
-	temp->SavedNdPosition[DecimalStreamNumber] += size;
-
-	i = 0;		/* Start looping over buffer */
-	while(i < temp->SavedNdPosition[DecimalStreamNumber]) {
-		length = (int)(temp->SavedNdLine[DecimalStreamNumber][i++] & 0xff);		/* First characters is the length */
-/* Usually the last block is padded with zeros, so it makes us a NetData record
-   of length 0.
-*/
-		if(length <= 0) {
-			if(length < 0)
-				logger(1,
-				"RECV_FILE: Line=%s, Illegal netdata record lengt=%d\n",
-					IoLines[Index].HostName, length);
-			temp->SavedNdPosition[DecimalStreamNumber] = 0;
-			return;
-		}
-		if(i + length > temp->SavedNdPosition[DecimalStreamNumber]) {
-			logger((int)(4), "RECV_FILE: NetData size after reduction=%d, length=%d\n",
-				temp->SavedNdPosition[DecimalStreamNumber], length);
-			logger((int)(4), "First partial record chars=x^%x %x %x %x %x %x\n",
-				temp->SavedNdLine[DecimalStreamNumber][i - 1], temp->SavedNdLine[DecimalStreamNumber][i],
-				temp->SavedNdLine[DecimalStreamNumber][i + 1], temp->SavedNdLine[DecimalStreamNumber][i + 2],
-				temp->SavedNdLine[DecimalStreamNumber][i + 3], temp->SavedNdLine[DecimalStreamNumber][i + 4]);
-			i--;
-			/* Re-align buffer: */
-			p = &(temp->SavedNdLine[DecimalStreamNumber][i]);
-			memcpy(temp->SavedNdLine[DecimalStreamNumber], p, (temp->SavedNdPosition[DecimalStreamNumber] - i));
-			temp->SavedNdPosition[DecimalStreamNumber] -= i;
-			return;		/* Save it for next buffer */
-		}
-		length -= 2;			/* Length+Flags are counted in it */
-		logger((int)(4), "RECV_FILE: NetData length=%d\n",
-			length);
-		logger((int)(4), "First full record chars=x^%x %x %x %x %x %x\n",
-			temp->SavedNdLine[DecimalStreamNumber][i - 1], temp->SavedNdLine[DecimalStreamNumber][i],
-			temp->SavedNdLine[DecimalStreamNumber][i + 1], temp->SavedNdLine[DecimalStreamNumber][i + 2],
-			temp->SavedNdLine[DecimalStreamNumber][i + 3], temp->SavedNdLine[DecimalStreamNumber][i + 4]);
-
-/* Check for special record - "Count record" - ignore it */
-		if(temp->SavedNdLine[DecimalStreamNumber][i] == 0xf0) {
-			/* previous char was a record number. This control record
-			   is only 2 bytes long (Count + control) */
-			length = 0;	/* The 2 bytes were counted already */
-			i++;	/* Point to next record */
-		} else
-/* If the 20 bit is on, this is a control record. Normal record: */
-		if((temp->SavedNdLine[DecimalStreamNumber][i] & 0x20) == 0) {
-			p = &(temp->SavedNdLine[DecimalStreamNumber][++i]);
-/* If there is a carriage control character here, handle it: */
-			if(temp->NDcc[DecimalStreamNumber] == MACHINE_CC) {
-/* Convert machine carriage control to ASA */
-				c = *p;		/* Save previous carriage control */
-				*p = temp->CarriageControl[DecimalStreamNumber];
-				CALCULATE_NEXT_CC;
-			}
-/* If the file is of class N, do not convert to ASCII */
-			if(temp->InFileParams[DecimalStreamNumber].format == ASCII) {
-				EBCDIC_TO_ASCII(p, Aline, length); p = Aline;
-			}
-			if(uwrite(Index, DecimalStreamNumber, p, length) == 0) {	/* Write output line */
-				abort_file(Index, DecimalStreamNumber);
-				temp->SavedNdPosition[DecimalStreamNumber] = 0;
-				return;
-			}
-		}
-		else {		/* Control record */
-			parse_net_data_control_record(Index, DecimalStreamNumber,
-				&(temp->SavedNdLine[DecimalStreamNumber][++i]),
-				length);
-		}
-		i += length;		/* Increment pointer */
-	}
-	temp->SavedNdPosition[DecimalStreamNumber] = 0;
-}
-
-
-/*
- | Try pasrsing the net-data control records. Ignore all non relevant records.
- | Currently, only write the information gathered from control records and don't
- | do much more than that.
- */
-#define INMFNODE	0x1011
-#define	INMFUID		0x1012
-#define	INMTNODE	0x1001
-#define	INMTUID		0x1002
-#define	INMDSORG	0x3c
-#define	INMLRECL	0x42
-#define	INMRECFM	0x49
-#define	INMSIZE		0x102c
-#define	INMNUMF		0x102f
-/* File organization: */
-#define	VSAM		0x8
-#define	PARTITIONED	0x200
-#define	SEQUENTIAL	0x4000
-
-parse_net_data_control_record(Index, DecimalStreamNumber, buffer, length)
-int	Index, DecimalStreamNumber, length;
-unsigned char	*buffer;
-{
-	register unsigned char	*p;
-	register int	size, i, TempVar;
-	int		key;		/* Key of values */
-	unsigned char	value[LINESIZE];	/* Value of text unit */
-	char		Aline[LINESIZE];	/* For ASCII values */
-	unsigned char	inmr[10];
-
-	strcpy(inmr, "\311\325\324\331");	/* INMR */
-	if(strncmp(buffer, inmr, (int)(4)) != 0) {
-		logger((int)(1), "RECV_FILE: Line=%s, Illegal ND control record=x^%x,%x,%x,%x\n",
-			IoLines[Index].HostName,
-			buffer[-2], buffer[-1], buffer[0], buffer[1]);
-		return;
-	}
-/* We know that the first 4 characters are INMR. Now find which one */
-	p = &buffer[5];	/* [4] = 0, [5] = second number */
-	length -= 6;
-	switch(*p++) {
-	case 0xf2:	/* 02 */
-		p += 4; length -= 4;	/* INMR02 has 4 byte file number before
-					   text units. Jump over it */
-	case 0xf1:	/* 01 */
-	case 0xf3:	/* INMR03 */
-	case 0xf4:	/* User specified */
-	case 0xf6:	/* Last INMR - ignore */
-		while(length > 0) {
-			if((size = get_text_unit(p, length, &key, value)) <= 0)
-				return;
-			switch(key) {
-			case INMDSORG:
-			case INMRECFM:
-			case INMLRECL:
-			case INMSIZE:
-			case INMNUMF:
-				switch(size) {
-				case 1: i = value[0]; break;
-				case 2: i = (value[0] << 8) + value[1];
-					break;
-				case 4: i = (value[0] << 24) +
-					     (value[1] << 16) +
-					     (value[2] << 8) + value[3];
-					break;
-				default: break;
-				}
-				logger(4,
-					"RECV_FILE: INMR: key=x^%x, value=x^%x\n",
-					key, i);
-				switch(key) {
-				case INMDSORG: if(i != SEQUENTIAL)
-					logger(4,
-					  "RECV_FILE: Line=%s, Netdata file organization=x^%x not supported\n",
-						IoLines[Index].HostName, i); break;
-				case INMRECFM:
-					IoLines[Index].NDcc[DecimalStreamNumber] = 0;	/* Default */
-					switch(i) {
-						/* Have to convert MAchine to ASA: */
-					case 0x200: IoLines[Index].NDcc[DecimalStreamNumber] = MACHINE_CC;
-					case 0x1:
-					case 0x2:
-					case 0x4000:
-					case 0x8000:	/* We can handle all of these */
-						break;
-					default:	/* Can't handle them */
-						logger(2,
-					  "RECV_FILE: Line=%s, Netdata record format=x^%x not supported\n",
-							IoLines[Index].HostName, i);
-					}
-					break;
-				case INMLRECL: if(i >= (LINESIZE * 2))
-					logger(2,
-					"RECV_FILE: Line=%s, Netdata record length=%d too long\n",
-						IoLines[Index].HostName, i); break;
-				}
-				break;
-			default:
-				EBCDIC_TO_ASCII(value, Aline, size);
-				Aline[size] = '\0';
-				logger(4,
-					"RECV_FILE: INMR: key=x^%x, value='%s'\n",
-					key, Aline);
-				break;
-			}
-			size += 6;	/* 6 for key+count+length */
-			length -= size; p += size;
-		}
-		break;
-	default: break;
-	}
-}
-
-
-/*
- | Retreive one text unit from the buffer passed.
- */
-get_text_unit(buffer, length, key, value)
-unsigned char	*buffer, *value;
-int	*key, length;
-{
-	register int	j, i, count, size, position, TempVar;
-	unsigned char	*TempP, *TempQ;
-
-	*key = ((buffer[0] << 8) + buffer[1]);
-	count = ((buffer[2] << 8) + buffer[3]);
-	size = 0; position = 4;
-
-/* Loop the count numbered. Separate values by spaces */
-	for(j = 0; j < count; j++) {
-		i = ((buffer[position] << 8) + buffer[position + 1]);
-		if((i > (length - 6)) || (i <= 0)) {
-			logger(2,
-				"RECV_FILE, get-text-unit (key=%x), field-length=%d>length=%d\n",
-				*key, i, length);
-			return -1;
-		}
-		position += 2;
-		memcpy(&value[size], &buffer[position], i);
-		size += i; position += i;
-/* Add 2 spaces. This will count also for the 2 bytes length field... */
-		value[size++] = E_SP; value[size++] = E_SP;
-	}
-	size -= 2;	/* For the last 2 spaces */
-	value[size] = '\0';
-	return size;
 }
 
 
@@ -898,21 +799,23 @@ int	*key, length;
  | close the output file, put it on hold-Abort for later inspection, and
  | reset the stream's state.
  */
-file_sender_abort(Index, DecimalStreamNumber)
-int	Index;
+static void
+file_sender_abort(Index, Stream, SYSIN)
+int	Index, Stream, SYSIN;
 {
-	char		*rename_file();
 
-/* Send EOF block to confirm this abort */
-	EOFblock.SRCB = (((DecimalStreamNumber + 9) << 4) | 0x9);
-	send_data(Index, &EOFblock, (int)(sizeof(struct EOF_BLOCK)),
-		(int)(ADD_BCB_CRC));
+	/* Send EOF block to confirm this abort */
+	if (SYSIN)
+	  EOFblock.SRCB = (((Stream + 9) << 4) | 0x8);
+	else
+	  EOFblock.SRCB = (((Stream + 9) << 4) | 0x9);
+	send_data(Index, &EOFblock, sizeof(struct EOF_BLOCK), ADD_BCB_CRC);
 
-/* Signal that the file was closed and hold it */
-	close_file(Index, (int)(F_OUTPUT_FILE), DecimalStreamNumber);
-	rename_file(Index, (int)(RN_HOLD_ABORT), (int)(F_OUTPUT_FILE),
-		DecimalStreamNumber);
-	IoLines[Index].InStreamState[DecimalStreamNumber] = S_INACTIVE;
+	/* Signal that the file was closed and hold it */
+	close_file(Index, F_OUTPUT_FILE, Stream);
+	rename_file(&IoLines[Index].InFileParams[Stream],
+		    RN_HOLD_ABORT, F_OUTPUT_FILE);
+	IoLines[Index].InStreamState[Stream] = S_INACTIVE;
 }
 
 
@@ -921,18 +824,22 @@ int	Index;
  | close the output file, put it on hold-Abort for later inspection, and
  | reset the stream's state.
  */
-abort_file(Index, DecimalStreamNumber)
-int	Index, DecimalStreamNumber;
+static void
+abort_file(Index, Stream, SYSIN)
+int	Index, Stream, SYSIN;
 {
-	char		*rename_file();
 
-/* Send Reject-file to abort file */
-	RejectFile.SRCB = (((DecimalStreamNumber + 9) << 4) | 0x9);
-	send_data(Index, &RejectFile, (int)(sizeof(struct REJECT_FILE)),
-		(int)(ADD_BCB_CRC));
+	/* Send Reject-file to abort file */
+	if (SYSIN)
+	  RejectFile.SRCB = (((Stream + 9) << 4) | 0x8);
+	else
+	  RejectFile.SRCB = (((Stream + 9) << 4) | 0x9);
+	send_data(Index, &RejectFile, sizeof(struct REJECT_FILE), ADD_BCB_CRC);
 
-/* Signal that the file was closed and hold it */
-	close_file(Index, (int)(F_OUTPUT_FILE), DecimalStreamNumber);
-	rename_file(Index, (int)(RN_HOLD_ABORT), (int)(F_OUTPUT_FILE), DecimalStreamNumber);
-	IoLines[Index].InStreamState[DecimalStreamNumber] = S_REFUSED;	/* To stop this stream */
+	/* Signal that the file was closed and hold it */
+	close_file(Index, F_OUTPUT_FILE, Stream);
+	rename_file(&IoLines[Index].InFileParams[Stream],
+		    RN_HOLD_ABORT, F_OUTPUT_FILE);
+	/* To stop this stream */
+	IoLines[Index].InStreamState[Stream] = S_REFUSED;
 }

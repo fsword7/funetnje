@@ -1,4 +1,4 @@
-/* UNIX_BRDCST.C (formerly UNIX_BROADCAST.C)	V1.3
+/* UNIX_BRDCST.C (formerly UNIX_BROADCAST.C)	V1.1
  | Copyright (c) 1988,1989,1990 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -13,25 +13,14 @@
  |
  | V1.1 - 22/3/90 - When cannot send message return 0 instead of -1 in order
  |        to help the GONE section.
- | V1.2 - 27/3/91 - If USER_PROCESS is defined assume we are running on an
- |        RS-6000 and check the type of process.
- | V1.3 - 26/12/91 - If we are running on RS/6000 change the tty name from
- |        /dev/pts/# to /dev/ttyp#.
 */
 
-#include  <stdio.h>
-#include  <pwd.h>
-#include  <sys/types.h> /* [mea] Needed in some systems for <utmp.h> */
-#include  <utmp.h>
-#include  <sys/fcntl.h> /* [mea] Needed in some systems. */
-#include  <sys/file.h>
-#include  <sys/stat.h>  /* [mea] Needed for mesg state analyse */
-
+#include "consts.h"
+#include "prototypes.h"
 
 #define UTMP    "/etc/utmp"
 
-extern int errno;
-
+extern int alarm_happened;
 
 /*
 * Write the message msg to the user, on all ttys he is currently logged
@@ -40,69 +29,67 @@ extern int errno;
 * 0 in case of error, number of messages sent otherwise.
 * In case of error, errno can be examined.
 */
-send_user(user, msg)
-char *user, *msg;
+int
+send_user(User, msg)
+const char *User;
+char *msg;
 {
 	int cnt = 0, fdutmp;
 	int ftty;
+	int msgsize;
 	char buf[BUFSIZ];
+	char user[40];
 	int i, m, n = (BUFSIZ / sizeof(struct utmp));
 	int bufsiz = n * sizeof(struct utmp);
 	char tty[16];
 	struct stat stats;
 
-	for(cnt = 0; cnt < strlen(user); cnt++)
-		if(user[cnt] == ' ') {
-			user[cnt] = '\0'; break;
-		}
-		else if((user[cnt] >= 'A') && (user[cnt] <= 'Z'))
-			user[cnt] += ' ';  /* lowercasify */
+	strncpy( user,User,sizeof(user)-1 );
+	user[8] = 0;	/* Sorry, UNIX max... */
 
-	if((fdutmp = open(UTMP, O_RDONLY)) <= 0)  {
-		return(0);
+	msgsize = strlen(msg);
+
+	lowerstr(user);
+	despace(user,strlen(user));
+
+	if ((fdutmp = open(UTMP, O_RDONLY,0600)) <= 0)  {
+	  return(0);
 	}
 
 	cnt = 0;
 
-	while((m = read(fdutmp, buf, bufsiz)) > 0)  {
-		m /= sizeof(struct utmp);
-		for(i = 0; i < m; i++)   {
-/* IBM-RS6000 specific field: */
-#ifdef USER_PROCESS
-			if(((struct utmp *)buf)[i].ut_type != USER_PROCESS) continue;
-#endif
-			if(memcmp(user, ((struct utmp *)buf)[i].ut_name, strlen(user)) != 0)
-				continue;
-			sprintf(tty, "/dev/%s", ((struct utmp *)buf)[i].ut_line);
-
-/* Remove the following paragraph (inside the #ifdef) on SGI systems and leave
-   it on AIX systems. */
-#ifdef USER_PROCESS
-/* Change from /dev/pts/# to /dev/ttyp#. */
-			{ char *p;
-                        if((p = strrchr(tty, '/')) != NULL) {
-                                *p = 'p'; p[-1] = 'y'; p[-3] = 't';
-                        }}
-#endif
-
-			if((ftty = open(tty, O_WRONLY)) < 0)  {
-				continue;  /* Some TTYs accept, some don't */
-			}
-			if(fstat(ftty,&stats)!=0 || (stats.st_mode & 022)==0){
-				close(ftty); /* mesg -n! */
-				continue;  /* Some TTYs accept, some don't */
-			}
-			if(write(ftty, msg, strlen(msg)) < strlen(msg))  {
-				close(ftty);
-				continue;  /* Some TTYs accept, some don't */
-			}
-			close(ftty);
-			++cnt;
-		}
+	while ((m = read(fdutmp, buf, bufsiz)) > 0)  {
+	  m /= sizeof(struct utmp);
+	  for (i = 0; i < m; i++)   {
+	    if (((struct utmp *)buf)[i].ut_name[0] == 0)
+	      continue;
+	    if (strncasecmp(user, ((struct utmp *)buf)[i].ut_name,8) != 0)
+	      continue;
+	    sprintf(tty, "/dev/%s", ((struct utmp *)buf)[i].ut_line);
+	    alarm_happened = 0;
+	    alarm(10); /* We are fast ? */
+	    if ((ftty = open(tty, O_WRONLY,0600)) < 0)  {
+	      alarm(0);
+	      continue;		/* Some TTYs accept, some don't */
+	    }
+	    if (fstat(ftty,&stats)!=0 || (stats.st_mode & 022)==0){
+	      close(ftty);	/* mesg -n! */
+	      alarm(0);
+	      continue;		/* Some TTYs accept, some don't */
+	    }
+	    if (write(ftty, msg, msgsize) < msgsize)  {
+	      alarm(0);
+	      close(ftty);
+	      continue;		/* Some TTYs accept, some don't */
+	    }
+	    alarm(0);
+	    close(ftty);
+	    ++cnt;
+	  }
 	}
 	close(fdutmp);
 
 	if(cnt == 0)
-		cnt = send_gone(user, msg);
+	  cnt = send_gone(user, msg);
 	return(cnt);
 }

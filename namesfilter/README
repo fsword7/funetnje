@@ -1,0 +1,16 @@
+This directory contains the software we use at UofToronto to transform the
+various BITNET mailer tables to the format used in the bitnet.transport file.
+
+XMAILER.NAMES	is the familiar XMAILER NAMES file
+CADOMAIN.NAMES	is the Canadian version of the DOMAIN NAMES file
+toronto.names	describes the campus-specific information
+
+These three are merged to produce a "bitnet.transport" file.
+
+I haven't tried to make this code more generic, because it is highly likely
+you will have to do something to customize it to your own site.  Instead here
+is a model of a working setup.  The XMAILER.NAMES file included here is
+a random subset of the real thing, to save space.
+
+rayan
+901230

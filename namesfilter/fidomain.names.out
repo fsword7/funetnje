@@ -1,0 +1,4 @@
+#LOR:#LOR:.ar			bsmtp3!smtp!interbit
+.cern				bsmtp3!mailer!cernvax
+.wustl				bsmtp3!wustlfwd!wuvmd
+vers9010			defrt1!vers9010

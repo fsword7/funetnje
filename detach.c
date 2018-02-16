@@ -1,28 +1,28 @@
-#include <signal.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-
-#if	defined(sun) || defined(BSD)
-#define USE_BSDSETPGRP
-#endif
-
 /*
  * Detach a daemon process from whoever/whatever started it.
  * Mostly lifted from an article in the July/August 1987 ;login:,
  * by Dave Lennert (hplabs!hpda!davel). Blame bugs on me.
  */
 /*
- |  [mea@funic.funet.fi]  Lifted this from Rayan Zachariassens
- |			  ZMailer support library.  Handy.
+ |  [mea@nic.funet.fi]  Lifted this from Rayan Zachariassens
+ |			ZMailer support library.  Handy.
  */
+
+#include "prototypes.h"
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+
+#if	defined(sun) || defined(BSD) || defined(__svr4__)
+#define USE_BSDSETPGRP
+#endif
+
 
 
 void
 detach()
 {
-	int fd;			/* file descriptor */
-
 	/*
 	 * If launched by init (process 1), there's no need to detach.
 	 *
@@ -62,17 +62,25 @@ detach()
 	 *	(Must not do a subsequent setpgrp()!)
 	 */
 #ifdef	USE_BSDSETPGRP
+#if	defined(__svr4__)
+	setpgrp();
+#else	/* not __svr4__ */
 	(void) setpgrp(0, getpid());	/* change process group */
-	if ((fd = open("/dev/tty", O_RDWR, 0)) >= 0) {
-		(void) ioctl(fd, TIOCNOTTY, 0);	/* lose controlling terminal */
-		(void) close(fd);
+	{
+	  int fd;			/* file descriptor */
+
+	  if ((fd = open("/dev/tty", O_RDWR, 0)) >= 0) {
+	    ioctl(fd, TIOCNOTTY, 0);	/* lose controlling terminal */
+	    close(fd);
+	  }
 	}
+#endif /* not __svr4__ */
 #else	/* !USE_BSDSETPGRP */
 	/* lose controlling terminal and change process group */
-	(void) setpgrp();
-	(void) signal(SIGHUP, SIG_IGN);	/* immunge from pgrp leader death */
+	setpgrp();
+	signal(SIGHUP, SIG_IGN);	/* immunge from pgrp leader death */
 	if (fork() != 0)		/* become non-pgrp-leader */
-		exit(0);	/* first child */
+	  exit(0);	/* first child */
 	/* second child */
 #endif	/* USE_BSDSETPGRP */
 
@@ -85,12 +93,13 @@ out:
 	/* Clean out our environment from personal contamination */
 /*	cleanenv(); */
 
-#ifdef	USE_RLIMIT
+#if	defined(USE_RLIMIT) || defined(sun) || defined(__svr4__)
 	/* In case this place runs with cpu limits, remove them */
-	{	struct rlimit rl;
-		rl.rlim_cur = RLIM_INFINITY;
-		rl.rlim_max = RLIM_INFINITY;
-		(void) setrlimit(RLIMIT_CPU, &rl);
+	{
+	  struct rlimit rl;
+	  rl.rlim_cur = RLIM_INFINITY;
+	  rl.rlim_max = RLIM_INFINITY;
+	  setrlimit(RLIMIT_CPU, &rl);
 	}
 #endif	/* USE_RLIMIT */
 	return;

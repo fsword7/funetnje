@@ -1,4 +1,4 @@
-/* HEADERS.C    V1.6
+/* HEADERS.C    V1.6-mea
  | Copyright (c) 1988,1989,1990,1991,1992,1993 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -13,21 +13,14 @@
  | The structure fields are defined in HEADERS.H
  | Currently, all records, lines, etc counts are intialized to the default.
  | Currently, the program supports only NJH, DSH & NJT control records.
- | WARNNING: The headers contains uninitialized fields. These fields are
+ | WARNING:  The headers contain uninitialized fields. These fields are
  |           marked with M in front of the lines. The various routines change
  |           these fields inside the skeleton structure (to reduce run time).
  |           Hence, each routine MUST initialize these values.
- | V1.1 - EOFblock corrected (CC_NOSRCB removed from it).
- | V1.2 - Correct SIGNON record. We forgot to add the last feild of features.
- | V1.3 - Correct initialization of JOB_HEADER. WE had there one string field
- |        too much which shifted the others one place.
- | V1.4 - Remove all SWAP_xxx and change them with Init_headers which uses the
- |        standard Unix byte-order routines, or the VMS macros.
- | V1.5 - If INCLUDE_TAG is defined then nullify the field NDHVTAGR in NDH.
- | V1.6 - Transpose the #include to be ok with INCLUDE_TAG definition.
  */
 #include "consts.h"
 #include "headers.h"
+#include "prototypes.h"
 
 /* The Enquiry block */
 INTERNAL struct	ENQUIRE		Enquire = { SOH, ENQ, PAD };
@@ -66,7 +59,7 @@ INTERNAL struct	JOB_HEADER	NetworkJobHeader = {
 			0,		/* Lines per page (default) */
 			0,0,0,		/* Reserved */
 			"", "", "", "", "",
-			"",		/* Time */
+			{0,0},		/* Time */
 			"", "", "", "", "",
 			"", "", "", "",
 			0, 0, 0, 0,	/* lines, records, etc */
@@ -78,6 +71,7 @@ INTERNAL struct	JOB_HEADER	NetworkJobHeader = {
 INTERNAL struct	DATASET_HEADER	NetworkDatasetHeader = {
 			0,
 			0, 0,
+		{
 			/* General section */
 			0,
 			0, 0,
@@ -93,7 +87,8 @@ INTERNAL struct	DATASET_HEADER	NetworkDatasetHeader = {
 			"", "", "", "",
 			"",			/* Reserved */
 			0x40, 0, "",
-			"",
+			""
+		}, {
 			/* RSCS section */
 			0,
 			0x87, 0,
@@ -102,11 +97,10 @@ INTERNAL struct	DATASET_HEADER	NetworkDatasetHeader = {
 			0,
 /* M */			"", "", "",
 			0,
-			RSCS_VERSION, RSCS_RELEASE
-#ifdef INCLUDE_TAG
-			, ""
-#endif
-		};
+			RSCS_VERSION, RSCS_RELEASE,
+			""
+		}
+	};
 
 /* The job trailer */
 INTERNAL struct	JOB_TRAILER	NetworkJobTrailer = {
@@ -114,8 +108,8 @@ INTERNAL struct	JOB_TRAILER	NetworkJobTrailer = {
 			0, 0,
 			0,
 			0, 0,
-			0, E_A, 0, 0,
-			0,0, 0,0, 0,
+			0, E_A, { 0,0 },
+			{ 0,0 }, { 0,0 }, 0,
 			0,		/* Number of lines */
 			0,		/* Number of crads */
 			0,
@@ -154,10 +148,6 @@ init_headers()
 {
   NetworkJobHeader.LENGTH   = htons(sizeof(struct JOB_HEADER));
   NetworkJobHeader.LENGTH_4 = htons(sizeof(struct JOB_HEADER) - 4);
-  NetworkDatasetHeader.LENGTH = htons(sizeof(struct DATASET_HEADER));
-  NetworkDatasetHeader.NDH.LENGTH_4 =htons(sizeof(struct DATASET_HEADER_G));
-  NetworkDatasetHeader.RSCS.LENGTH_4=htons(sizeof(struct DATASET_HEADER_RSCS));
-  NetworkDatasetHeader.RSCS.NDHVPRIO = htons(0x32);
   NetworkJobTrailer.LENGTH = htons(sizeof(struct JOB_TRAILER));
   NetworkJobTrailer.LENGTH_4 = htons(sizeof(struct JOB_TRAILER) - 4);
 }

@@ -1,4 +1,4 @@
-/* HEADERS.H   V1.3
+/* HEADERS.H   V1.3-mea
  | Copyright (c) 1988,1989,1990,1991,1992 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
@@ -10,18 +10,18 @@
  | by use or misuse of this software.
  |
  | The definition of the structures used by NJE.
- | When conforming with RSCS-2.1, and handling splitted records, add the
- | NDVTAGR field in the RSCS section of the NDH.
  |
- | V1.1 - CORRECT the EOFblock.
- | V1.2 - Correct SIGNON record. We forgot the features field at its end...
- | V1.3 - Add the field NDHVTAGR if INCLUDE_TAG is defined.
+ | Document:
+ |   Network Job Entry - Formats and Protocols (IBM)
+ |	SC23-0070-01
+ |	GG22-9373-02 (older version)
+ |
  */
 #include "ebcdic.h"
 
-/* The RSCS version we emulate (currently 1.3) */
-#define	RSCS_VERSION	1
-#define	RSCS_RELEASE	3
+/* The RSCS version we emulate (currently 1.3) --  [mea] 2.1 ! */
+#define	RSCS_VERSION	2
+#define	RSCS_RELEASE	1
 
 /* The Enquiry block */
 struct	ENQUIRE {
@@ -67,103 +67,136 @@ struct	JOB_HEADER {
 		unsigned short	LENGTH;	/* The header which comes before */
 		unsigned char	FLAG,
 				SEQUENCE;
-		unsigned short	LENGTH_4;
-		unsigned char	ID,
-				MODIFIER;	/* The record itself */
-/* M */		unsigned short	NJHGJID;
-		unsigned char	NJHGJCLS,
-				NJHGMCLS,
-				NJHGFLG1,
-				NJHGPRIO,
-				NJHGORGQ,
-				NJHGJCPY,
-				NJHGLNCT,
-				r1, r2, r3,	/* Reserved */
-/* M */				NJHGACCT[8],
-/* M */				NJHGJNAM[8],
-/* M */				NJHGUSID[8],
-/* M */				NJHGPASS[8],
-/* M */				NJHGNPAS[8],
-/* M */				NJHGETS[8],
-/* M */				NJHGORGN[8],
-/* M */				NJHGORGR[8],
-/* M */				NJHGXEQN[8],
-/* M */				NJHGXEQU[8],
-/* M */				NJHGPRTN[8],
-/* M */				NJHGPRTR[8],
-/* M */				NJHGPUNN[8],
-/* M */				NJHGPUNR[8],
-/* M */				NJHGFORM[8];
-		unsigned long	NJHGICRD,
-	 	 		NJHGETIM,
-				NJHGELIN,
-				NJHGECRD;
-/* M */		unsigned char	NJHGPRGN[20],
-/* M */				NJHGROOM[8],
-/* M */				NJHGDEPT[8],
-/* M */				NJHGBLDG[8];
-		unsigned long	NJHGNREC;
+		unsigned short	LENGTH_4;	/* Length of general section */
+		unsigned char	ID,		/* Section ident             */
+				MODIFIER;	/* The record itself         */
+/* M */		unsigned short	NJHGJID;	/* Job Ident                 */
+		unsigned char	NJHGJCLS,	/* Job Class                 */
+				NJHGMCLS,	/* Message Class             */
+				NJHGFLG1,	/* Flags                     */
+/*
+   NJHGFLG1	0x80	Don't recompute priority
+		0x40	NJHGJID field is set
+		0x08	suppress forwarding message
+		0x04	suppress acceptance message
+*/
+				NJHGPRIO,	/* Selection Priority        */
+				NJHGORGQ,	/* Orig node system qual.    */
+				NJHGJCPY,	/* Job copy count            */
+				NJHGLNCT,	/* Job line count            */
+				r1, r2, r3,	/* Reserved                  */
+/* M */				NJHGACCT[8],	/* Networking account number */
+/* M */				NJHGJNAM[8],	/* Job Name                  */
+/* M */				NJHGUSID[8],	/* Userid (TSO,VM/SP)        */
+/* M */				NJHGPASS[8],	/* Password                  */
+/* M */				NJHGNPAS[8];	/* New Password              */
+/* M */		unsigned long	NJHGETS[2];	/* Entry Date/Time Stamp     */
+/* M */		unsigned char	NJHGORGN[8],	/* Origin node name          */
+/* M */				NJHGORGR[8],	/* Origin remote name        */
+/* M */				NJHGXEQN[8],	/* Execution node name       */
+/* M */				NJHGXEQU[8],	/* Execution user ID (VM/SP) */
+/* M */				NJHGPRTN[8],	/* Default print node name   */
+/* M */				NJHGPRTR[8],	/* Default print remote name */
+/* M */				NJHGPUNN[8],	/* Default punch node name   */
+/* M */				NJHGPUNR[8],	/* Default punch remote name */
+/* M */				NJHGFORM[8];	/* Job forms                 */
+		unsigned long	NJHGICRD,	/* Input card count          */
+	 	 		NJHGETIM,	/* Estimated execution time  */
+				NJHGELIN,	/* Estimated output lines    */
+				NJHGECRD;	/* Estimated output cards    */
+/* M */		unsigned char	NJHGPRGN[20],	/* Programmers name          */
+/* M */				NJHGROOM[8],	/* Programmers room number   */
+/* M */				NJHGDEPT[8],	/* Prgmr's dept. number      */
+/* M */				NJHGBLDG[8];	/* Prgmr's building number   */
+		unsigned long	NJHGNREC;	/* Record count on output    */
 		};
 
 struct	DATASET_HEADER_G {		/* General section */
-		unsigned short	LENGTH_4;
-		unsigned char	ID,
-				MODIFIER;
-/* M */		unsigned char	NDHGNODE[8],
-				NDHGRMT[8],
-/* M */				NDHGPROC[8],
-/* M */				NDHGSTEP[8],
-/* M */				NDHGDD[8];
-		unsigned short	NDHDSNO;
-		unsigned char	r1,		/* Reserved */
-				NDHGCLAS;
-		unsigned long	NDHGNREC;
-		unsigned char	NDHGFLG1,
-				NDHGRCFM;
-/* M */		unsigned short	NDHGLREC;
-		unsigned char	NDHGDSCT,
-				NDHGFCBI,
-				NDHGLNCT;
-		unsigned char	r2,		/* Reserved */
-/* M */				NDHGFORM[8],
-/* M */				NDHGFCB[8],
-/* M */				NDHGUCS[8],
-/* M */				NDHGXWTR[8],
-				r3[8];
-		unsigned char	NDHGFLG2,
-				NDHGUCSO,
-				r4[2],
-/* M */				NDHGPMDE[8];
-		};
+	/*  4*/	unsigned short	LENGTH_4;
+	/*  6*/	unsigned char	ID,		/* ID = X'00'		     */
+	/*  7*/			MODIFIER;	/* MODIFIER = X'00'	     */
+/* M */	/*  8*/	unsigned char	NDHGNODE[8],	/* Destination node name     */
+	/* 16*/			NDHGRMT[8],	/* Destination remote name   */
+/* M */	/* 24*/			NDHGPROC[8],	/* Proc invocation name	     */
+/* M */	/* 32*/			NDHGSTEP[8],	/* Step name 		     */
+/* M */	/* 40*/			NDHGDD[8];	/* DD name		     */
+	/* 48*/	unsigned short	NDHDSNO;	/* Data set number	     */
+	/* 50*/	unsigned char	r1,		/* Reserved		     */
+	/* 51*/			NDHGCLAS;	/* Output class		     */
+/* M */	/* 52*/	unsigned long	NDHGNREC;	/* Record count		     */
+	/* 56*/	unsigned char	NDHGFLG1,	/* Flags		     */
+/*
+   NDHGFLG1	0x80	spin dataset
+		0x40	hold dataset at destination
+		0x20	JOB LOG indication (file is a log of SYSIN job)
+		0x10	page overflow indication
+		0x08	punch interpret indication (file is a punch)
+		0x04    ??? (seen set, purpose unknown)
+ */
+	/* 57*/			NDHGRCFM;	/* Record Format	     */
+/* M */	/* 58*/	unsigned short	NDHGLREC;	/* Max logical record length */
+	/* 60*/	unsigned char	NDHGDSCT,	/* Data set copy count	     */
+	/* 61*/			NDHGFCBI,	/* 3211 FCB index	     */
+	/* 62*/			NDHGLNCT;
+	/* 63*/	unsigned char	r2,		/* Reserved		     */
+/* M */	/* 64*/			NDHGFORM[8],	/* Forms ID		     */
+/* M */	/* 72*/			NDHGFCB[8],	/* FCB ID		     */
+/* M */	/* 80*/			NDHGUCS[8],	/* UCS ID		     */
+/* M */	/* 88*/			NDHGXWTR[8],	/* External writer ID	     */
+	/* 96*/			r3[8];
+	/*104*/	unsigned char	NDHGFLG2,	/* 2nd flag byte	     */
+/*
+   NDHGFLG2	0x80	dataset is to be printed
+		0x40	dataset is to be punched
+		0x20..	reserved
+ */
+	/*105*/			NDHGUCSO,	/* UCS option byte	     */
+/*
+   NDHGUCSO	0x80	block datacheck option
+		0x40	UCS fold option
+ */
+	/*106*/			r4[2],
+/* M */	/*108*/			NDHGPMDE[8];
+	/*116*/	};
 
 struct	DATASET_HEADER_RSCS {		/* RSCS section */
-		unsigned short	LENGTH_4;
-		unsigned char	ID,
-				MODIFIER;
-		unsigned char	NDHVFLG1,
-				NDHVCLAS,
-				NDHVIDEV,
-				NDHVPGLE,
-				NDHVDIST[8],
-				NDHVFNAM[12],
-				NDHVFTYP[12];
-		unsigned short	NDHVPRIO;
-		unsigned char	NDHVVRSN,
-				NDHVRELN;
-#ifdef INCLUDE_TAG
-		unsigned char	NDHVTAGR[136];
-#endif
-		};
+	/*116*/	unsigned short	LENGTH_4;
+	/*118*/	unsigned char	ID,
+	/*119*/			MODIFIER;
+	/*120*/	unsigned char	NDHVFLG1,	/* Flags		     */
+/*
+   NDHVFLG1	0x80	file created by *LIST processor
+		0x40	first DSH of its kind
+		0x20	personalized section
+		0x10	???
+		0x08	suppress forwarding messages
+		0x04	suppress acceptance messages
+		0x02	suspend all active datasets (LIST processors only)
+		0x01	resume all active datasets (LIST processors only)
+ */
+	/*121*/			NDHVCLAS,	/* VM/SP spool file class    */
+	/*122*/			NDHVIDEV,	/* VM/SP origin device type  */
+	/*123*/			NDHVPGLE,	/* VM/SP virtual 3800 page
+						   length		     */
+	/*124*/			NDHVDIST[8],	/* VM/SP DIST code	     */
+	/*132*/			NDHVFNAM[12],	/* VM/SP file name	     */
+	/*144*/			NDHVFTYP[12];	/* VM/SP file type	     */
+	/*156*/	unsigned short	NDHVPRIO;	/* VM/SP transmission prty   */
+	/*158*/	unsigned char	NDHVVRSN,	/* RSCS version number of
+						   headers writer	     */
+	/*159*/			NDHVRELN;	/* RSCS release number of
+						   headers writer	     */
+	/*160*/	unsigned char	NDHVTAGR[136];	/* RSCS TAG data	     */
+	/*296*/ };
 
-struct	DATASET_HEADER {	/* Includes the General section and RSCS section */
-		unsigned short	LENGTH;
-		unsigned char	FLAG,
-				SEQUENCE;
-		struct DATASET_HEADER_G
-				NDH;
-		struct DATASET_HEADER_RSCS
-				RSCS;
-		};
+struct	DATASET_HEADER {	/* Includes the General section,
+				   and the RSCS section */
+	/*  0*/	unsigned short	LENGTH;
+	/*  2*/	unsigned char	FLAG,
+	/*  3*/			SEQUENCE;
+	/*  4*/	struct DATASET_HEADER_G    NDH;
+	/*116*/	struct DATASET_HEADER_RSCS RSCS;
+	/*296*/	};
 
 struct	JOB_TRAILER {
 		unsigned short	LENGTH;
@@ -173,45 +206,89 @@ struct	JOB_TRAILER {
 		unsigned char	ID,
 				MODIFIER;
 		unsigned char	NJTGFLG1,
-				NJTGXCLS,
+				NJTGXCLS,	/* Actual exec class         */
 				r1[2];
-		unsigned long	NJTGSTRT[2],
-				NJTGSTOP[2],
-				r2,
-/* M */				NJTGALIN,
-/* M */				NJTGCARD,
-				r3;
-		unsigned char	NJTGIXPR,
-				NJTGAXPR,
-				NJTGIOPR,
-				NJTGAOPR;
+		unsigned long	NJTGSTRT[2],	/* Exec start time/date      */
+				NJTGSTOP[2],	/* Exec stop time/date       */
+				NJTGACPU,	/* Actual CPU time           */
+/* M */				NJTGALIN,	/* Actual output lines       */
+/* M */				NJTGCARD,	/* Actual output cards       */
+				NJTGEXCP;	/* Excp count                */
+		unsigned char	NJTGIXPR,	/* .. XEQ selection prty     */
+				NJTGAXPR,	/* "                         */
+				NJTGIOPR,	/* ... output selection prty */
+				NJTGAOPR;	/* "                         */
 		} ;
 
 
 struct	SIGNON {		/* Initial and response */
-		unsigned char	NCCRCB,
-				NCCSRCB,
-				NCCIDL,
-/* M */				NCCINODE[8],
-				NCCIQUAL;
-		unsigned long	NCCIEVNT;
-		unsigned short	NCCIREST,
-/* M */				NCCIBFSZ;
-/* M */		unsigned char	NCCILPAS[8],
-/* M */				NCCINPAS[8],
-				NCCIFLG;
+		unsigned char	NCCRCB,		/* Gen rec ctrl byte	     */
+				NCCSRCB,	/* Sub-rec ctrl byte	     */
+				NCCIDL,		/* Length of logical rec.    */
+/* M */				NCCINODE[8],	/* Node ident.		     */
+				NCCIQUAL;	/* Qual if shared spool	     */
+		unsigned long	NCCIEVNT;	/* Event seq number	     */
+		unsigned short	NCCIREST,	/* Partial node to node 
+						   resistance		     */
+/* M */				NCCIBFSZ;	/* Max transmission blk size */
+/* M */		unsigned char	NCCILPAS[8],	/* Line password	     */
+/* M */				NCCINPAS[8],	/* Node password	     */
+				NCCIFLG;	/* Feature flags (X'80')     */
 		unsigned long	NCCIFEAT;
 	};
 
 
 /* Nodal messages records: */
 struct	NMR_MESSAGE {		/* Message */
-		unsigned char	NMRFLAG,
-				NMRLEVEL,
-				NMRTYPE,
-				NMRML,
-				NMRTONOD[8], NMRTOQUL,
-				NMRUSER[8],
-				NMRFMNOD[8], NMRFMQUL,
-				NMRMSG[132];
+		unsigned char	NMRFLAG,	/* Flag byte		     */
+/*
+   NMRFLAG	0x80	Command vs. message (set means: command)
+   		0x40	NMROUT from JES2, with JES2 RMT number
+		0x20	NMROUT has user ID -- common case
+		0x10	NMROUT has UCMID information (?)
+		0x08	console is only remote authorized
+		0x04	console is not job authorized
+		0x02	console is not device authorized
+		0x01	console is not system authorized
+ */
+				NMRLEVEL,	/* Importance level/output
+						   priority		     */
+				NMRTYPE,	/* Type byte		     */
+/*
+   NMRTYPE	0x08	NMROUT contains control info
+   		0x04	msg text-only in NMRMSG
+		0x02	formatted command in NMRMSG
+ */
+				NMRML,		/* Length of message	     */
+				NMRTONOD[8],	/* To node name		     */
+				NMRTOQUL,	/* To node qualifier	     */
+				NMRUSER[8],	/* To user		     */
+				NMRFMNOD[8],	/* From node name	     */
+				NMRFMQUL,	/* From node qualifier	     */
+				NMRMSG[132];	/* Message		     */
+				/* NMROUT is the first 8 chars of the NMRMSG */
 	};
+
+/*
+   Section ID codes:
+
+	0x00	General section
+			MODIFIER = 0x80 -> 3800 section
+			MODIFIER = 0x40 -> record characteristics
+			MODIFIER = 0x00 -> general section
+	0x80	Unspecified subsystem
+	0x81	ASP subsystem
+	0x82	HASP subsystem
+	0x83	JES/RES subsystem
+	0x84	JES2 subsystem
+	0x85	JES3 subsystem
+	0x86	POWER/VS subsystem
+	0x87	VM/370 subsystem
+			MODIFIER = 0x00 -> RSCS
+	0x89	Datastream section
+			MODIFIER = 0x00 -- seen on MVS JOBLOG outputs
+	0x89	Accounting section (in NJT)
+	0x8A	Scheduling section (in NJH)
+	0xC0	User-defined section
+			MODIFIER = 0x00 -> user-section
+*/

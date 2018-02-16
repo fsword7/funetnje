@@ -1,5 +1,5 @@
-/* UNIX_TCP.C	V2.4
- | Copyright (c) 1988,1989,1990,1991,1992 by
+/* UNIX_TCP.C	V2.4-mea
+ | Copyright (c) 1988,1989,1990 by
  | The Hebrew University of Jerusalem, Computation Center.
  |
  |   This software is distributed under a license from the Hebrew University
@@ -9,61 +9,32 @@
  | of Jerusalem assumes no responsibility for any damage that might be caused
  | by use or misuse of this software.
  |
- | NOTE: Currently can be only the active side.
  | It works accoriding to VMnet specs, except that we not send FAST-OPEN
  |
- | INPORTANT NOTE: If we try to connect to a dead machine, or write to a
- | dying connection, the whole process will block untill the TCP layer will
- | fund that. During this time, other links will timeout.
- | When a link cannot be established, it'll be retried after 5 minutes. The line
- | is placed in RETRYING state during that period. When a line fails, we try
- | to re-initiate the connection.
- | After doing LISTEN on a line, we put it in LISTEN state. When a connection is
- | attempted on this line, Select() will notify that there is data ready to read
- | on that line. In this case, we issue the accept.
+ | When a link cannot be established, it'll be retried after 5 minutes.
+ | The line is placed in RETRYING state during that period.
+ | When a line fails, we try to re-initiate the connection.
+ | After doing LISTEN on a line, we put it in LISTEN state.
+ | When a connection is attempted on this line, Select() will notify
+ | that there is data ready to read on that line. In this case, we
+ | issue the accept.
  | In order to not touch the upper layers, we still queue a timeout when a read
  | is queued. However, when the timer expires we simply re-queue it.
  |
  | The function close_unix_tcp_channel() is called by Restart-channel is the
  | line's state is not one of the active ones.
- |
- | V1.3 - When sending a TcpIp packet, we should call Handle-Ack to send the
- |        next one. However, this will cause too deep function calls. So,
- |        we set the F_CALL_ACK flag and main loop will call Handle-Ack.
- | V1.4 - Remove the setting of F_DONT_ACK in the receive function. Replace
- |        it with F_WAIT_V_A_BIT
- | V1.5 - When receiving a buffer, add a check that the size in TTR is less than
- |        the size remained in the buffer (Sun has bugs in its TCP...).
- | V1.6 - Change the way we handle auto retsarts with TCP lines. Instead of
- |        the closing routine queueing a retstart, there is a scan every 5 minut
-es
- |        to detect such dead lines and restart them if the AUTO-RESTART flag
- |        is on.
- | V1.7 - Add passive end. We forgot to have it...
- | V1.8 - 14/2/90 - Change SWAP_xxx to the relevant Unix routines; Use namesever
- |        instead of looking in /etc/hosts
- |        If there is a value in Device field, we use it in irder to find the IP
- |        address of the other side. If no value there, we use the hostname.
- | V1.9 - 19/2/90 - 1. When sending NAK control block, give a reasonable code.
- |        2. When completing a connection, do not send ENQUIRE but SYN+NAK.
- | V2.0 - 4/4/90 - Change ttr pointer to a structure, in order to prevent odd
- |        addresses refference.
- | V2.1 - 4/4/90 - Replace printouts of Errno number to error messages from
- |        sys_nerrlist[].
- | V2.2 - 20/9/90 - Add debugging code (level 5) in order to trace problems
- |        during initial handshaking.
- | V2.3 - 28.3.91 - Remove a double call to HTONL() when finding the IP address.
- | V2.4 - 13/9/92 - Add more calls to Logger() function for debugging.
  */
 #include "consts.h"
 #include "headers.h"
+#include "prototypes.h"
+/*
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+*/
 #include <netdb.h>
 
-extern struct LINE	IoLines[MAX_LINES];
 extern struct ENQUIRE	Enquire;
 
 #define	VMNET_IP_PORT		175
@@ -71,75 +42,164 @@ extern struct ENQUIRE	Enquire;
 #define	IMPLICIT_ACK		1
 
 static struct	sockaddr_in	PassiveSocket;
-int		PassiveSocketChannel,	/* On which we listen */
-		PassiveReadChannel;	/* On which we wait for an initial VMnet control record */
+int		PassiveSocketChannel = -1,	/* On which we listen */
+		PassiveReadChannel = -1;   /* On which we wait for an initial
+					      VMnet control record */
 
-extern int	get_host_ip_address();
+static long	get_host_ip_address();
 
 extern int	sys_nerr;	/* Maximum error number recognised */
 extern char	*sys_errlist[];	/* List of error messages */
 #define	PRINT_ERRNO	(errno > sys_nerr ? "***" : sys_errlist[errno])
+
+
+/*  Systems have differing ways to define NON-blocking IO..
+    Basically again the  SysV vs. BSD.. */
+static int
+socknonblocking(sock,onoff)
+int sock, onoff;
+{
+#ifdef	FIONBIO	/* We think existance of this indicates BSD style.. */
+	return ioctl(sock,FIONBIO,&onoff);
+
+#else		/* Here it is SYSV style.. */
+	int flags = fcntl(sock, F_GETFL, 0);
+	if (flags == -1) return -1; /* Failure */
+	if (!onoff)
+	  flags |= FNDELAY;	/* Set it ON  -- blocking     */
+	else
+	  flags &= ~FNDELAY;	/* Set it OFF -- non-blocking */
+	return fcntl(sock, F_SETFL, flags);
+#endif
+}
 
 /*
  | Create a local socket.
  | If we are the initiating side, queue a non-blocking receive. If it fails,
  | close the channel, and re-queue a retry for 5 minutes later.
  */
-init_active_tcp_connection(Index)
-int	Index;
+void
+init_active_tcp_connection(Index,finalize)
+const int	Index, finalize;
 {
 	struct	sockaddr_in	*SocketName;
 	int	Socket;		/* The I/O channel */
 	struct	VMctl	ControlBlock;
 	unsigned char	HostName[128];
-	register int	i, TempVar;
+	register int	i;
+	struct	LINE	*temp = &IoLines[Index];
 
-	SocketName = &(IoLines[Index].SocketName);
+	SocketName = &(temp->SocketName);
 
-/* Create a local socket */
-	if((Socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		logger(1, "UNIX_TCP, Can't get local socket. error: %s\n",
-			PRINT_ERRNO);
-		IoLines[Index].state = INACTIVE;
-		close(IoLines[Index].socket);
-		IoLines[Index].socket = 0;
-		return;
+	temp->state = TCP_SYNC; /* Expecting reply for
+				   the control block */
+	/* Get the IP address */
+	if (*temp->device != '\0')
+	  strcpy(HostName, temp->device);
+	else
+	  strcpy(HostName, temp->HostName);
+
+#if	defined(NBCONNECT)||defined(NBSTREAM)
+	if (!finalize) {
+#endif
+	  /* A fresh start.. */
+
+	  if (temp->socket >= 0)
+	    close(temp->socket);
+
+	  temp->socket = -1;
+	  temp->socketpending = -1;
+
+	  /* Create a local socket */
+	  if ((Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	    logger(1, "UNIX_TCP, Can't get local socket. (Line %s) error: %s\n",
+		   temp->HostName, PRINT_ERRNO);
+	    temp->state = INACTIVE;
+	    close(temp->socket);
+	    return;
+	  }
+
+	  temp->socket = Socket;
+#if	defined(NBCONNECT)||defined(NBSTREAM)
+	  temp->socketpending = Socket; /* Mark that we are doing it.. */
+	  socknonblocking(Socket,1);
+#else
+	  temp->socketpending = -1;
+#endif
+
+#if 0  /* Hmm...  this does force the local end.. */
+	  setsockopt(CommandSocket, SOL_SOCKET, SO_REUSEADDR,
+		     (char*)&on, sizeof(on));
+
+	  SocketName->sin_family = AF_INET;
+	  SocketName->sin_port   = 0; /* Any port */
+	  SocketName->sin_addr.s_addr
+	    = get_host_ip_address(Index,IP_ADDRESS);
+	  bind(Socket,(struct sockaddr *)SocketName,sizeof(struct sockaddr));
+#endif
+
+	  SocketName->sin_family = AF_INET;
+	  SocketName->sin_port = htons(temp->IpPort);
+
+	  if ((SocketName->sin_addr.s_addr
+	       = get_host_ip_address(Index, HostName)) == -1) { /* Error! */
+	    logger(1,"Resolving hostname %s failed! (Link %s)\n",HostName,
+		   temp->HostName);
+	    temp->state = RETRYING;
+	    close(Socket);
+	    temp->socket = 0;
+	    return;
+	  }
+	  logger(4,"UNIX_TCP: Resolved `%s' to address `%s'\n",HostName,
+		 inet_ntoa(SocketName->sin_addr));
+	
+	  /* ?? Do the connection trial in a subprocess to not block
+	     the parent one */
+
+	  if (connect(Socket, (struct sockaddr *)SocketName,
+		      sizeof(struct sockaddr)) == -1) {
+#if	defined(NBCONNECT)||defined(NBSTREAM)
+	    /* We MAY get  EINPROGRESS, as we have this socket defined as
+	       NON-Block -- to get past a lengthy timeout..
+	       We do a select-for-write for it to see when it becomes
+	       fully operational, and then we do the pending treatment,
+	       the thing below there..   The S-f-W does flag up also
+	       when the connection attempt times out, or gets refused,
+	       so below it may hit with SIGPIPE/EPIPE.. */
+	    if (errno == EINPROGRESS) return; 
+#endif
+
+	    logger(2, "UNIX_TCP, Can't connect. (Line %s) error: %s\n",
+		   temp->HostName, PRINT_ERRNO);
+	    temp->state = RETRYING;
+	    close(Socket);
+	    temp->socket = -1;
+	    temp->socketpending = -1;
+	    return;
+	  }
+#if	defined(NBCONNECT)||defined(NBSTREAM)
 	}
+#endif
 
-	SocketName->sin_family = (AF_INET);
-	SocketName->sin_port = htons(IoLines[Index].IpPort);
-/* Get the IP adrress */
-	if(*IoLines[Index].device != '\0')
-		strcpy(HostName, IoLines[Index].device);
-	else	strcpy(HostName, IoLines[Index].HostName);
-	(SocketName->sin_addr).s_addr = get_host_ip_address(Index, HostName);
+	/* Now we are finishing it! */
 
-/* Do the connection trial in a subprocess to not block the parent one */
-	if(connect(Socket, SocketName, sizeof(struct sockaddr_in)) == -1) {
-		logger(2, "UNIX_TCP, Can't connect. error: %s\n",
-			PRINT_ERRNO);
-		IoLines[Index].state = RETRYING;
-		close(Socket);
-		IoLines[Index].socket = 0;
-		return;
-	}
-	IoLines[Index].socket = Socket;
-	queue_receive(Index);	/* Queue a receive on the line */
+	temp->socketpending = -1;
+#if	defined(NBCONNECT)||defined(NBSTREAM)
+	socknonblocking(temp->socket,0);
+#endif
 
-/* Send the initial connection block */
-	IoLines[Index].state = TCP_SYNC;	/* Expecting reply for the control block */
-	IoLines[Index].RecvSize = IoLines[Index].XmitSize = 0;
-/* Send the first control block */
-	ASCII_TO_EBCDIC("OPEN", ControlBlock.type, 4);
-	PAD_BLANKS(ControlBlock.type, 4, 8);
+	/* Send the initial connection block */
+	temp->RecvSize = 0;
+	temp->XmitSize = 0;
+
+	/* Send the first control block */
+	ASCII_TO_EBCDIC("OPEN    ", ControlBlock.type, 8);
 	memcpy(ControlBlock.Rhost, E_BITnet_name, E_BITnet_name_length);
-	i = strlen(IoLines[Index].HostName);
-	ASCII_TO_EBCDIC((IoLines[Index].HostName), (ControlBlock.Ohost), i);
+	i = strlen(temp->HostName);
+	ASCII_TO_EBCDIC(temp->HostName, ControlBlock.Ohost, i);
 	PAD_BLANKS(ControlBlock.Ohost, i, 8);
-	i = get_host_ip_address(Index, IP_ADDRESS);
-	ControlBlock.Rip = i;
-	i = get_host_ip_address(Index, HostName);
-	ControlBlock.Oip = i;
+	ControlBlock.Rip = get_host_ip_address(Index, IP_ADDRESS);
+	ControlBlock.Oip = get_host_ip_address(Index, HostName);
 	ControlBlock.R = 0;
 
 #ifdef DEBUG
@@ -147,48 +207,97 @@ int	Index;
 	trace(&ControlBlock, VMctl_SIZE, 5);
 #endif
 
-	if(write(IoLines[Index].socket, &ControlBlock, VMctl_SIZE) == -1) {
-		logger(1, "UNIX_TCP, line=%d, Can't write control block, error: %s\n",
-			Index, PRINT_ERRNO);
-		close_unix_tcp_channel(Index);
+	if (writen(temp->socket, &ControlBlock, VMctl_SIZE) == -1) {
+	  /* If the delayed open failed, be quiet */
+	  if (finalize && errno == EPIPE) {
+	    logger(2, "UNIX_TCP, Can't `delayed-connect'. (Line %s)\n",
+		   temp->HostName, PRINT_ERRNO);
+	    close_unix_tcp_channel(Index);
+	    return;
+	  }
+	  logger(1,"UNIX_TCP, line=%s, Can't write control block, error: %s\n",
+		 temp->HostName, PRINT_ERRNO);
+	  close_unix_tcp_channel(Index);
+	  return;
 	}
+
+#if	defined(NBSTREAM)
+	socknonblocking(temp->socket,1);
+#endif
+
+
+#ifdef	USE_SOCKOPT
+	{
+	  int ssize = 32768, rsize = 32768;
+	  Socket = temp->socket;
+
+	  while (ssize > 1024 &&
+		 setsockopt(Socket,SOL_SOCKET,SO_SNDBUF,
+			    (void*)&ssize,sizeof(ssize)) < 0)
+	    ssize -= 1024;
+
+	  while (rsize > 1024 &&
+		 setsockopt(Socket,SOL_SOCKET,SO_RCVBUF,
+			    (void*)&rsize,sizeof(rsize)) < 0)
+	    rsize -= 1024;
+
+	  logger(3,"UNIX_TCP: on init_active_tcp_connection(Line %s) setsockopt() SNDBUF = %d, RCVBUF = %d\n",temp->HostName,ssize,rsize);
+	}
+#endif
+
+	queue_receive(Index);	/* Queue a receive on the line */
 }
 
 
 /*
  | Create a local socket. Bind a name to it if we must be the secondary side.
  */
-init_passive_tcp_connection()
+void
+init_passive_tcp_connection(TcpType)
+const int TcpType;
 {
+	int on = 1;
 
-	PassiveReadChannel = 0;	/* To signal we haven't got any connection yet */
+	PassiveReadChannel = -1;	/* To signal that we haven't got
+					   any connection yet */
 
-/* Create a local socket */
-	if((PassiveSocketChannel = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		logger(1, "UNIX_TCP, Can't get local socket. error: %s\n",
-			PRINT_ERRNO);
-		PassiveSocketChannel = 0;	/* To signal others we did not succeed */
-		return;
+	/* Create a local socket */
+	if ((PassiveSocketChannel = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	  logger(1, "UNIX_TCP, Can't get local socket for passive channel. error: %s\n",
+		 PRINT_ERRNO);
+	  PassiveSocketChannel = -1; /* To signal others we
+					did not succeed */
+	  return;
 	}
 
-/* Now, bind a local name for it */
-	PassiveSocket.sin_family = (AF_INET);
-	PassiveSocket.sin_port = htons(VMNET_IP_PORT);
-	(PassiveSocket.sin_addr).s_addr = 0;	/* Local machine */
-	if(bind(PassiveSocketChannel, &PassiveSocket, sizeof(struct sockaddr_in)) == -1
-) {
-		logger(1, "UNIX_TCP, Can't bind. error: %s\n",
-			PRINT_ERRNO);
-		close(PassiveSocketChannel);
-		PassiveSocketChannel = 0;	/* To signal others we did not succeed */
-		return;
+	setsockopt(PassiveSocketChannel, SOL_SOCKET, SO_REUSEADDR,
+		   (char*)&on, sizeof(on));
+
+	/* Now, bind a local name for it */
+	PassiveSocket.sin_family = AF_INET;
+	PassiveSocket.sin_port   = htons(VMNET_IP_PORT);
+	PassiveSocket.sin_addr.s_addr = 0; /* Just this host */
+	/* = get_host_ip_address(0,IP_ADDRESS);*//* ESPECIALLY on Multihomed
+						    systems!  This makes it
+						    to accept connect on only
+						    the configured address. */
+
+	if (bind(PassiveSocketChannel, (struct sockaddr *)&PassiveSocket,
+		 sizeof(struct sockaddr_in)) == -1) {
+	  logger(1, "UNIX_TCP, Can't bind (passive). error: %s\n",
+		 PRINT_ERRNO);
+	  close(PassiveSocketChannel);
+	  PassiveSocketChannel = -1;	/* To signal others we
+					   did not succeed */
+	  return;
 	}
-	if(listen(PassiveSocketChannel, 2) == -1) {
-		logger(1, "UNIX_TCP, Can't listen, error: %s\n",
-			PRINT_ERRNO);
-		close(PassiveSocketChannel);
-		PassiveSocketChannel = 0;	/* To signal others we did not succeed */
-		return;
+	if (listen(PassiveSocketChannel, 2) == -1) {
+	  logger(1, "UNIX_TCP, Can't listen (passive), error: %s\n",
+		 PRINT_ERRNO);
+	  close(PassiveSocketChannel);
+	  PassiveSocketChannel = -1;	/* To signal others we
+					   did not succeed */
+	  return;
 	}
 }
 
@@ -196,39 +305,67 @@ init_passive_tcp_connection()
  | Some connection to our passive end. Try doing Accept on it; if successfull,
  | wait for input on it. This input will call Read-passive-TCP-connection.
  */
+void
 accept_tcp_connection()
 {
 	int	size;
 
 	size = sizeof(struct sockaddr_in);
-	if((PassiveReadChannel = accept(PassiveSocketChannel, &PassiveSocket,
-	   &size)) == -1) {
-		logger(1, "UNIX_TCP, Can't accept on passive end. error: %s\n",
-			PRINT_ERRNO);
-		PassiveReadChannel = 0;
+	if ((PassiveReadChannel = accept(PassiveSocketChannel,
+					 (struct sockaddr*)&PassiveSocket,
+					 &size)) == -1) {
+	  logger(1, "UNIX_TCP, Can't accept on passive end. error: %s\n",
+		 PRINT_ERRNO);
+	  PassiveReadChannel = -1;
 	}
+
+#ifdef	USE_SOCKOPT
+	{
+	  int ssize = 32768, rsize = 32768;
+	  int Socket = PassiveReadChannel;
+
+	  while (ssize > 1024 &&
+		 setsockopt(Socket,SOL_SOCKET,SO_SNDBUF,
+			    (void*)&ssize,sizeof(ssize)) < 0)
+	    ssize -= 1024;
+
+	  while (rsize > 1024 &&
+		 setsockopt(Socket,SOL_SOCKET,SO_RCVBUF,
+			    (void*)&rsize,sizeof(rsize)) < 0)
+	    rsize -= 1024;
+
+	  logger(3,"UNIX_TCP: on accept_tcp_connection() setsockopt() SNDBUF = %d, RCVBUF = %d\n",ssize,rsize);
+	}
+#endif
 }
 
 /*
  | Some input has been received for the passive end. Try receiving the OPEN
  | block in one read (and hopefully we'll receive it all).
  */
+void
 read_passive_tcp_connection()
 {
-	register int	i, size, Index, TempVar;
-	short	ReasonCode;	/* For signaling the other side why we NAK him */
-	char	HostName[10], Exchange[10], *p;
+	register int	i, size, Index;
+	short	ReasonCode;	/* For signaling the other side,
+				   why we NAK him */
+	char	HostName[10], Exchange[10];
 	struct	VMctl	ControlBlock;
+#ifdef	NBSTREAM
+	int	on = 1;
+#endif
 
 	ReasonCode = 0;
-/* Read input */
-	if((size = read(PassiveReadChannel, &ControlBlock, sizeof(ControlBlock),
-	    0)) == -1) {
-		logger(1, "UNIX_TCP, Error reading VMnet block, error: %s\n",
-			PRINT_ERRNO);
-		close(PassiveReadChannel);
-		PassiveReadChannel = 0;	/* To signal it is closed */
-		return;
+
+	/* Read input */
+	if ((size = read(PassiveReadChannel, (void *)&ControlBlock,
+			 sizeof(ControlBlock))) == -1) {
+	  /* errno==EINTR is possible, but should not happen.. */
+	  logger(1, "UNIX_TCP, Error reading VMnet block, error: %s\n",
+		 PRINT_ERRNO);
+	  close(PassiveReadChannel);
+	  PassiveReadChannel = -1; /* To signal it is closed */
+	  return;
 	}
 
 #ifdef DEBUG
@@ -237,102 +374,132 @@ read_passive_tcp_connection()
 	trace(&ControlBlock, size, 5);
 #endif
 
-/* Check that we've received enough information */
-	if(size < VMctl_SIZE) {
-		logger(1, "UNIX_TCP, Received too small control record\n");
-		logger(1, "      Expecting %d, received size of %d\n",
-			VMctl_SIZE, size);
-		goto RetryConnection;
+	/* Check that we've received enough information */
+	if (size < VMctl_SIZE) {
+	  logger(1, "UNIX_TCP, Received too small control record\n");
+	  logger(1, "      Expecting %d, received size of %d\n",
+		 VMctl_SIZE, size);
+	  goto RetryConnection;
 	}
 
-/* Check first that this is an OPEN block. If not - reset connection */
-	EBCDIC_TO_ASCII((ControlBlock.type), Exchange, 8); Exchange[8] = '\0';
-	if(strncmp(Exchange, "OPEN", 4) != 0) {
-		logger(1, "UNIX_TCP, Illegal control block '%s' received. REason code=%d\n",
-			Exchange, ControlBlock.R);
-		goto RetryConnection;
+	/* Check first that this is an OPEN block.
+	   If not - reset connection */
+	EBCDIC_TO_ASCII(ControlBlock.type, Exchange, 8); Exchange[8] = '\0';
+	if (strncmp(Exchange, "OPEN", 4) != 0) {
+	  logger(1, "UNIX_TCP, Illegal control block '%s' received. Reason code=%d\n",
+		 Exchange, ControlBlock.R);
+	  goto RetryConnection;
 	}
 
-/* OK, assume we've received all the information - get the hosts names from the
-   control block and check the names.
-*/
-	EBCDIC_TO_ASCII((ControlBlock.Rhost), HostName, 8);	/* His name */
-	for(p = &HostName[7]; p > HostName; *p--) if(*p != ' ') break;
-	*++p = '\0';
-	EBCDIC_TO_ASCII((ControlBlock.Ohost), Exchange, 8);	/* Our name (as he thinks */
-	for(p = &Exchange[7]; p > Exchange; *p--) if(*p != ' ') break;
-	*++p = '\0';
+	/* OK, assume we've received all the information;
+	   get the hosts names from the control block and check the names. */
+	EBCDIC_TO_ASCII(ControlBlock.Rhost, HostName, 8); /* His name */
+	despace(HostName,8);
+	EBCDIC_TO_ASCII(ControlBlock.Ohost, Exchange, 8); /* Our name
+							     (as he thinks) */
+	despace(Exchange,8);
 
-/* Verify that he wants to call us */
-	if(strncmp(Exchange, LOCAL_NAME, strlen(LOCAL_NAME)) != 0) {
-		logger(2, "UNIX_TCP, Host %s incorrectly connected to us (%s)\n",
-			HostName, Exchange);
-		goto RetryConnection;
+	/* Verify that he wants to call us */
+	if (strncmp(Exchange, LOCAL_NAME, strlen(LOCAL_NAME)) != 0) {
+	  logger(1, "UNIX_TCP, Host %s incorrectly connected to us (%s)\n",
+		 HostName, Exchange);
+	  goto RetryConnection;
 	}
-/* Look for its line */
-	for(Index = 0; Index < MAX_LINES; Index++) {
-		if(compare(IoLines[Index].HostName, HostName) == 0) {
-			/* Found - now do some checks */
-			if(IoLines[Index].type != UNIX_TCP) {	/* Illegal */
-				logger(2, "UNIX_TCP, host %s, line %d, is not a UNIX_TCP type but type %d\n",
-					IoLines[Index].type);
-				goto RetryConnection;
-			}
-			if((IoLines[Index].state != LISTEN) &&
-			   (IoLines[Index].state != RETRYING)) { /* Break its previous connection */
-				logger(2, "UNIX_TCP, line %s got OPEN record while in state %d\n",
-					IoLines[Index].state);
-				if(IoLines[Index].state == ACTIVE)
-					ReasonCode = 2;
-				else	ReasonCode = 3;
-				IoLines[Index].state = INACTIVE;
-				restart_channel(Index);
-				/* Will close line and put it into correct state */
-				goto RetryConnection;
-			}
-/* Copy the parameters from the Accept block, so we can post a new one */
-			ASCII_TO_EBCDIC("ACK", (ControlBlock.type), 3);
-			PAD_BLANKS((ControlBlock.type), 3, 8);
-			IoLines[Index].socket = PassiveReadChannel;
-			PassiveReadChannel = 0;	/* We've moved it... */
-			IoLines[Index].state = DRAIN;
-			IoLines[Index].RecvSize =
-				IoLines[Index].TcpState = 0;
-/* Send and ACK block - transpose tyhe fields */
-			memcpy(Exchange, (ControlBlock.Rhost), 8);
-			memcpy((ControlBlock.Rhost), (ControlBlock.Ohost), 8);
-			memcpy((ControlBlock.Ohost), Exchange, 8);
-			i = ControlBlock.Oip;
-			ControlBlock.Oip = ControlBlock.Rip;
-			ControlBlock.Rip = i;
-			queue_receive(Index);	/* Queue a receive for it */
+
+	/* Look for its line */
+	for (Index = 0; Index < MAX_LINES; Index++) {
+	  if (strcmp(IoLines[Index].HostName, HostName) == 0) {
+	    /* Found - now do some checks */
+	    struct LINE *Line = &IoLines[Index];
+logger(2,"UNIX_TCP: Line %s/%d passive channel read\n",Line->HostName,Index);
+	    if (Line->type != UNIX_TCP) { /* Illegal */
+	      logger(1, "UNIX_TCP, host %s, line %d, is not a UNIX_TCP type but type %d\n",
+		     Line->HostName,Index,Line->type);
+	      goto RetryConnection;
+	    }
+	    if (Line->state != LISTEN &&
+		 Line->state != RETRYING) {
+	      /* Break its previous connection */
+	      if (Line->state == ACTIVE)
+		ReasonCode = 2; /* Link is active.. */
+	      else if (Line->state == TCP_SYNC) {
+#if 1
+		close(Line->socket);
+		Line->socket = -1;
+		Line->socketpending = -1;
+		logger(1,"UNIX_TCP: read_passive_tcp_connection(%s/%d) -- the other end called us, we quit the active open attempt!, link state was %d\n",
+		       Line->HostName,Index,Line->state);
+		Line->state = LISTEN;
+#else
+		ReasonCode = 3; /* Link is attempting active open, or is it ? */
+	      /* Let pending connect do its deed.. */
+#if 1
+	 /*   if (Line->socketpending < 0) { */
+	        logger(1,"UNIX_TCP: read_passive_tcp_connection(), line %s, state=%d\n",
+		       Line->HostName, Line->state);
+		Line->state = INACTIVE;
+		restart_channel(Index);
+	/*      } */
+#endif
+	      /* Will close line and put it into correct state */
+	      goto RetryConnection;
+#endif
+	      } else {
+		/* ??? */
+	      }
+	    }
+logger(2,"UNIX_TCP: Acking passive open on line %s/%d\n",Line->HostName,Index);
+	    
+
+	    /* Copy the parameters from the Accept block,
+	       so we can post a new one */
+	    ASCII_TO_EBCDIC("ACK     ", ControlBlock.type, 8);
+	    Line->socket = PassiveReadChannel;
+	    PassiveReadChannel = -1; /* We've moved it... */
+	    Line->state    = DRAIN;
+	    Line->RecvSize = 0;
+	    Line->TcpState = 0;
+	    /* Send and ACK block - transpose the fields */
+	    memcpy(Exchange, ControlBlock.Rhost, 8);
+	    memcpy(ControlBlock.Rhost, ControlBlock.Ohost, 8);
+	    memcpy(ControlBlock.Ohost, Exchange, 8);
+	    i = ControlBlock.Oip;
+	    ControlBlock.Oip = ControlBlock.Rip;
+	    ControlBlock.Rip = i;
+	    queue_receive(Index); /* Queue a receive for it */
 
 #ifdef DEBUG
-			logger(5, "Writing ACK control block to line #%d:\n", Index);
-			trace(&ControlBlock, VMctl_SIZE, 5);
+	    logger(5, "Writing ACK control block to line #%d:\n", Index);
+	    trace(&ControlBlock, VMctl_SIZE, 5);
 #endif
 
-			write(IoLines[Index].socket, &ControlBlock, VMctl_SIZE);
-			return;
-		}
+	    if (writen(Line->socket, &ControlBlock, VMctl_SIZE) < 0) {
+	      logger(1,"UNIX_TCP: writen() on accept_tcp_connection() failed!");
+	    }
+
+#ifdef	NBSTREAM
+	    socknonblocking(Line->socket,1);
+#endif
+
+	    return;
+	  }
 	}
 
-/* Line not found - log it, and dismiss the connection */
-	logger(2, "UNIX_TCP, Can't find line for host '%s'\n", HostName);
-/* Send a reject to other side and re-queue the read */
+	/* Line not found - log it, and dismiss the connection */
+	logger(1, "UNIX_TCP, Can't find line for host '%s'\n", HostName);
+
+	/* Send a reject to other side and re-queue the read */
 RetryConnection:
-	if(ReasonCode == 0) ReasonCode = 1;	/* Link not found */
-	ASCII_TO_EBCDIC("NAK", (ControlBlock.type), 3);
-	PAD_BLANKS((ControlBlock.type), 3, 8);
-	memcpy((ControlBlock.Rhost), E_BITnet_name, E_BITnet_name_length);
-#ifdef DEBUG
-	logger(5, "Writing NAK control block to unidentified line\n");
-	trace(&ControlBlock, VMctl_SIZE, 5);
-#endif
+	if (ReasonCode == 0) ReasonCode = 1;	/* Link not found */
+	ASCII_TO_EBCDIC("NAK     ", ControlBlock.type, 8);
+	ControlBlock.R = ReasonCode;
+	memcpy(ControlBlock.Rhost, E_BITnet_name, E_BITnet_name_length);
+	logger(2, "UNIX_TCP: writing passive-channel NAK to %s with reason code: %d\n",
+	       HostName, ReasonCode);
 
-	write(PassiveReadChannel, &ControlBlock, VMctl_SIZE);
+	writen(PassiveReadChannel, &ControlBlock, VMctl_SIZE);
 	close(PassiveReadChannel);
-	PassiveReadChannel = 0;
+	PassiveReadChannel = -1;
 }
 
 
@@ -341,211 +508,501 @@ RetryConnection:
  | Called when something was received from TCP. Receive the data and call the
  | appropriate routine to handle it.
  | When receiving,  the first 4 bytes are the count field. When we get the
- | count, we continue to receive untill the count exceeded. Then we call the
+ | count, we continue to receive until the count exceeded. Then we call the
  | routine that handles the input data.
  */
+void
 unix_tcp_receive(Index)
 int	Index;
 {
-	register long	i, size, TempVar;
+	int	i, size = 0, rsize = 0;
+	int	lerrno, buff_full = 0;
 	struct	LINE	*temp;
 	char	Type[10];	/* Control block type */
-	struct	VMctl	*ControlBlock;
-	struct	TTR	ttr;
-	register unsigned char	*p, *q;
-	struct SYN_NAK {	/* To start the link we send SYN NAK */
-		unsigned char	Syn, Nak;
-		} SynNak;
-
-	SynNak.Syn = SYN;
-	SynNak.Nak = NAK;
+	unsigned char	*p, *q;
 
 	temp = &(IoLines[Index]);
 	dequeue_timer(temp->TimerIndex);	/* Dequeue the timeout */
 
-/* Append the data to our buffer */
-	if((size = (MAX_BUF_SIZE - temp->RecvSize)) <= 0)
-		bug_check("UNIX_TCP, TCP receive buffer is full");
-	if((size = read(temp->socket, &((temp->buffer)[temp->RecvSize]), size,
-	    0)) == -1) {
-		logger(1, "UNIX_TCP, Error reading, line =%d, error: %s\n",
-			Index, PRINT_ERRNO);
-		temp->state = INACTIVE;
-		restart_channel(Index);	/* Will close line and put it into correct state */
-		return;
-	}
+	/* Append the data to our buffer */
+
+	/* Buffer max size */
+	rsize = sizeof(temp->InBuffer);
+
+	/* how much fits into this buffer ? */
+	if ((size = (rsize - temp->RecvSize)) <= 0) {
+	  /* It is full */
+	  buff_full = 1;
+	  rsize = 0;
+	  size  = 0;
+
+	} else {
+	  /* Not yet full, read something in */
+	  errno = 0;
+	  if ((rsize = read(temp->socket,
+			    &temp->InBuffer[temp->RecvSize], size)) == -1) {
+	    if (errno == EINTR) {
+	      queue_receive(Index); /* Requeue the read request */
+	      return;		/* Well, come back later.. */
+	    }
+
+	    logger(1, "UNIX_TCP, Error reading, line %s, error: %s\n",
+		   temp->HostName, PRINT_ERRNO);
+	    temp->state = INACTIVE;
+	    /* Will close line and put it into correct state */
+	    restart_channel(Index);
+	    return;
+	  }
+
+	  time(&temp->InAge);
+
+	  size = rsize;
+	  lerrno = errno;
 
 #ifdef DEBUG
-	logger(5, "Received from line #%d\n", Index);
-	trace(&((temp->buffer)[temp->RecvSize]), size, 5);
+	  logger(2, "UNIX_TCP: Line %s, Received %d bytes\n",
+		 temp->HostName, rsize);
+	  trace(&temp->InBuffer[temp->RecvSize], size, 5);
+#endif
+	  /* If we read 0 characters, it usually signals that other
+	     side closed the connection */
+	  if (size == 0 /*&& temp->RecvSize == 0*/) {
+	    logger(1,"UNIX_TCP: Zero characters read. Disabling line %s, errno = %d\n",
+		   temp->HostName,lerrno);
+	    temp->state = INACTIVE;
+	    restart_channel(Index); /* Will close line and put
+				       it into correct state */
+	    return;
+	  }
+
+	  /* Register the current size */
+	  temp->RecvSize += size;
+
+	} /* .. not buffer full, we could read */
+
+
+	/* If we are in the TCP_SYNC stage, then this is the reply
+	   from other side */
+
+	if (temp->state == TCP_SYNC) {
+	  struct VMctl	*ControlBlock;
+
+	  if (temp->RecvSize < 10) {	/* Too short block */
+	    logger(1, "UNIX_TCP, Too small Open record received on line %s\n",
+		   temp->HostName);
+	    temp->state = INACTIVE;
+	    restart_channel(Index); /* Will close line and put
+				       it into correct state */
+	    return;
+	  }
+	  ControlBlock = (struct VMctl*)temp->InBuffer;
+	  EBCDIC_TO_ASCII(ControlBlock->type, Type, 8); Type[8] = '\0';
+	  if (strcmp(Type, "ACK     ") != 0) { /* Something wrong */
+	    if (strcmp(Type,"NAK     ")==0)
+	      logger(1, "UNIX_TCP: Got a NAK on OPEN attempt of the line %s\n",
+		     temp->HostName);
+	    else
+	      logger(1, "UNIX_TCP: Illegal control record '%s', line %s\n",
+		     Type, temp->HostName);
+	    /* Print error code */
+	    switch (ControlBlock->R) {
+	      case 0x01:
+		  logger(1,"     Link could not be found\n");
+		  break;
+	      case 0x02:
+		  logger(1,"     Link is in active state at other host\n");
+		  break;
+	      case 0x03:
+		  logger(1,"     Other side is attempting active open\n");
+		  break;
+	      default:
+		  logger(1,"     Illegal error code %d\n", ControlBlock->R);
+		  break;
+	    }
+	    temp->state = INACTIVE;
+	    restart_channel(Index); /* Will close line and put
+				       it into correct state */
+	    return;
+	  }
+	  temp->RetryIndex = 0;	/* That was successfull, use short period! */
+
+	  /* It's ok - set channel into DRAIN and send the first Enquire */
+	  temp->state = DRAIN;
+
+	  /* Send an enquiry there */
+#if 0 /* Which version ?  SYN_NAK[] is sent traditionally.. */
+	  send_data(Index, &Enquire, sizeof(struct ENQUIRE), SEND_AS_IS);
+#else
+	  {
+	    char SYN_NAK[2];
+	    SYN_NAK[0] = SYN;
+	    SYN_NAK[1] = NAK;
+	    send_data(Index, &SYN_NAK, 2, SEND_AS_IS);
+	  }
 #endif
 
-/* If we read 0 characters, it usually signals that other side closed connection
- */
-	if(size == 0) {
-		logger(1, "UNIX_TCP, Zero characters read. Disabling line=%d\n",
-			Index);
-		temp->state = INACTIVE;
-		restart_channel(Index);	/* Will close line and put it into correct state */
-		return;
+	  queue_receive(Index);
+	  temp->TcpState = 0;
+	  temp->RecvSize = 0;
+	  return;
 	}
 
-/* If we are in the TCP_SYNC stage, then this is the reply from other side */
-	if(temp->state == TCP_SYNC) {
-		if(size < 10) {	/* Too short block */
-			logger(1, "UNIX_TCP, Too small OPen record received on line %d\n",
-				Index);
-			temp->state = INACTIVE;
-			restart_channel(Index);	/* Will close line and put it into correct state */
-			return;
-		}
-		ControlBlock = (struct VMctl*)temp->buffer;
-		EBCDIC_TO_ASCII((ControlBlock->type), Type, 8); Type[8] = '\0';
-		if(strncmp(Type, "ACK", 3) != 0) {	/* Something wrong */
-			logger(1, "UNIX_TCP, Illegal control record '%s', line=%d\n",
-				Type, Index);
-			/* Print error code */
-			switch(ControlBlock->R) {
-			case 0x1: logger((int)(2), "     Link could not be found\n");
-					break;
-			case 0x2: logger((int)(2), "     Link is in active state at other host\n");
-					break;
-			case 0x3: logger((int)(2), "     Other side is attempting active open\n");
-					break;
-			default:  logger((int)(2), "     Illegal error code %d\n",
-					ControlBlock->R);
-			}
-			temp->state = INACTIVE;
-			restart_channel(Index);	/* Will close line and put it into correct state */
-			return;
-		}
-		/* It's ok - set channel into DRAIN and send the first Enquire */
-		temp->state = DRAIN;
-		send_data(Index, &SynNak, sizeof(struct SYN_NAK),
-			SEND_AS_IS);	/* Send an enquiry there */
-		queue_receive(Index);
-		temp->TcpState = temp->RecvSize = 0;
-		return;
+	/* Loop over the received InBuffer, and append characters as needed */
+
+	/* Protocol sends:
+	     TTB(LN=TTB_SIZE+VMnet_length+TTR_SIZE) <VMnet_blocks> TTR(LN=0)
+	   where  <VMnet_blocks> is one or more of following pairs:
+	     TTR(LN=TTR_SIZE+VMnet_data_size) <VMnet_data>
+	   repeating as long as it can fit into the buffer.
+	 */
+
+	if (temp->TcpState == 0) {	/* New InBuffer */
+	  if (temp->RecvSize >= 4) {	/* We can get the size */
+	    int NewSize =		/* Accumulate it... */
+	      (((unsigned char)(temp->InBuffer[2])) << 8) +
+		(unsigned char)(temp->InBuffer[3]);
+	    if (NewSize <= temp->RecvSize)
+	      temp->TcpState = NewSize; /* Got enough! */
+	    else {
+	      queue_receive(Index); /* Requeue the read request */
+	      if (buff_full) {
+		logger(1,
+		       "UNIX_TCP: VMNET TTB read size failure;  TTBsize=%d\n",
+		       NewSize);
+		restart_channel(Index);
+	      }
+	      return;
+	    }
+	  } else {		/* We need at least 4 bytes */
+	    queue_receive(Index); /* Requeue the read request */
+	    if (buff_full)
+	      bug_check("UNIX_TCP: VMNET TTB READ SIZE FAILURE (impossible variant)!\n");
+	    return;
+	  }
 	}
 
-/* Loop over the received buffer, and append characters as needed */
-	temp->RecvSize += size;
-	if(temp->TcpState == 0) {	/* New buffer */
-		if(temp->RecvSize >= 4) {	/* We can get the size */
-			temp->TcpState = 	/* Accumulate it... */
-				(temp->buffer[2] << 8) +
-				temp->buffer[3];
-		}
-		else {	/* We need at least 4 bytes */
-			queue_receive(Index);	/* Rqueue the read request */
-			return;
-		}
+	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) RecvSize=%d, first TTBsize=%d\n",
+	   temp->HostName,temp->RecvSize,temp->TcpState); */
+
+	while (temp->RecvSize >= 4) { /* Loop over the InBuffer */
+
+	  temp->TcpState =  ((((unsigned char)(temp->InBuffer[2])) << 8) +
+			     (unsigned char)(temp->InBuffer[3]));
+
+	  /* logger(2,"UNIX_TCP: unix_tcp_receive(%s) (loop) RecvSize=%d, first TTBsize=%d\n",
+	     temp->HostName,temp->RecvSize,temp->TcpState); */
+
+	  if (temp->TcpState > temp->RecvSize) break; /* Out of data.. */
+
+	  p = temp->InBuffer;	/* p  points to the First TTR */
+	  i = temp->TcpState;	/* Size of TTB contents */
+	  p += TTB_SIZE;
+	  i -= TTB_SIZE;
+	  for (;i >= TTR_SIZE;) {
+
+	    int	 TTRlen;
+	    struct TTR ttr;
+
+	    memcpy(&ttr, p, TTR_SIZE); /* Copy to our struct */
+	    if (ttr.LN == 0) break; /* End of InBuffer */
+
+	    p += TTR_SIZE;
+	    TTRlen = ntohs(ttr.LN);
+	    /* Check if the size in TTR is less than
+	       the remained size. If not - bug */
+	    if (TTRlen > i) {
+	      logger(1, "UNIX_TCP, Line %s, Size in TTR(%d) longer than input left(%d) at offset %d\n",
+		     temp->HostName, TTRlen, i, (p - temp->InBuffer));
+	      restart_channel(Index);
+	      return;
+	    }
+
+	    /* Check whether FAST-OPEN flag is on.
+	       If so - set our flag also */
+
+	    if ((ttr.F & 0x80) != 0) /* Yes */
+	      temp->flags |= F_FAST_OPEN;
+	    else		/* No - clear the flag */
+	      temp->flags &= ~F_FAST_OPEN;
+
+	    temp->flags |= F_WAIT_V_A_BIT;
+	    input_arrived(Index, 1 /* Success status */, p, TTRlen);
+	    if (temp->state != ACTIVE) {
+	      /* We restarted! */
+	      i = 0;
+	      break;
+	    }
+	    p += TTRlen;
+	    i -= (TTRlen + TTR_SIZE);
+	  }
+
+	  /* Place pointer to the NEXT thing in buffer.. */
+	  p = temp->InBuffer + temp->TcpState;
+	  i = temp->RecvSize - temp->TcpState; /* that much left.. */
+	  if (i < 0) i = 0; /* A link restart may happen.. */
+	  temp->RecvSize = i;
+
+	  buff_full = 0;
+
+	  if (i > 0) {		/* rest of InBuffer is next frame */
+	    q = temp->InBuffer;
+	    memcpy(q, p, i);	/* Re-align the InBuffer */
+	    if (i >= 4) {	/* Enough for getting the length */
+	      /* Size of next frame */
+	      temp->TcpState = 
+		(((unsigned char)(temp->InBuffer[2])) << 8) +
+		  (unsigned char)(temp->InBuffer[3]);
+	      continue;
+	    } else
+	      temp->TcpState = 0; /* Next read will get enough
+				     data to complete count */
+	  } else {
+	    temp->TcpState = 0; /* New frame */
+	  }
 	}
-Loop:	if(temp->RecvSize >= temp->TcpState) {	/* Frame completed */
-/* Loop over it */
-#ifdef DEBUG
-		logger(3, "UNIX_TCP, Going over received TCP buffer of size %d\n",
-			temp->RecvSize);
-#endif
-		p = &temp->buffer[TTB_SIZE];	/* First TTR */
-		i = temp->RecvSize - TTB_SIZE;	/* Size of TTB */
-		for(;i > TTR_SIZE;) {
-			memcpy(&ttr, p, sizeof(struct TTR));	/* Copy to our struct */
-			if(ttr.LN == 0) break;	/* End of buffer */
-			p += TTR_SIZE;
-			TempVar = ntohs(ttr.LN);
-/* Check whether the size in TTR is less than the remained size. If not - bug */
-			if(TempVar >= i) {
-				logger(1, "VMS_TCP, Line=%d, Size in TTR\
-(%d) longer than input left(%d)\n",
-					Index, TempVar, i);
-				i = 0;	/* To ignore this deffective buffer */
-				break;
-			}
-/* Check whether FAST-OPEN flag is on. If so - set our flag also */
-			if((ttr.F & 0x80) != 0)	/* Yes */
-				temp->flags |= F_FAST_OPEN;
-			else		/* No - clear the flag */
-				temp->flags &= ~F_FAST_OPEN;
-			temp->flags |= F_WAIT_V_A_BIT;
-			input_arrived(Index, (long)(1),	/* Success status */
-				p, TempVar);
-			p += TempVar;
-			i -= (TempVar + TTR_SIZE);
-		}
-		if(i > TTR_SIZE) {	/* rest of buffer is next frame */
-			i -= TTR_SIZE;	/* # of chrs from next frame */
-			p += TTR_SIZE;
-			q = temp->buffer;
-			memcpy(q, p, i);	/* Re-allign buffer */
-			temp->RecvSize = i;
-			if(i >= 4) {	/* Enough for getting the length */
-				temp->TcpState = 	/* Size of next frame */
-					(temp->buffer[2] << 8) +
-					temp->buffer[3];
-				goto Loop;
-			}
-			else
-				temp->TcpState = 0;	/* Next read will get enough data to complete count */
-		}
-		else {
-			temp->TcpState = 0;	/* New frame */
-			temp->RecvSize = 0;
-		}
-	}
+
+	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) left over RecvSize=%d\n",
+	   temp->HostName,temp->RecvSize); */
+
 	temp->flags &= ~F_WAIT_V_A_BIT;
-	if(temp->state == ACTIVE)
-		handle_ack(Index, IMPLICIT_ACK);
-	queue_receive(Index);	/* Rqueue the read request */
+	if (temp->state == ACTIVE)
+	  handle_ack(Index, IMPLICIT_ACK);
+
+	queue_receive(Index);	/* Requeue the read request */
 }
 
 
 /*
  | Write a block to TCP.
  */
+void
 send_unix_tcp(Index, line, size)
-int	Index, size;
-unsigned char	*line;
+const int	Index, size;
+const void	*line;
 {
-	struct	LINE	*temp;
+	struct	LINE	*temp = &IoLines[Index];
+	int rc;
+	int wsize = size;
+	int loops = 5;
+	int sleepy;
+	struct timeval expiry, now0, now, timeout;
+	struct timezone zones;
+	const char *buf = (char *) line;
+#ifdef AIX
+	struct {
+		fd_set  fdsmask;
+		fd_set  msgsmask;
+	} writefds;
+#else	/* !AIX */
+#ifdef	FD_SET
+	fd_set	writefds;
+#else /* No AIX, nor FD_SET */
+	long	writefds;	/* On most other machines */
+#endif /* no AIX, nor FD_SET */
+#endif /* no AIX, nor FD_SET */
 
-	temp = &IoLines[Index];
-#ifdef DEBUG
-	logger(3, "UNIX_TCP, Line %d, Sending a TCP buffer of size %d\n",
-		Index, size);
-	trace(line, size, 5);
+#ifdef	AIX
+ 	FD_ZERO(&writeds.fdsmask);
+#else	/* !AIX */
+#ifdef	FD_SET
+	FD_ZERO(&writefds);
+#else
+	writefds = 0;
 #endif
-	if(write(temp->socket, line, size) == -1) {
-		logger(1, "UNIX_TCP, Writing to TCP: line=%d, error: %s\n",
-			Index, PRINT_ERRNO);
-		restart_channel(Index);
+#endif
+
+	gettimeofday(&now0,&zones);
+	expiry = now0;
+	expiry.tv_sec += 15;	/* 15 sec expiry.. */
+
+#if	!defined(NBSTREAM)
+	socknonblocking(temp->socket,1);
+#endif
+
+	do {
+
+	  int nfds = 0;
+
+	  gettimeofday(&now,&zones);
+	  sleepy = timevalsub(&timeout,&expiry,&now);
+
+	  if (sleepy < 0) continue; /* Timed out.. */
+
+
+#ifdef	USE_POLL
+	  {
+#include <stropts.h>
+#include <poll.h>
+
+	    struct pollfd pfd;
+	    int sleepmses = timeout.tv_sec * 1000 + timeout.tv_usec/1000;
+	    pfd.fd     = temp->socket;
+	    pfd.events = POLLOUT;
+	    pfd.revents = 0;
+
+	    nfds = poll(&pfd, 1, sleepmses);
+	    if (nfds == -1) {
+	      if (errno == EINTR) continue; /* burb.. */
+	      logger(1,"UNIX_TCP: Delayed write poll error: %s\n",
+		     PRINT_ERRNO);
+	      restart_channel(Index);
+	      return;
+	    }
+	    if (nfds == 0) {
+	      /* TIMEOUT! */
+	      break;
+	    }
+	    if (pfd.revents & (POLLNVAL | POLLHUP | POLLERR)) {
+	      logger(1,"UNIX_TCP: Delayed write poll event error: %s%s%s\n",
+		     (pfd.revents & POLLNVAL) ? "NVAL " : "",
+		     (pfd.revents & POLLHUP)  ? "HUP "  : "",
+		     (pfd.revents & POLLERR)  ? "ERR"   : "");
+	      restart_channel(Index);
+	      return;
+	    }
+	  }
+#else	/* ! USE_POLL */
+
+	  {
+	    /* Do a select() to see if there is something where we can
+	       write..  If not, it may take a moment to leave the thing
+	       with a timeout.. */
+
+	    int FdWidth = temp->socket+1;
+#ifdef	AIX
+	    FD_SET(temp->socket, &writeds.fdsmask);
+#else
+#ifdef	FD_SET
+	    FD_SET(temp->socket, &writefds);
+#else
+	    writefds |= 1 << temp->socket;
+#endif
+#endif
+
+	    if ((nfds = select(FdWidth,NULL,&writefds,NULL,&timeout)) == -1) {
+	      --loops;
+	      if (errno == EINTR) continue;
+	      logger(1,"UNIX_TCP: Delayed write select error: %s\n",
+		     PRINT_ERRNO);
+	      restart_channel(Index);
+	      return;
+	    }
+	    if (nfds == 0) {
+	      /* TIMEOUT! */
+	      break;
+	    }
+	  }
+#endif	/* !USE_POLL */
+
+#if 0 /* Don't read() -- doesn't seem to work.. */
+	  /* While something to write, at first read off what
+	     there possibly was to read.. */
+
+	  {
+	    int ssize, rsize;
+	    rsize = 0;
+	    if ((ssize = (sizeof(temp->InBuffer) - temp->RecvSize)) > 0) {
+	      rsize = read(temp->socket,
+			   &temp->InBuffer[temp->RecvSize], ssize);
+	      if (rsize > 0)
+		/* Ok, we HAVE something in the buffer! */
+		temp->RecvSize += rsize;
+	    }
+	  }
+#endif
+	  rc = write(temp->socket,buf,wsize);
+	  if (rc < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+	    /* How come ?????? */
+	    continue;
+	  }
+	  if (rc < 0 && errno == EINTR && --loops > 0) continue;
+	  if (rc < 0) {
+	    logger(1,"UNIX_TCP: Writing to the TCP: Line %s, error: %s\n",
+		   temp->HostName, PRINT_ERRNO);
+	    restart_channel(Index);
+	    return;
+	  }
+	  if (loops <= 0) break;
+
+	  buf   += rc;
+	  wsize -= rc;
+	    
+	  /* While something to write */
+	} while (wsize > 0 && sleepy >= 0 && loops >= 0);
+
+	if (wsize > 0) {
+	  /* BUG! */
+	  logger(1,"UNIX_TCP: Writing to the TCP line %s/%d, sleep (%ds) expired!\n",
+		 temp->HostName,Index,time(NULL)-now0.tv_sec);
+	  restart_channel(Index);
+	  return;
 	}
+
+#if	!defined(NBSTREAM)
+	/* Turn off the non-block mode */
+	socknonblocking(temp->socket,0);
+#endif
+
+	time(&temp->XmitAge);
+
+	/* and purge the write buffer pointer */
 	temp->XmitSize = 0;
 
 	temp->flags &= ~F_WAIT_V_A_BIT;
-	if(temp->state == ACTIVE) {
-			temp->flags |= F_CALL_ACK;	/* Main loop will call Handle-Ack */
-	}
+	if (temp->state == ACTIVE)
+	  temp->flags |= F_CALL_ACK;	/* Main loop will call Handle-Ack */
 }
 
+#ifdef	NBSTREAM
+void
+tcp_partial_write(Index)
+const int Index;
+{
+	struct	LINE	*temp = &IoLines[Index];
+	int rc;
+
+	logger(2,"UNIX_TCP: pending writer on line %s, size left=%d\n",
+	       temp->HostName, temp->XmitSize);
+
+	rc = write(temp->socket,temp->WritePending,temp->XmitSize);
+	if (rc == -1) {
+	  logger(1, "UNIX_TCP, tcp_partial_write(): line %s, error: %s\n",
+		 temp->HostName, PRINT_ERRNO);
+	  restart_channel(Index);
+	}
+	if (rc < temp->XmitSize) {	/* A Partial write ! */
+	  temp->WritePending = (void*)((char*)(temp->WritePending) + rc);
+	  temp->XmitSize -= rc;
+	  temp->flags |= F_WAIT_V_A_BIT;
+	  return;
+	}
+
+	temp->XmitSize = 0;
+	temp->WritePending = NULL;
+	temp->flags &= ~F_WAIT_V_A_BIT;
+	if (temp->state == ACTIVE)
+	  temp->flags |= F_CALL_ACK;	/* Main loop will call Handle-Ack */
+}
+#endif
 
 
 /*
- | Deaccess the channel and close it. If it is a primary channel, queue a restar
-t
- | for it after 5 minutes to establish the link again. Don't do it immediately
- | since there is probably a fault at the remote machine.
- | If this line is a secondary, nothing has to be done. We have an accept active
- | always. When the connection will be accepted, the correct line will be
- | located by the accept routine.
+ | Deaccess the channel and close it. If it is a primary channel,
+ | queue a restart for it after 5 minutes to establish the link again.
+ | Don't do it immediately since there is probably a fault at the remote
+ | machine.   If this line is a secondary, nothing has to be done.
+ | We have an accept active always. When the connection will be accepted,
+ | the correct line will be located by the accept routine.
  */
+void
 close_unix_tcp_channel(Index)
 int	Index;
 {
 	close(IoLines[Index].socket);
-	IoLines[Index].socket = 0;
+	IoLines[Index].socket = -1;
+	IoLines[Index].socketpending = -1;
 
-/* Re-start the channel. */
+	/* Re-start the channel. */
 	IoLines[Index].state = RETRYING;
 }
 
@@ -553,22 +1010,129 @@ int	Index;
 /*
  | Get the other host's IP address using name-server routines.
  */
-long
+static long	/* RETURNED IN NETWORK ORDER! */
 get_host_ip_address(Index, HostName)
-char	*HostName;	/* Name or 4 dotted numbers */
+const int Index;
+const char *HostName;	/* Name or 4 dotted numbers */
 {
 	long	address;
 	struct hostent *hent;
 	extern struct	hostent *gethostbyname();
 
-	if(( address = inet_addr(HostName)) != -1L)
-		return address;
+	if ((address = inet_addr(HostName)) != -1L)
+	  return address;
 
-	while( NULL == (hent = gethostbyname(HostName))) {
-		logger(1, "UNIX-TCP: Line %d: Can't resolve '%s', error: %s\n",
-		       Index, HostName, PRINT_ERRNO);
-		return -1;
+	errno = 0;
+	while (NULL == (hent = gethostbyname(HostName))) {
+	  logger(1, "UNIX_TCP: Line %s: Can't resolve '%s', error: %s\n",
+		 IoLines[Index].HostName, HostName, PRINT_ERRNO);
+	  return -1;
 	}
-	memcpy(&address, hent->h_addr, 4);
+	memcpy( &address,hent->h_addr,4 );
 	return address;
+}
+
+
+
+/*
+ * writen() -- At least POSIX-systems do tend to return -1, with
+ *	       errno = EINTR for various reasons.  If so, retry..
+ */
+int
+writen(fd,buf,len)
+const int fd, len;
+const void *buf;
+{
+	const unsigned char *cbuf = (unsigned char *)buf;
+	int rc = 0;
+	int pos = 0;
+	int sleepcnt = 15;		/* Give us 15 seconds ? */
+	int loops = 5;
+
+
+#if	!defined(NBSTREAM)
+	socknonblocking(fd,1);
+#endif
+
+	while (pos < len && sleepcnt >= 0) {
+	  rc = write(fd, cbuf+pos, len-pos);
+	  if (rc < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+	    sleep(1);
+	    --sleepcnt;
+	    continue;
+	  }
+	  if (rc < 0 && errno == EINTR && (--loops > 0)) continue;
+	  if (rc < 0)
+	    return pos ? pos : rc;  /* If written something already.. */
+
+	  if (rc < (len-pos))
+	    logger(2,"UNIX: writen(fd,buf,len=%d) at pos %d wrote %d, errno=%d\n",
+		   len,pos,rc,errno);
+
+	  pos += rc;	/* Advance the pointer.. */
+	  rc = 0;
+	}
+
+#if	!defined(NBSTREAM)
+	/* Turn off the non-block mode */
+	socknonblocking(fd,0);
+#endif
+
+	if (sleepcnt < 0) return -1;
+
+	return rc+pos;
+}
+
+
+/*
+ * readn() -- At least POSIX-systems do tend to return -1, with
+ *	      errno = EINTR for various reasons.  If so, retry..
+ */
+int
+readn(fd,buf,len)
+const int fd, len;
+void *buf;
+{
+	unsigned char *cbuf = (unsigned char *)buf;
+	int rc = 0;
+	int pos = 0;
+	int loops = 5;
+	int sleepcnt = 15;
+
+#ifndef	NBSTREAM
+	socknonblocking(fd,1);
+#endif
+
+	while (pos < len && sleepcnt >= 0) {
+	  rc = read(fd, cbuf+pos, len-pos);
+
+	  if (rc == 0) return pos; /* It may return 0 size == EOF */
+
+	  if (rc < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+	    --sleepcnt;
+	    sleep(1);
+	    continue;
+	  }
+	  if (rc < 0 && errno != EINTR) {
+	    return pos ? pos : rc; /* If written something already.. */
+	  }
+
+	  if (rc < 0 && (--loops > 0)) rc = 0; /* Just EINTR.. */
+
+	  if (rc < (len-pos))
+	    logger(2,"UNIX: readn(fd,buf,len=%d) at pos %d read %d, errno=%d\n",
+		   len,pos,rc,errno);
+
+	  pos += rc;	/* Advance the pointer.. */
+	  rc = 0;
+	}
+
+#if	!defined(NBSTREAM)
+	/* Turn off the non-block mode */
+	socknonblocking(fd,0);
+#endif
+
+	if (sleepcnt < 0) return -1;
+
+	return rc+pos;
 }

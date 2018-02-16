@@ -1,0 +1,78 @@
+	BUGS / Checkme / Missing features / TO-DO / Open Issues / ...
+
+- Native Solaris 2.3 has no "select()" -- or rather the  select(2) is
+  replaced with a select(3n) wrapper which calls  poll(2), later one is
+  somewhat more versatile, but ah so cumbersome...
+  Well, the code works with  "-lsocket -lnsl", but need to create a fully
+  native system -- sleeker..
+
+- TeXinfo manual is in the begin -- docs are not complete
+  Once it is done, release 3.0 is done.
+
+- Message exits need to be implemented
+   25-Jan-93: "first cut"..
+
+- An "IUCVTRAP" mechanism is needed
+
+- A cluster mode ?  (Esp. messages)
+	Thinking as binding multiple machines into single NJE-node
+	by allowing transparent NMR relaying.  File-spool is simple
+	to share.
+
+- Better queue management -- when primary link to system X
+  goes down, all files destined to it should be redirected
+  to a POSSIBLE secondary link, and when the primary link
+  comes back up again, files should be returned to it..
+  (Gerald's idea:  link activation should do 'debug_rescan_queue()'..)
+  Keep in mind the system non-performance when there are N-links, and
+  M-files in queues..
+
+- Route-finding is problematic, in some cases alternates are desirable,
+  but loops in the database must be avoided -- or detected.
+  A generic spanning-tree problem ?
+
+- Delayed open got distracted when the other end opens before local
+  end finished with the connection..
+	22-Nov-93: Detected, and fixed (?)  Will have to look at it still.
+
+- Some links fall at a timeout, or HANG on a write() to a TCP/IP link.
+  writen() is supposed to trap them with its 20-30 second alarm period
+  (Assumtion: link can write its usual 8k in less than that time!
+   In fact, if link write needs any real time at all, the opposite end is
+   not receiving..)
+    06-Jan-94: Uses FIONBIO streams (should it be O_NONBLOCK ?) to
+	       read & write.
+    10-Jan-94: Does a  select-for-write()  on  send_unix_tcp(), but not on
+	       writen()..  Ok, somewhat less ugly, than the current
+	       writen(), but still jams.. (see next point)
+
+- Need to implement the NBSTREAM code fully so that a jam on one link
+  will not cause jam on all links..
+
+- SYSIN exit program (even a sample one) needs to be written
+
+
+- sendfile's usage() needs to be rewritten !  (about done, now man-pages..)
+
+
+- bitsend/bitrcv to be brought up to date
+
+
+- A tool to edit/create user ASCII <-> EBCDIC tables
+
+- We need a transit-file trapping mechanism, not only for 1986 XMAS EXEC
+  like things, but also for transit node processing in places which
+  have for example one public NJE node, and bunch of private ones..
+
+
+- receive -program is of `first cut' -- compiled ok, but not tested.
+  16-Nov-93: Seems to work, still finesses..
+   3-Dec-93: We are fairly confident with it already :-)
+   8-Dec-93: file-processings revamped seriously (mailify.c needed
+	     more support)
+
+- mailify -program is of `first cut' -- compiled ok, but not tested.
+   8-Dec-93: First code-thru, but not tested yet, may have broken receive..
+
+- mailify.sh  is too heavy on small Linux boxes.  To be written in C..
+  (using receive.c)
