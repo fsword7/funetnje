@@ -58,7 +58,7 @@ const char	 cmd;
 	  lines = 0;
 	  while (read(fd,(void*)&Utmp,sizeof Utmp) == sizeof Utmp) {
 	    char uname[9];
-#ifdef __linux__
+#ifdef DEAD_PROCESS /* POSIX or what ?? */
 	    if (Utmp.ut_type == DEAD_PROCESS) continue;
 #endif
 	    if (*Utmp.ut_name == 0) continue; /* Try next */

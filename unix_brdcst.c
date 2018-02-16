@@ -65,7 +65,7 @@ char *msg;
 	  m /= sizeof(struct utmp);
 	  for (i = 0; i < m; i++)   {
 	    struct utmp *utp = &((struct utmp*)buf)[i];
-#ifdef __linux__
+#ifdef DEAD_PROCESS /* POSIX or what ?? */
 	    if (utp->ut_type == DEAD_PROCESS)
 	      continue;
 #endif

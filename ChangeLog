@@ -1,3 +1,13 @@
+Wed Jun 21 22:42:39 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* unix_brcst.c, nmr_unix.c:
+	    Ok, more than __linux__ is needed to know which
+	    machines have <utmp.h> containing extended flags.
+	    Now we test  "DEAD_PROCESS" pre-processor define,
+	    which existence (propably) will correlate with
+	    the existence of utmp's field  ut_type.
+	    (SysVr4 feature, I think.)
+
 Mon Jun 19 15:17:55 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* send.c, sendfile.c, bmail.c:
