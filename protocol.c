@@ -433,6 +433,11 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	      break;
 	}
 
+
+	Switches = Line->MaxStreams;
+
+    SwitchStream:
+
 	/* Check whether we are in the Wait-a-bit mode.
 	   If so - only send Acks. Send Ack immediately
 	   if something was received from the other side.
@@ -440,8 +445,7 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	   WAIT_A_BIT is from the NJE block header.
 	   WAIT_V_A_BIT is from VMnet.			*/
 
-	if ((Line->flags & F_WAIT_A_BIT) ||
-	    (Line->flags & F_WAIT_V_A_BIT)) {
+	if (Line->flags & (F_WAIT_A_BIT | F_WAIT_V_A_BIT)) {
 	  if (flag != EXPLICIT_ACK) {
 	    logger(4, "PROTOCOL: Sending ACK, line=%d\n",Index);
 	    SEND_ACK();
@@ -490,10 +494,6 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 
 	/* Check whether there is another active stream.
 	   If so, switch to it. */
-
-	Switches = Line->MaxStreams;
-
-    SwitchStream:
 
 	if (Line->state != ACTIVE)
 	  return;	/* If the LINK is not active, quit now.. */
@@ -676,14 +676,21 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 		return; /* Brp.. It is full.. */
 	      }
 #endif
+	      /* Should we delay a bit ? */
+	      if (Line->flags & (F_WAIT_V_A_BIT | F_WAIT_A_BIT))
+		return;
+
 	      Line->flags |= F_XMIT_CAN_WAIT;
 	      send_file_buffer(Index);	/* pick next record */
 	      /* If it is VMNET protocol, and more room in transmit
 		 buffers, don't return; fall to next transmit block */
 	      Line->flags &= ~F_XMIT_CAN_WAIT;
-	      if ((Line->flags & F_XMIT_MORE) == 0 ||
-		  Line->state != ACTIVE)
+	      if (Line->state != ACTIVE)
 		return;
+	      if ((Line->flags & F_XMIT_MORE) == 0) {
+		Line->flags |= F_CALL_ACK;
+		return;
+	      }
 
 #if 1
 	      /* If a SLOW-INTERLEAVE is asked for the link, do the
@@ -702,6 +709,7 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 #endif
 
 	      /* else - fall to send-njt... */
+
 	  case S_EOF_FOUND:	/* Send the NJT block */
 	      /* If we send EBCDIC files and TCP line, we fall here
 		 by mistake. In this case, do not send NJT, since it
@@ -991,7 +999,7 @@ void	*Buffer;
 	   handle it properly.						*/
 
 	if ((buffer[FCS1_OFFSET] & 0x40) != 0) {
-	  logger(3, "PROTOCOL, Wait a bit received on line %s\n",
+	  logger(2, "PROTOCOL, WAIT_A_BIT received on line %s\n",
 		 Line->HostName);
 	  Line->stats.WaitIn += 1;
 	  Line->flags |= F_WAIT_A_BIT;
@@ -1384,8 +1392,8 @@ const unsigned char	*StreamNumberP;
 	  if (DecimalStreamNumber >= MAX_STREAMS )
 	    logger(2, "PROTOCOL, Stream is out of range for this line\n");
 	  else
-	    logger(2, "PROTOCOL, Stream state is %d\n",
-		   Line->InStreamState[DecimalStreamNumber]);
+	    logger(2, "PROTOCOL, Stream state is %s\n",
+		   StreamStateStr(Line->InStreamState[DecimalStreamNumber]));
 	  RejectFile.SRCB = *StreamNumberP; /* Stream # */
 	  Line->flags &= ~F_XMIT_CAN_WAIT;
 	  send_data(Index, &RejectFile,

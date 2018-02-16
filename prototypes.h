@@ -321,6 +321,7 @@ extern void	compute_stats __(( void ));
 extern void	vmnet_monitor __(( void ));
 extern void	parse_operator_command __(( unsigned char *line, const int length ));
 extern void	debug_rescan_queue __(( const char *UserName, const char opt ));
+extern char	*StreamStateStr __(( const StreamStates state ));
 
 /* nmr.c -shrunk*/
 #ifdef	RSCS_VERSION /* These go together.. */

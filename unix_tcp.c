@@ -485,9 +485,10 @@ read_passive_tcp_connection()
 	    if (Line->state != LISTEN &&
 		Line->state != RETRYING) {
 	      /* Break its previous connection */
-	      if (Line->state == ACTIVE)
+	      if (Line->state == ACTIVE) {
 		ReasonCode = 2; /* Link is active.. */
-	      else if (Line->state == TCP_SYNC) {
+		goto RetryConnection;
+	      } else if (Line->state == TCP_SYNC) {
 		close(Line->socket);
 		Line->socket = -1;
 		Line->socketpending = -1;
@@ -500,6 +501,11 @@ read_passive_tcp_connection()
 	    }
 	    logger(2,"UNIX_TCP: Acking passive open on line %s/%d\n",
 		   Line->HostName,Index);
+	    if (Line->socket >= 0) {
+	      logger(1,"UNIX_TCP: Passive open came in on line with existing stream! Closing the old one! (%s/%d)\n",
+		     Line->HostName,Index);
+	      close(Line->socket);
+	    }
 	    
 
 	    /* Copy the parameters from the Accept block,
@@ -781,7 +787,8 @@ struct	LINE *line;
 	    else		/* No - clear the flag */
 	      Line->flags &= ~F_FAST_OPEN;
 
-	    Line->flags |= F_WAIT_V_A_BIT;
+	    /* No wait-a-bit just because of input arrived ?? */
+	    /* Line->flags |= F_WAIT_V_A_BIT; */
 	    input_arrived(Index, 1 /* Success status */, p, TTRlen);
 	    if (Line->state != ACTIVE) {
 	      /* We restarted! */
@@ -828,7 +835,8 @@ struct	LINE *line;
 	/* logger(2,"UNIX_TCP: unix_tcp_receive(%s) left over RecvSize=%d\n",
 	   Line->HostName,Line->RecvSize); */
 
-	Line->flags &= ~F_WAIT_V_A_BIT;
+	/* Reserve wait-a-bit for output queue holding */
+	/* Line->flags &= ~F_WAIT_V_A_BIT; */
 	if (Line->state == ACTIVE)
 	  handle_ack(Index, IMPLICIT_ACK);
 
@@ -863,7 +871,7 @@ const int flg;
 	  logger(3,"UNIX_TCP: Blocking pending writer on line %s, flg %d, size left=%d\n",
 		 Line->HostName, flg, Line->XmitSize);
 
-	  /* Line->flags |= F_WAIT_V_A_BIT; */
+	  Line->flags |= F_WAIT_V_A_BIT;
 	  return;
 	}
 	if (rc < Line->XmitSize) {	/* A Partial write ! */
@@ -875,15 +883,17 @@ const int flg;
 	  logger(3,"UNIX_TCP: pending writer on line %s, flg %d, size left=%d\n",
 		 Line->HostName, flg, Line->XmitSize);
 
+	  GETTIME(&Line->XmitAge);
 	  return;
 	}
 
 	Line->WrBytes += rc;
 	Line->XmitSize = 0;
 	Line->WritePending = NULL;
-	Line->flags &= ~F_WAIT_V_A_BIT;
+	Line->flags &= ~F_WAIT_V_A_BIT;	/* All out, clear this	*/
 	if (Line->state == ACTIVE)
 	  Line->flags |= F_CALL_ACK;	/* Main loop will call Handle-Ack */
+	GETTIME(&Line->XmitAge);
 }
 #endif
 
@@ -904,10 +914,10 @@ const int Index;
 	    ) {
 		int size;
 		char *p, *q;
-		Line->flags &= ~F_XMIT_CAN_WAIT;
-		Line->flags &= ~F_XMIT_MORE;
-		size = Line->XmitSize =
-			(Line->XmitQueueSize)[Line->FirstXmitEntry];
+
+		Line->flags |= F_WAIT_V_A_BIT;
+		size = (Line->XmitQueueSize)[Line->FirstXmitEntry];
+		Line->XmitSize = size;
 		p = Line->XmitBuffer;
 		q = (Line->XmitQueue)[Line->FirstXmitEntry];
 		memcpy(p, q, size);

@@ -56,17 +56,17 @@ const int	Index;
 			InputBuffer[MAX_BUF_SIZE];
 	struct	FILE_PARAMS	*FileParams;
 	int	Stream, SYSIN;
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
-	temp = &IoLines[Index];
-	Stream = temp->CurrentStream;
+	Line = &IoLines[Index];
+	Stream = Line->CurrentStream;
 
-	FileParams = &((temp->OutFileParams)[Stream]);
+	FileParams = &((Line->OutFileParams)[Stream]);
 	SYSIN = FileParams->type & F_JOB;
 
-	/* retreive the buffer size from the lines database */
+	/* retrieve the buffer size from the lines database */
 
-	MaxSize = temp->MaxXmitSize;
+	MaxSize = Line->MaxXmitSize;
 	/* Leading BCB, FCS, DLE+..., trailing PAD, 2*crc, DLE+ETB, last SCB,
 	   last RCB */
 	MaxSize -= 14;
@@ -139,7 +139,7 @@ const int	Index;
 
 	/* If not stored nicely, rewind to the begining of the record */
 	if (i > 0)
-	  fseek(temp->InFds[Stream], -i-2, 1);
+	  fseek(Line->InFds[Stream], -i-2, 1);
 
 	/* See if it was an error! */
 	if (i == -2) {
@@ -153,12 +153,12 @@ const int	Index;
 	if (i == -1) {
 	  if (FileParams->format != EBCDIC)
 	    /* We will have to generate, and send the NJT */
-	    temp->OutStreamState[Stream] = S_EOF_FOUND;
+	    Line->OutStreamState[Stream] = S_EOF_FOUND;
 	  else
 	    /* NJT was sent already as part of file */
-	    temp->OutStreamState[Stream] = S_NJT_SENT;
-	  temp->OutFileParams[Stream].FileSize = ftell(temp->InFds[Stream]);
-logger(2,"SEND_FILE: EOF on line %s stream %d\n",temp->HostName,Stream);
+	    Line->OutStreamState[Stream] = S_NJT_SENT;
+	  Line->OutFileParams[Stream].FileSize = ftell(Line->InFds[Stream]);
+logger(2,"SEND_FILE: EOF on line %s stream %d\n",Line->HostName,Stream);
 	}
 
 	logger(4,"SEND_FILE: Built an output buffer, CurrentSize=%d, MaxSize=%d, loop condition var=%d\n",CurrentSize,MaxSize,i);
@@ -206,7 +206,7 @@ int
 send_njh_dsh_record(Index, flag, SYSIN)
 const int	Index, flag, SYSIN;
 {
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 	struct	FILE_PARAMS	*FileParams;
 	int	i, TempVar;	/* For CREATE_NJH... macro */
 	int	NDHsize = 0, NDHRSCSsize = 0;
@@ -222,11 +222,11 @@ const int	Index, flag, SYSIN;
 	unsigned char	SmallTemp[32],	/* For composing small buffers */
 			*NetworkDatasetHeaderPointer;	/* For easy manipulations */
 
-	temp = &(IoLines[Index]);
-	FileParams = &(temp->OutFileParams[temp->CurrentStream]);
+	Line = &(IoLines[Index]);
+	FileParams = &(Line->OutFileParams[Line->CurrentStream]);
 
 	logger(3,"SEND_FILE: send_njh_dsh_record(%s:%d, flag=%d, SYS%s)\n",
-	       temp->HostName,temp->CurrentStream,flag,SYSIN?"IN":"OUT");
+	       Line->HostName,Line->CurrentStream,flag,SYSIN?"IN":"OUT");
 
 	/* SYSINs don't have DSH -- "Simulate" it! */
 	if (flag != SEND_NJH && SYSIN) return 0;
@@ -269,7 +269,7 @@ const int	Index, flag, SYSIN;
 	  /* Log the transaction */
 	  /* logger(3, "=> Sending file/mail %s.%s from %s to %s (line %s)\n",
 	     FileParams->FileName, FileParams->FileExt,
-	     FileParams->From, FileParams->To, temp->HostName);		*/
+	     FileParams->From, FileParams->To, Line->HostName);		*/
 	  /* Insert the time in IBM format */
 	  ibm_time(NetworkJobHeader.NJHGETS);
 	  memcpy(NetworkJobHeader.NJHGUSID, FromUser, 8);
@@ -396,9 +396,9 @@ const int	Index, flag, SYSIN;
 
 	if (flag == SEND_NJH) {
 	  if (SYSIN)
-	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x8);
+	    TempLine[TempVar++] = (((Line->CurrentStream + 9) << 4) | 0x8);
 	  else
-	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x9);
+	    TempLine[TempVar++] = (((Line->CurrentStream + 9) << 4) | 0x9);
 	  TempLine[TempVar++] = NJH_SRCB;
 	  TempVar += compress_scb(&NetworkJobHeader, &(TempLine[2]),
 				  (sizeof(struct JOB_HEADER)));
@@ -434,9 +434,9 @@ const int	Index, flag, SYSIN;
 	if (SizeSent <= NDHsize) {
 	  TempVar = 0;
 	  if (SYSIN)
-	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x8);
+	    TempLine[TempVar++] = (((Line->CurrentStream + 9) << 4) | 0x8);
 	  else
-	    TempLine[TempVar++] = (((temp->CurrentStream + 9) << 4) | 0x9);
+	    TempLine[TempVar++] = (((Line->CurrentStream + 9) << 4) | 0x9);
 	  TempLine[TempVar++] = DSH_SRCB;
 	  /* If the size if smaller than 252 then this is the last fragment */
 	  if ((i = (NDHsize - SizeSent)) <= 252) {
@@ -460,9 +460,9 @@ const int	Index, flag, SYSIN;
 				    &(TempLine[TempVar]), 252);
 	    TempLine[TempVar++] = 0; /* Closing SCB */
 	  }			
-	  temp->flags |= F_XMIT_CAN_WAIT; /* We support TCP lines here */
+	  Line->flags |= F_XMIT_CAN_WAIT; /* We support TCP lines here */
 	  send_data(Index, TempLine, TempVar, ADD_BCB_CRC); /* Send  as usual */
-	  temp->flags &= ~F_XMIT_CAN_WAIT;
+	  Line->flags &= ~F_XMIT_CAN_WAIT;
 	}
 	return (i > 252);
 }
@@ -477,22 +477,22 @@ const int	Index, SYSIN;
 {
 	unsigned char	OutputLine[LINESIZE];
 	int	TempVar, position;
-	struct	LINE	*temp;
+	struct	LINE	*Line;
 
-	temp = &IoLines[Index];
+	Line = &IoLines[Index];
 
 	logger(3,"SEND_FILE: send_njt(%s:%d, SYS%s)\n",
-	       temp->HostName,temp->CurrentStream, SYSIN?"IN":"OUT");
+	       Line->HostName,Line->CurrentStream, SYSIN?"IN":"OUT");
 
 	/* Since number of lines not written - send anyway */
 	position = 0;
 	if (SYSIN)
-	  OutputLine[position++] = (((temp->CurrentStream + 9) << 4) | 0x8);	/* RCB */
+	  OutputLine[position++] = (((Line->CurrentStream + 9) << 4) | 0x8);	/* RCB */
 	else
-	  OutputLine[position++] = (((temp->CurrentStream + 9) << 4) | 0x9);	/* RCB */
+	  OutputLine[position++] = (((Line->CurrentStream + 9) << 4) | 0x9);	/* RCB */
 	OutputLine[position++] = NJT_SRCB;	/* SRCB */
 
-	TempVar = temp->OutFileParams[temp->CurrentStream].RecordsCount;
+	TempVar = Line->OutFileParams[Line->CurrentStream].RecordsCount;
 
 	if (TempVar > 0)
 	  TempVar = htonl(TempVar);

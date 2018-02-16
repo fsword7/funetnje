@@ -1,5 +1,21 @@
 	BUGS / Checkme / Missing features / TO-DO / Open Issues / ...
 
+- Active open towards a JNET (OpenVMS) is problematic, it usually
+  will abort immediately, and soon try itself to open connection to
+  our end.   Log-browsing on the JNET seems to indicate that it
+  receives invalid BCB sequence number, but there are no problems
+  with  VM/SP, nor with FUNETNJE on Linux :-/  (950610)
+
+  Possible explanation: JNET is broken :-(
+
+- Timestamps on DEC OSF/1 AXP version do vary in mysterious ways.
+  A set of files which in reality is transmitted at 25-35 kB/s
+  gets reported as having been sent at the rate of 100-200 kB/s
+  (The line allows 95 kB/s as theoretical max..)
+
+  At the same time a similar set of files is sent from Linux 1.2.9
+  to the DEC OSF/1, and those appear with correct speed indications..
+
 - TeXinfo manual is in the begin -- docs are not complete
   Once it is done, release 3.0 is done.
 

@@ -298,6 +298,7 @@ timer_ast()
 	      switch (TimerQueue[i].action) {
 		case T_SEND_ACK:		/* Send ACK	*/
 #ifdef NBSTREAM
+		    Line = &(IoLines[TimerQueue[i].index]);
 		    if (Line->WritePending != NULL) {
 		      /* Requeue it: */
 		      Line->TimerIndex = queue_timer(Line->TimeOut,

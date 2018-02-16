@@ -40,6 +40,109 @@ EXTERNAL int	LogLevel;
 #define	VMNET_INITIAL_TIMEOUT	15	/* 15 seconds */
 
 /*============================ SHOW-LINES ==============================*/
+
+char *StreamStateStr(state)
+StreamStates state;
+{
+	switch (state) {
+	  case S_INACTIVE:
+	      return "S_INACTIVE";
+	  case S_REFUSED:
+	      return "S_REFUSED";
+	  case S_WAIT_A_BIT:
+	      return "S_WAIT_A_BIT";
+	  case S_WILL_SEND:
+	      return "S_WILL_SEND";
+	  case S_NJH_SENT:
+	      return "S_NJH_SENT";
+	  case S_NDH_SENT:
+	      return "S_NDH_SENT";
+	  case S_SENDING_FILE:
+	      return "S_SENDING_FILE";
+	  case S_RECEIVING_FILE:
+	      return "S_RECVING_FILE";
+	  case S_NJT_SENT:
+	      return "S_NJT_SENT";
+	  case S_EOF_SENT:
+	      return "S_EOF_SENT";
+	  case S_EOF_FOUND:
+	      return "S_EOF_FOUND";
+	  case S_REQUEST_SENT:
+	      return "S_REQUEST_SENT";
+	  default:
+	      return "**UnknownStreamState**";
+	}
+	/* NOTREACHED */
+}
+
+
+static char *linestate2string(state,sockpend)
+int state, sockpend;
+{
+	static char bugbuf[10];
+	switch (state) {
+	    case INACTIVE:
+	        return "INACTIVE  ";
+	    case SIGNOFF:
+		return "SIGNEDOFF ";
+	    case DRAIN:
+		return "DRAINED   ";
+	    case ACTIVE:
+		return "ACTIVE    ";
+	    case F_SIGNON_SENT:
+	    case I_SIGNON_SENT:
+		return "SGN-Sent  ";
+	    case LISTEN:
+		return "LISTEN    ";
+	    case RETRYING:
+		return "Retry     ";
+	    case TCP_SYNC:
+		if (sockpend >= 0)
+		  return "TCP-pend  ";
+		else
+		  return "TCP-sync  ";
+	    default:
+		sprintf(bugbuf,"**Unk:%d**",(int)state);
+		return bugbuf;
+	  }
+}
+
+static char *linetypedev2string(type,device)
+int type;
+char *device;
+{
+	static char line[60];
+	switch (type) {
+	    case DMF:
+		sprintf(line, "  DMF (%s)", device);
+		return line;
+	    case DMB:
+		sprintf(line, "  DMB (%s)", device);
+		return line;
+		break;
+	    case DSV:
+		sprintf(line, "  DSV (%s)", device); 
+		return line;
+		break;
+	    case UNIX_TCP:
+		return "  TCP      ";
+	    case EXOS_TCP:
+		return  "  TCP(Exos)";
+	    case MNET_TCP:
+		return "  TCP(Mnet)";
+	    case DEC__TCP:
+		return "  TCP(DEC) ";
+	    case DECNET:
+		sprintf(line, "  DECNET (%s)", device);
+		return line;
+	    case ASYNC:
+		sprintf(line, "  ASYNC (%s)", device);
+		return line;
+	    default:
+		return "   ***";
+	  }
+}
+
 /*
  | Send the lines status to the user.
  */
@@ -72,88 +175,50 @@ int infoprint;
 		  Line->HostName, Line->TotalErrors,
 		  Line->QueuedFiles);
 
-	  switch (Line->state) {
-	    case INACTIVE:
-	        strcat(line, "INACTIVE  ");
-		break;
-	    case SIGNOFF:
-		strcat(line, "SIGNEDOFF ");
-		break;
-	    case DRAIN:
-		strcat(line, "DRAINED   ");
-		break;
-	    case ACTIVE:
-		strcat(line, "ACTIVE    ");
-		break;
-	    case F_SIGNON_SENT:
-	    case I_SIGNON_SENT:
-		strcat(line, "SGN-Sent  ");
-		break;
-	    case LISTEN:
-		strcat(line, "LISTEN    ");
-		break;
-	    case RETRYING:
-		strcat(line, "Retry     ");
-		break;
-	    case TCP_SYNC:
-		if (Line->socketpending >= 0)
-		  strcat(line, "TCP-pend  ");
-		else
-		  strcat(line, "TCP-sync  ");
-		break;
-	    default:
-		strcat(line, "******    ");
-		break;
-	  }
-	  switch (Line->type) {
-	    case DMF:
-		sprintf(&line[strlen(line)], "  DMF (%s)",
-			Line->device);
-		break;
-	    case DMB:
-		sprintf(&line[strlen(line)], "  DMB (%s)",
-			Line->device);
-		break;
-	    case DSV:
-		sprintf(&line[strlen(line)], "  DSV (%s)",
-			Line->device); 
-		break;
-	    case UNIX_TCP:
-		strcat(line, "  TCP      ");
-		break;
-	    case EXOS_TCP:
-		strcat(line, "  TCP(Exos)");
-		break;
-	    case MNET_TCP:
-		strcat(line, "  TCP(Mnet)");
-		break;
-	    case DEC__TCP:
-		strcat(line, "  TCP(DEC) ");
-		break;
-	    case DECNET:
-		sprintf(&line[strlen(line)], "  DECNET (%s)",
-			Line->device);
-		break;
-	    case ASYNC:
-		sprintf(&line[strlen(line)], "  ASYNC (%s)",
-			       Line->device);
-		break;
-	    default:
-		strcat(line, "   ***");
-		break;
-	  }
+
+	  strcat(line,linestate2string(Line->state,Line->socketpending));
+	  strcat(line,linetypedev2string(Line->type,Line->device));
+
 	  send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
 
 	  if (infoprint) {
 	    char InAge[20], XmitAge[20];
+	    char *sep = "", *sepp="|";
 	    TIMETYPE nw;
 	    memcpy(&nw,&now,sizeof(nw));
 	    strcpy(InAge,MsecAgeStr(&Line->InAge,&nw));
 	    memcpy(&nw,&now,sizeof(nw));
-	    strcpy(XmitAge,MsecAgeStr(&Line->XmitAge,&nw));
+	    if (GETTIMESEC(Line->XmitAge) != 0)
+	      strcpy(XmitAge,MsecAgeStr(&Line->XmitAge,&nw));
+	    else
+	      strcpy(XmitAge,"Never");
 	    sprintf(line," Bufinfo: InAge=%ss, RecvSize=%d, XmitAge=%ss, XmitSize=%d",
 		    InAge, Line->RecvSize, XmitAge, Line->XmitSize);
 	    send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
+	    sep=""; strcpy(line," Flags: ");
+#define FLGP(flg,str) \
+	if (Line->flags & flg) { strcat(line,sep);strcat(line,str);sep=sepp; }
+	    FLGP(F_ACK_NULLS,		"ACK_NULLS");
+	    FLGP(F_AUTO_RESTART,	"AUTO_RESTART");
+	    FLGP(F_CALL_ACK,		"CALL_ACK");
+	    FLGP(F_DONT_ACK,		"DONT_ACK");
+	    FLGP(F_FAST_OPEN,		"FAST_OPEN");
+	    FLGP(F_HALF_DUPLEX,		"HALF_DUPLEX");
+	    FLGP(F_IN_SUSPEND,		"IN_SUSPEND");
+	    FLGP(F_RELIABLE,		"RELIABLE");
+	    FLGP(F_RESET_BCB,		"RESET_BCB");
+	    FLGP(F_SENDING,		"SENDING");
+	    FLGP(F_SHUT_PENDING,	"SHUT_PENDING");
+	    FLGP(F_SLOW_INTERLEAVE,	"SLOW_ILEAVE");
+	    FLGP(F_SUSPEND_ALLOWED,	"SUSPEND_ALLOWED");
+	    FLGP(F_WAIT_A_BIT,		"WAIT_A_BIT");
+	    FLGP(F_WAIT_V_A_BIT,	"WAIT_V_A_BIT");
+	    FLGP(F_XMIT_CAN_WAIT,	"XMIT_CAN_WAIT");
+	    FLGP(F_XMIT_MORE,		"XMIT_MORE");
+	    FLGP(F_XMIT_QUEUE,		"XMIT_QUEUE");
+#undef FLGP
+	    send_nmr(from, to, line, strlen(line), ASCII, CMD_MSG);
+
 	  }
 
 	  if (Line->state != ACTIVE) /* Not active - don't display */
@@ -179,8 +244,8 @@ int infoprint;
 		case S_NJT_SENT:
 		    strcat(line, "NJT-RECV");
 		    break;
-		case S_SENDING_FILE:
-		    strcat(line, "RECEIVNG");
+		case S_RECEIVING_FILE:
+		    strcat(line, "RECVING ");
 		    break;
 		case S_EOF_SENT:
 		    strcat(line, "EOF-RECV");
@@ -752,9 +817,11 @@ const void	*buffer;
 	  /* If the new last is the same as the first one,
 	     then we have no place... */
 	  if (NextEntry == Line->FirstXmitEntry) {
-	    logger(1, "IO: No place to queue Xmit on line %s  can%s wait\n",
-		   Line->HostName,
-		   (Line->flags & F_XMIT_CAN_WAIT) ? "":"'t");
+	    int canwait = (Line->flags & F_XMIT_CAN_WAIT);
+	    logger(1, "IO: No place to queue Xmit on line %s:%d can%s wait ABORTING\n",
+		   Line->HostName,Line->CurrentStream, canwait ? "":"'t" );
+	    Line->flags |= F_CALL_ACK;
+bug_check("IO: Overflowed XMIT_QUEUE");
 	    return;
 	  }
 
@@ -803,6 +870,7 @@ const void	*buffer;
 /* logger(2,"IO: XMIT-Queued %d bytes to line %s\n",NewSize,Line->HostName); */
 
 	  queue_timer_reset(T_XMIT_INTERVAL, Index, T_XMIT_DEQUEUE);
+	  Line->flags |= F_CALL_ACK;
 	  return;
 	}
 #endif
@@ -856,20 +924,18 @@ const void	*buffer;
 	   allows us to defer sending - return. */
 
 	if ((Line->flags & F_RELIABLE) != 0) {
-	  if ((Line->flags & F_XMIT_CAN_WAIT) != 0)
-	    if ((Line->XmitSize + TTB_SIZE +
-		 2 * TTR_SIZE + 5 + 2 +
-		 /* +5 for BCB + FCS overhead, +2 for DECnet;s CRC */
-		 Line->MaxXmitSize) < Line->TcpXmitSize) { /* There is room */
-	      Line->flags |= F_XMIT_MORE;
+	  if ((Line->flags & F_XMIT_CAN_WAIT) != 0 &&
+	      (Line->XmitSize + TTB_SIZE +
+	       2 * TTR_SIZE + 5 + 2 +
+	       /* +5 for BCB + FCS overhead, +2 for DECnet;s CRC */
+	       Line->MaxXmitSize) < Line->TcpXmitSize) { /* There is room */
+	      Line->flags |= (F_XMIT_MORE | F_CALL_ACK);
 	      return;
 	    }
-	}
 
-	/* Ok - we have to transmit buffer. If DECnet or TcpIp - insert
-	   the TTB and add TTR at end */
+	  /* Ok - we have to transmit buffer. If DECnet or TcpIp - insert
+	     the TTB and add TTR at end */
 
-	if ((Line->flags & F_RELIABLE) != 0) {
 	  NewSize = Line->XmitSize;
 	  ttb = (void *)Line->XmitBuffer;
 	  ttr = (void *)(Line->XmitBuffer + NewSize);

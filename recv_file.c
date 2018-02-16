@@ -78,6 +78,7 @@ const void	*Buffer;
 	/* The state of the stream we handle now */
 	StreamStates	*StreamState;
 	unsigned char *buffer = (unsigned char *)Buffer;
+	struct LINE *Line = &IoLines[Index];
 
 	int	Stream;
 	int	SYSIN = 0;
@@ -91,22 +92,22 @@ const void	*Buffer;
 						   in the range 0-7 */
 
 	/* logger(3,"RECV_FILE: receive_file(Line=%s:%d, BufSize=%d)\n",
-	   IoLines[Index].HostName, Stream, BufferSize);
+	   Line->HostName, Stream, BufferSize);
 	   trace(Buffer,BufferSize > 8 ? 8 : BufferSize,3); */
 
 
 	/* SYSINs are  X'N8', SYSOUTs are X'N9' */
 	SYSIN = (RCB & 0x0f) == 8;
 
-	FileParams = &(IoLines[Index].InFileParams[Stream]);
+	FileParams = &(Line->InFileParams[Stream]);
 	if (SYSIN) FileParams->type |= F_JOB;	/* Flag it as a SYSIN job! */
 
 	/* Check that the stream number is in range */
 	if ((Stream < 0) ||
 	    (Stream >= MAX_STREAMS )) {
 	  logger(1, "RECV_FILE: Found illegal RCB=x^%x (line=%s:%d, maxstreams=%d)\n",
-		 RCB, IoLines[Index].HostName, Stream,
-		 IoLines[Index].MaxStreams);
+		 RCB, Line->HostName, Stream,
+		 Line->MaxStreams);
 	  file_sender_abort(Index, Stream, SYSIN);
 	  return 0;		/* Abort-file already sent some record */
 	}
@@ -123,7 +124,7 @@ const void	*Buffer;
 	}
 
 	/* Get the relevant data from the I/O structure */
-	StreamState = &IoLines[Index].InStreamState[Stream];
+	StreamState = &Line->InStreamState[Stream];
 
 	/* Test whether it is EOF block.
 	   If so - it signals end of transmission */
@@ -137,43 +138,61 @@ const void	*Buffer;
 	  case NJH_SRCB:		/* Job header */
 	      if (*StreamState != S_REQUEST_SENT &&
 		  *StreamState != S_NJH_SENT) {
-		logger(1,"RECV_FILE: Line=%s:%d, Job header arrived when in state %d\n",
-		       IoLines[Index].HostName, Stream, *StreamState);
+		logger(1,"RECV_FILE: Line=%s:%d, Job header arrived when in state %s\n",
+		       Line->HostName, Stream, StreamStateStr(*StreamState));
 		restart_channel(Index);
 		return -1;
 	      }
 	      *StreamState = S_NJH_SENT;
 
 	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
-	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      /* Save the record */
+	      if (uwrite(Index, Stream, buffer+1, BufferSize-1) == 0) {
+		logger(1, "RECV_FILE: Aborting incoming file on %s:%d because uwrite() of %d bytes failed\n",
+		       Line->HostName, Stream, BufferSize-1);
+		abort_file(Index, Stream, SYSIN);
+		return 0;
+	      }
 	      return 1;
 	      break;
-	  case DSH_SRCB:		/* Data set header */
+	  case DSH_SRCB:		/* Dataset header */
 	      if (*StreamState != S_NJH_SENT &&
 		  *StreamState != S_NDH_SENT &&
-		  *StreamState != S_SENDING_FILE) {
-		logger(1,"RECV_FILE: Line=%s:%d, A DatasetHeader arrived when in state %d\n",
-		       IoLines[Index].HostName, Stream, *StreamState);
+		  *StreamState != S_RECEIVING_FILE) {
+		logger(1,"RECV_FILE: Line=%s:%d, A DatasetHeader arrived when in state %s\n",
+		       Line->HostName, Stream, StreamStateStr(*StreamState));
 		restart_channel(Index);
 		return -1;
 	      }
 	      *StreamState = S_NDH_SENT;
 
 	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
-	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      /* Save the record */
+	      if (uwrite(Index, Stream, buffer+1, BufferSize-1) == 0) {
+		logger(1, "RECV_FILE: Aborting incoming file on %s:%d because uwrite() of %d bytes failed\n",
+		       Line->HostName, Stream, BufferSize-1);
+		abort_file(Index, Stream, SYSIN);
+		return 0;
+	      }
 	      return 1;
 	      break;
 	  case NJT_SRCB:		/* Job Trailer */
-	      if (*StreamState != S_SENDING_FILE) {
-		logger(1,"RECV_FILE: Line=%s:%d, A JobTrailer arrived when in state %d\n",
-		       IoLines[Index].HostName, Stream, *StreamState);
+	      if (*StreamState != S_RECEIVING_FILE) {
+		logger(1,"RECV_FILE: Line=%s:%d, A JobTrailer arrived when in state %s\n",
+		       Line->HostName, Stream, StreamStateStr(*StreamState));
 		restart_channel(Index);
 		return -1;
 	      }
 	      *StreamState = S_NJT_SENT;
 
 	      save_header(SRCB, buffer+2, BufferSize-2, Index, Stream);
-	      uwrite(Index, Stream, buffer+1, BufferSize-1);
+	      /* Save the record */
+	      if (uwrite(Index, Stream, buffer+1, BufferSize-1) == 0) {
+		logger(1, "RECV_FILE: Aborting incoming file on %s:%d because uwrite() of %d bytes failed\n",
+		       Line->HostName, Stream, BufferSize-1);
+		abort_file(Index, Stream, SYSIN);
+		return 0;
+	      }
 	      return 1;
 	      break;
 
@@ -185,15 +204,17 @@ const void	*Buffer;
 	      if ((*StreamState == S_NDH_SENT) || (*StreamState == S_NJH_SENT))
 		/* We got either both or just NJH. The latter case happens
 		   in SYSIN files. */
-		*StreamState = S_SENDING_FILE;
-	      if (*StreamState != S_SENDING_FILE) {
-		logger(1, "RECV_FILE: line=%s:%d, Illegal state=%d while receiving record\n",
-		       IoLines[Index].HostName, Stream, *StreamState);
+		*StreamState = S_RECEIVING_FILE;
+	      if (*StreamState != S_RECEIVING_FILE) {
+		logger(1, "RECV_FILE: line=%s:%d, Illegal state=%s while receiving record\n",
+		       Line->HostName, Stream, StreamStateStr(*StreamState));
 		restart_channel(Index);
 		return 0;
 	      }
 	      /* Save the record */
 	      if (uwrite(Index, Stream, buffer+1, BufferSize-1) == 0) {
+		logger(1, "RECV_FILE: Aborting incoming file on %s:%d because uwrite() of %d bytes failed\n",
+		       Line->HostName, Stream, BufferSize-1);
 		abort_file(Index, Stream, SYSIN);
 		return 0;
 	      }
@@ -201,7 +222,7 @@ const void	*Buffer;
 	      return 1;
 	default:
 	      logger(1, "RECV_FILE: Line=%s:%d, Illegal SRCB=x^%x\n",
-		     IoLines[Index].HostName, Stream, SRCB);
+		     Line->HostName, Stream, SRCB);
 	      restart_channel(Index);
 	      return 0;	/* No explicit ACK */
 	}
@@ -323,10 +344,11 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	int		PrimLine, AltLine;
 	struct	FILE_PARAMS	*FileParams;
 	struct	QUEUE		*Entry;
+	struct	LINE 		*Line = &IoLines[Index];
 
 	if (*StreamState != S_NJT_SENT) { /* Something is wrong */
-	  logger(1, "RECV_FILE, line=%s:%d, EOF received when in state %d\n",
-		 IoLines[Index].HostName, Stream, (int)(*StreamState));
+	  logger(1, "RECV_FILE, line=%s:%d, EOF received when in state %s, Abort file\n",
+		 Line->HostName, Stream, StreamStateStr(*StreamState));
 	  abort_file(Index, Stream, SYSIN);
 	  return 0;
 	}
@@ -335,7 +357,7 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	if (i < 0)	/* Fatal error in headers */
 	  return 0;	/* Channel was restarted */
 
-	FileParams = &(IoLines[Index].InFileParams[Stream]);
+	FileParams = &(Line->InFileParams[Stream]);
 
 	if (FileParams->OurFileId == 0)
 	  FileParams->OurFileId = get_send_fileid();
@@ -355,9 +377,9 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	dts = MsecAgeStr(&FileParams->RecvStartTime, &dt);
 	logger(2,"RECV_FILE: received SYS%s file on line %s:%d, %d B in %s secs, %s B/sec.\n",
 	       SYSIN ? "IN" : "OUT",
-	       IoLines[Index].HostName, Stream,
-	       IoLines[Index].OutFilePos[Stream], dts,
-	       BytesPerSecStr(IoLines[Index].OutFilePos[Stream],&dt));
+	       Line->HostName, Stream,
+	       Line->OutFilePos[Stream], dts,
+	       BytesPerSecStr(Line->OutFilePos[Stream],&dt));
 
 	/* Because we'll get another EOF or ACK soon... */
 
@@ -387,7 +409,7 @@ StreamStates	*StreamState;	/* The state of the stream we handle now */
 	      rscsacct_log(FileParams,0);
 
 	      logger(1,"RECV_FILE: Line %s:%d,  Got a file from `%s' to `%s', but don't know route!\n",
-		     IoLines[Index].HostName,Stream,
+		     Line->HostName,Stream,
 		     FileParams->From,FileParams->To);
 	      break; /* Hmm.. Local ? */
 

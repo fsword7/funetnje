@@ -82,6 +82,19 @@ extern int	errno;
 
 #endif	/* unix */
 
+/* ************************* SYSTEM FEATURE SELECTION ********************* */
+
+#if !defined(NO_NBSTREAM) && !defined(NBCONNECT) && !defined(NBSTREAM)
+# define NBSTREAM 1
+# define USE_XMIT_QUEUE 1
+#endif
+#if !defined(NO_SOCKOPT) && !defined(USE_SOCKOPT)
+# define USE_SOCKOPT 1
+#endif
+#if !defined(NO_ENUM_TYPES) && !defined(USE_ENUM_TYPES)
+# define USE_ENUM_TYPES 1
+#endif
+
 #ifndef MAX_INFORM
 #define MAX_INFORM      8
 #endif
@@ -215,12 +228,13 @@ typedef enum {
 #define	S_EOF_SENT	8	/* File ended, EOF sent, waiting for ACK */
 #define	S_EOF_FOUND	9	/* EOF found, but not sent yet		*/
 #define	S_REQUEST_SENT	10	/* Request to start transfer actually sent */
+#define S_RECEIVING_FILE 11	/* During file receiving		*/
 typedef short StreamStates;
 #else
 typedef enum {
 	S_INACTIVE = 0, S_REFUSED, S_WAIT_A_BIT, S_WILL_SEND, S_NJH_SENT,
-	S_NDH_SENT, S_NDH_SENT2, S_SENDING_FILE, S_NJT_SENT, S_EOF_SENT,
-	S_EOF_FOUND, S_REQUEST_SENT } StreamStates;
+	S_NDH_SENT, S_SENDING_FILE, S_NJT_SENT, S_EOF_SENT, S_EOF_FOUND,
+	S_REQUEST_SENT, S_RECEIVING_FILE } StreamStates;
 #endif
 
 /* Line flags (Bit masks). When Adding flags correct Restart_channel()

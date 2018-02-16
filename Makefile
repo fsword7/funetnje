@@ -16,14 +16,20 @@
 #			(If you have it, USE IT!)
 #	-D_POSIX_SOURCE	As POSIX.1 as possible..
 #	-DDEBUG		Well, as name says..
+#
 #	-DNBCONNECT	Can do non-blocking connect(2) and associated
 #			tricks.  WERRY USEFULL as the system won't have to
 #			wait, and timeout synchronously for some dead system..
 #	-DNBSTREAM	Does whole TCP stream in Non-blocking mode!
-#			(This contains NBCONNECT in it -- ** RECOMMENDED **)
-#	-DUSE_XMIT_QUEUE  Necessary for NBSTREAM (!?)
+#			(*This is default mode set on  consts.h! *)
+#	-DUSE_XMIT_QUEUE  Necessary for NBSTREAM!
+#			(*This is default mode set on  consts.h! *)
+#	-DNO_NBSTREAM	If you want to block NBSTREAM and XMIT_QUEUE.
+#
 #	-DUSE_SOCKOPT	Does  setsockopt() for SO_RCVBUF, and SO_SNDBUF to
 #			set them to 256k instead of the default whatever (4k?)
+#			(*This is default mode set on  consts.h! *)
+#	-DNO_SOCKOPT	Block  USE_SOCKOPT.
 #	-DSOCKBUFSIZE	(Alter the default to be something.. Value in bytes)
 #	-DNO_GETTIMEOFDAY Define if your system does not have it.
 #
@@ -31,7 +37,10 @@
 #			Some (most?) SYSV's can safely ignore the child, but
 #			BSDs (SunOS 4.1.3) can't.
 #	-DUSE_ENUM_TYPES  If your compiler allows it, do it!
-#			  Debugging is smarter..  (Not finished thing!)
+#			  Debugging is smarter..
+#			(*This is default mode set on  consts.h! *)
+#	-DNO_ENUM_TYPES  Negates previous
+#
 #
 #	You can override a couple configuration things (these are defaults):
 #	-DCONFIG_FILE='"/etc/funetnje.cf"'
@@ -79,7 +88,7 @@
 # Convex OS V10.2 -- very POSIX.1 beast indeed..
 #CC     = gcc -fno-builtin -fpcc-struct-return
 #CPP    = gcc -E
-#CDEFS  = -O -D_POSIX_SOURCE -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DNBSTREAM -DUSE_XMIT_QUEUE
+#CDEFS  = -O -D_POSIX_SOURCE -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT
 #     Using  -DCOMMAND_MAILBOX_FIFO  didn't work..
 #CFLAGS = -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
@@ -94,11 +103,11 @@
 #INSTALL=install
 
 # DEC AxpOSF/1 3.2 -- GCC-2.6.3
-CC=gcc -Wall #-fno-builtin
+CC=gcc -Wall -O6 #-fno-builtin
 #CC=cc -migrate -D__alpha__
 #CC=cc -D__alpha__
 CPP=gcc -E
-CDEFS=  -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_SOCKOPT -DUSE_ENUM_TYPES -DUSE_XMIT_QUEUE #-DDEBUG
+CDEFS=  -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
 CFLAGS= -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 MAILIFY=mailify
@@ -116,7 +125,7 @@ INSTALL=installbsd
 #   for compilation to succeed without pains..
 #CC=gcc -Wall -D__STDC__=0
 #CPP=gcc -E
-#CDEFS=  -O -I. -DUSG -DUSE_POLL -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE -DUSE_SOCKOPT #-DDEBUG
+#CDEFS=  -O -I. -DUSG -DUSE_POLL -DCOMMAND_MAILBOX_UDP -DHAS_LSTAT -DHAS_PUTENV #-DDEBUG
 #CFLAGS= -g $(CDEFS)
 ## Have MAILIFY compiled by uncommenting following ones:
 ##MAILIFY=mailify
@@ -133,7 +142,7 @@ INSTALL=installbsd
 # SunOS --  GNU-CC 2.4.5 on SPARC SunOS 4.1.3
 #CC=gcc -Wall #-fno-builtin
 #CPP=gcc -E
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE -DUSE_SOCKOPT #-DDEBUG
+#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV
 #CFLAGS= -g $(CDEFS)
 ## Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -149,7 +158,7 @@ INSTALL=installbsd
 # SunOS -- SunOS 4.1.3 bundled cc
 #CC=cc
 #CPP=/lib/cpp
-#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE #-DDEBUG
+#CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV
 #CFLAGS=  $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -163,7 +172,7 @@ INSTALL=installbsd
 #INSTALL=install
 
 # Linux 1.2.x  (w/o using -D_POSIX_SOURCE)
-#CDEFS= -O6 -DCOMMAND_MAILBOX_DGRAM -DHAS_LSTAT -DHAS_PUTENV -DNBSTREAM -DUSE_XMIT_QUEUE
+#CDEFS= -O6 -DCOMMAND_MAILBOX_DGRAM -DHAS_LSTAT -DHAS_PUTENV
 #CC=gcc
 #CPP=gcc -E
 #CFLAGS= -g $(CDEFS)
@@ -187,7 +196,7 @@ INSTALL=installbsd
 # Name of the group on which all communication using programs are
 # SGIDed to..  Also the system manager must have that bit available
 # to successfully use  UCP  program.
-NJEGRP=huji
+NJEGRP=funetnje
 # On some machines there may exist `send' already, choose another name.
 SEND=send
 PRINT=print

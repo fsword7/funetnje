@@ -1,3 +1,38 @@
+Sat Jun 10 05:18:27 1995  Matti Aarnio  <mea@nic.funet.fi>
+
+	* Makefile, consts.h, prototypes.h, recv_file.c, io.c,
+	  send_file.c, unix.c, protocol.c, unix_tcp.c:
+
+	    - Found one uninitialized pointer, which apparently
+	      caused mystic data-structure corruptions (on timer
+	      subsystem)
+
+	    - Made mandatory (well, with disabling options) to
+	      use NBSTREAM, USE_XMIT_QUEUE, and USE_SOCKOPT.
+	      (in consts.h, see also  Makefile's  comments!)
+
+	    - Use  F_WAIT_V_A_BIT  to flag if there is any reason
+	      for NOT to send out data at the moment, and instead
+	      quit from within  handle_ack()..
+	      The F_WAIT_V_A_BIT is set when new data is sent to
+	      outbound buffer (primary one, or XMIT QUEUE).
+	      The bit is cleared when pending writer finishes
+	      with success status.  When the pending-writer is
+	      called from  poll_sockets(), immediately after it
+	      the  dequeue_xmit_queue() is called, and if there
+	      is something, it can cause F_WAIT_V_A_BIT to be
+	      set again..)
+
+	    - If the XMIT_QUEUE ever runs out of space, it abort()s!
+
+	    - Tested the beast by sending 80 or so smallish files both
+	      ways over the link.  Such setup caused previously link
+	      corruption..  Actually the critical phase is when there
+	      are flowing NJE headers/trailer, bare data sending works
+	      just fine, but when a file ends, EOF block needs an ack
+	      to be sent, and unless there the care is used, all
+	      queues will overflow..
+
 Thu Jun  8 15:48:14 1995  Matti Aarnio  <mea@nic.funet.fi>
 
 	* namesfilter.c:
