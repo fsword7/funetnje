@@ -1,0 +1,329 @@
+      HUJI-NJE release notes and modification history
+      ===============================================
+
+1.1.01 - Initial release version.
+1.1.02 - (29/3/89), The DECnet link was fixed. We currently work half-duplex
+         on DECnet links, since input distorts output buffers (or the other
+         way). So, we use the VMnet control blocks, but not the full functionality
+         of VMNET.
+1.1.03 - (3/4/89) - PROTOCOL.c was changed to correct the behaviour of /PRINT
+         switch. The IDEV field of the RSCS section of the dataset header is
+         changed according to the file type (x^82 for Punch, x^41 for Print).
+1.1.04 - (6/4/89) - PROTOCOL.C & VMS_EXOS.C - modified to conform fully with
+         VMNET. If VMS_EXOS set the flag F_XMIT_MORE, then PROTOCOL will fill
+         more buffers. If it can't, it'll force VMS_EXOS to send the last
+         buffer (we can send a whole file in one VMNET block, but we do not
+         support more than one file there).
+         Now, only missing for a full VMNET is seting FAST_OPEN.
+1.2.01 - (6/4/89) - CONSTS.H, SEND_FILE, RECV_FILE - Some data was stored in
+         a static buffer. This static buffer was used by all lines, thus one line
+         overwrites the data from the other one... This area has been moved to
+         IoLines database
+1.2.02 - Minor corrections to VMS_EXOS and IO.C to finalize the EXOS connection.
+1.2.03 - Change VMS.C to use the line number in the temporary file name.
+1.2.05 - Change VMS.C to ignore DECnet timeouts (simply re-queue them).
+1.2.06 - SEND_FILE.C was changed to be more efficient (some block moves were
+         removed).
+         change VMS.C back to handle DECnet timeouts.
+         VMS_DECNET - convert back to full duplex mode.
+1.2.07 - IO.C, SEND_UNIX and VMS_EXOS were changed to do less buffer copies.
+         The VMnet control portion has been fully moved to IO.C
+1.2.08 - UNIX_TCP & UNIX - Since there is no AST there, if Send-Unix-Tcp calls
+         handle-Ack, there will be a very deep function call. So, this function
+         signals to the main "timer" loop in UNIX.C to do it instead.
+1.2.09 - Add INFORM keyword in configuration file and corresponding NETMON
+         handling in READ_CONFIG, PROTOCOL.
+         RECV_FILE - Accept SYSIN files (no DSH).
+1.2.10 - Add QUIET in NDHGFORM to get rid of messages when the file passes via
+         systems that supports it. The user can override it by using /NOQUIET
+         in BMAIL and SENDFILE.
+1.2.11 - When the program inits it scans the file's queue. Up to now it ignored
+         the file size of the files queued during this process. Now it reads the
+         file size also. If a file is received which should go to another machine
+         its size is also computed now.
+1.2.12 - Add IBM time format in NJH field.
+1.2.13 - PROTOCOL: Correct the handling of NOQUIET bit when generating the the
+         NDHGFORM field.
+1.2.14 - HEADERS - Correct the EOFblock.
+         NMR - If a message is received for the node (null username), log it.
+1.3.1  - Adapt the software to MultiNet.
+         SENDCMDMSG.C, VMS.C - SENDCMDMSG now puts only the name of the sender.
+         VMS.C appends to it @Local-Name, so there is no need any more to
+         define the local name in CONSTS.H
+1.3.2  - Some NJE implementations (like NJEF and probably RSCS) checks that
+         the "from" in the RSCS TAG should really arrive from the line they've
+         received it. If it is incorrect, some of them crash...
+         Hence, when pasrsing an envlope (UTIL.C), we check the lines which
+         are associated with the "from" and "to". If these lines are equal,
+         we change the from to be "MAILER@Local-Site".
+1.3.3  - Change the buffer management upon TCP transmit. Use the flag
+         WAIT_V_A_BIT (used like WAIT_A_BIT) to stop sending, instead of
+         using Handle-Ack just when needed. When queueing a buffer since the
+         line is already sending (IO.C), this flag is set. When the last queued
+         buffer is sent (VMS_TCP), this flag is cleared. Also VMS.C was changed
+         (calling Handle-Ack on TCP timeouts).
+         Do the same for DECnet lines.
+1.3.4  - Add more commands in NMR.C
+1.3.5  - Send messages to OPCOM when instructed to.
+1.3.6 -  Correct a bug in NetData send: If the end of the file (including the
+         last INMR) was exactly 80 characters long, an extra Null-SCB was
+         inserted in an incorrect place. This was fixed...
+1.3.7  - If a message cannot be sent to user (interactive message), and the
+         message text starts with *, do not send a "not logged-in" reply.
+1.3.8  - Change the DMF/DMB timeout handling - do not call IO$_CLEAN, but
+         call Input-Arrived with error code and leave the $QIO read active.
+         This is because IO$_CLEAN gets stucked on DMB.
+         VMS_IO: If SEND_DMF is called again before the AST of the $QIO completion
+         is called, the line is deactivated. It was found that a modem in some
+         odd state causes the send $QIO to be left without completing it. Thus,
+         the AST and BIO quota has been decreasing constanatly untill it reaches
+         zero and no more IO's can be initiated.
+1.3.9  - Add the AUTO-RESTART keyword in the configuration file. Changed:
+         CONSTS.H, READ_CONFIG, VMS, VMS_IO.
+1.4.0  - Add support for DEC's TcpIp. This includes adding the keyword DEC_TCP
+         in READ_CONFIG.C, and major changes in VMS_TCP which made it a total
+         mess... In order to compile the code for DEC, define DEC_TCP in
+         SITE_CONSTS. Since DEC's TcpIp is close to Multinet in most functions,
+         in most cases the functions of MultiNet are used both for UCX and
+         MultiNet.
+1.4.1  - DMB support added (1/11/89): IO.C was modified to call ADD_BCB instead
+         of ADD_BCBC_CRC if the type is DMB; PROTOCOL.C was modified to call
+         REMOVE_DLES instead of CHECK_CRC, VMS_IO.C was modified to set the
+         device to BISYNC mode if it is of type DMB (you can run DMB in
+         GENBYTE mode by specifying it as DMF type). BCB_CRC.C was modified
+         to include the functions ADD_BCB and REMOVE_DLES. They are replications
+         of the existing functions for DMF, but do not do CRC calculations.
+1.4.2   - Virtual memory support (12/12/89): CONSTS.H has been added two
+         #define to replace malloc() and free() with VAXC$MALLOC_OPT and
+         VAXC$FREE_OPT which are said to have better performance.
+1.4.3  - BCB_CRC.C (21/12/89): When running DMB in BiSync mode, we have to pass
+         to it a buffer size which includes space for the CRC's. We included also
+         place for the last PAD; this caused the DMB to get confused, hence, the
+         size was decerased by one.
+
+      ---------------- Frozen version 1.4.3 -----------------------
+
+1.4.4  - 26/12/89 - CONSTS.H, CP.C, VMS.C, UNIX.C, IO.C - Debugging aids were
+         added. The routines Debug-dump-buffers and debug-rescan-queue were
+         added in the NJE emulator, and the commands DEBUG DUMP and DEBUG
+         RESCAN were added to CP.C; The dump routine dumps all lines buffers to
+         the logfile, and the rescan-queue rescans the files' queue. This is
+         usefull after renaming files to be queued to another line.
+1.4.5  - 29/12/189 - IO.C - When calling MALLOC to allocate memory for
+         deffered transmission (like VMNET) we gave a too small buffer size.
+         We forgot the overhead of BCB, FSC, etc. which is 5 bytes. This amount
+         has been added now.
+1.4.6  - 3/1/90 - IO.C - When creating a VMnet link, at the initial steps (up
+         to completing the LOGIN process) use a larger timeout value (defined
+         by VMNET_INITIAL_TIMEOUT in IO.C). This is because our default timeout
+         on VMnet links is small. However, during the initial connection process
+         on slow links this might be too small and cause very slow (and sometimes
+         even prevent) singon. This fix should help...
+1.4.7  - 6/1/90 - VMS.C, UNIX.C, CP.C - Add the call LOGLEVEL n to set the log
+         level to n during run. While doing so the logfile is closed to
+         guarantee writing out all buffers up to now. If the new level is
+         greater than 1 it'll be opened again and kept open.
+1.4.8  - 7/1/90 - HEADERS.C, HEADERS.H - Added the options field at the end of
+         the SIGNON record. We fogot it and no system complaint...
+1.4.9  - 10/1/90: VMS_TCP.C - When we read more than one block (another TTB in
+         the middle), we had a bug computing the new size. This was fixed.
+         VMS.C - The command mailbox is now opened for access to everyone.
+         However, all commands except SHOW LINE, SEND COMMAND and SEND MESSAGE
+         are considered as privileged. A priv user is one whose username appears
+         in the INFORM command. The usernames in INFORM command must be uppercase.
+
+1.5.0  - 30/1/90: CONSTS.H, PROTOCOL.C, SEND_FILE.C - Added binary file support
+         for outgoing files. This included making buffers larger, accepting
+         512 bytes records and splitting them when sending NetData buffers.
+         Also the TCP lines recovery was enhanced (Restart-channel function
+         modified).
+1.5.1 - 1/2/90 - UNIX.C - Modify the Uread routine to handle binary files. It
+        should be debugged...
+1.5.2 - 4/2/90 - VMS.C - Add SYSTEM as authorized user, thus if mailer is started
+        under SYSTEM account it can queue files even if SYSTEM is not in the
+        INFORMED list.
+        IO.C - Queue passive and active opens for TCP and ignore the SECONDARY
+        keyword for these lines.
+1.5.3 - 5/2/90 - SEND_FILE.C - Correct a bug. When sending NetData files with
+        records longer than 253 bytes, we have to segment them. Erronously,
+        we wrote the same data into each segment, because the input pointer
+        was not advanced as we wrote the segments.
+        RECV_FILE.C - If the file is NetData and it is class N, we pass it to
+        the mailer as BINARY type, and we do not do conversion to ASCII.
+1.5.4 - 6/2/90 - PROTOCOL.C - Change the format of messages sent to INFORM users.
+        Also do not call CLOSE-LINE function when the line is in INACTIVE state
+        and restart-channel was called.
+1.5.5 - Change the way we handle auto retsarts with DMF/DMB,TCP,DECNET lines.
+        Instead of the closing routine queueing a retstart, there is a scan
+        every 5 minutes to detect such dead lines and restart them if the
+        AUTO-RESTART flag is on. Lines of type MNET, EXOS, TCP, DECNET get this
+        flag on automatically.
+        Also the secondary notion of a line has been removed and so the keyword.
+        A TCP line is still placed in LISTEN instead of RETRY if we can't
+        find its IP address. This will cause us to not restart it every 5
+        minutes.
+        MAIN, READ_CONFIG, VMS, UNIX, VMS_IO, VMS_DECNET, VMS_TCP, UNIX_TCP.
+1.5.6 - 14/2/90 - Change castings and variables declarations in order to
+        compile smoothly on most systems.
+        VMS_TCP, UNIX_TCP, READ_CONFIG: A field named TCPNAME or INTERNETNAME
+        has been added to configuration file. It assigns its value into the
+        device field. When a TCP connection is to be created, the IP address
+        is taken from the name appearing in this field. Only if this field
+        is empty we'll take the value from HostName.
+1.5.7 - 15/2/90 - When sending a locally originated NMR message, we created
+        an NJE block of the maximum size; there was redundant data after the
+        message text. UREP does not like it, so now we send the exact number
+        of bytes and no more.
+1.5.8 - 19.2.90 - PROTOCOL.C - When a signoff is received on TCP lines change
+        the state to INACTIVE instead of DRAIN, so the link will be closed.
+        VMS_TCP: 1. When sending a NAK control block we now give a reasonable
+        rejection code.
+        2. When an active conneciton has been opened, we no longer send ENQUIRE.
+        Instead we send now SYN+NAK as NJE/CTC works.
+        Other modules - Correct LINT errors.
+1.5.9 - 21/2/90 - PROTOCOL.C - Correct the last correction - Change the TCP line
+        state to TCP_SYNC instead of INACTIVE so it'll also close the TCP link.
+        THe following defintions has been moved from CONSTS.H to SITE_CONSTS:
+        MAX_LINES, MAX_INFORM, MAX_STREAMS, and the DONT_SEND_TO_ME macro has
+        been moved from NMR.C to SITE_CONSTS.
+
+1.6.0 - 2/90 - The major modifications are: 1. Sun-4 can't do read/writes of
+        words to odd addresses. All the code that refference buffers has been
+        modified to use Memcpy() to copy the words/longwords to an aligned
+        buffer and work on it.
+        2. BCOPY was replaced with Memcpy() routines.
+        SITE_CONSTS.H, CONSTS.H - few items has been moved from CONSTS.H to
+        SITE_CONSTS. The condition whether to send an NMR to addresses has
+        been moved from NMR.C to SITE_CONSTS.
+        IO.C - The Send_data() routine has been changed; code which was intended
+        to be as general as possible (but is never used...) has been removed.
+        The check for line type has been modified to check the F_RELIABLE bit
+        which also signals that the line can have xmission queues and should be
+        autorestarted.
+        PROTOCOL, READ_CONFIG - When a line is of type TCP or DECnet we set the
+        F_AUTO_RESTART and F_RELIABLE bits. The latter is used instead of checking
+        for the line type.
+1.6.2 - 6/3/90 - Add alternate routes for NMRs and files queued. There is an
+        exception in queueing files where only new files will be routed to
+        the alternate route. See the NJE's manual for more details.
+        7/3/90 - Add Q NODE command when receiving user's commands, so we
+        can verify the alternate routing (NMR.C). Modify Parse_envelope()
+        in UTIL.C to change the "from" when the source and destanation are
+        the same, using the active links name (up to now we used the table's
+        destinations).
+V1.6.3 - 7/3/90 - Add route modification on-line using UCP's command ROUTE.
+        Affected files: CONSTS.h, UCP.C, NMR.C, UNIX.C, VMS.C, xx_SEARCH_ROUTE.C
+        NMR.C, SENDCMDMSG, SEND - Scan the user's supplied text and remove all
+        controls from there. Users has sent messages with Clear-screen to other
+        users and wrote there whatever they wanted...
+        VMS_DECNET - Added CRC when sending and receiving packets.
+1.6.4 - 11/3/90 - Revise the log-levels in LOGGER() calls. The levels are:
+        1 - Important information, inconsistencies and bugs.
+        2 - More detailed information and bugs.
+        3 - Files transactions logged.
+        4 - More detailed files transactions.
+        5 - Full trace and dumps of all buffers sent/received.
+1.6.5 - 18/3/90 - CONSTS.H - In FILE_PARAMS structure change the short variables
+        to long ones, as we start to overflow...
+        RECV_FILE.C - Correct a bug handling binary files. When we received
+        a binary file we put ASCII in the internal format flag (mistake...).
+1.6.6 - 15/3/90 - Added binary and EBCDIC files transfer for Unix, and other
+        minor modifications:
+        CONSTS.H - Added flags field for each stream (FILE_PARAMS structure);
+        this is used for knowing whether we have to read the rest of file in
+        text or binary mode. Also a filler was added in this structure to make
+        it even byte long.
+1.6.7 - 22/3/90 - CONSTS.H, NMR.C, VMS/UNIX, GONE_SERVER - Add GONE facility.
+        The user register via Ygone command. If there is a message for them
+        and they are not logged-in, the message is recorded.
+        READ_CONFIG was modified to allow INFORM command to pre-insert users
+        into GONE list.
+1.6.8 - 26/3/90 - MAIN.C, UNIX.C, SEND.C - 1. add -m -c and -message and -command
+        flags which are synomyms of /command and /message in SEND.C.
+        MAIN, UNIX: When working on Unix, the sleep(1) in main was replaced
+        with a call to poll_sockets(). The select() function there is now
+        called with a timeout of 1 second. This gives us faster response
+        to input from sockets.
+1.6.9 - 28/3/90 - PROTOCOL, SEND_FILE, RECV_FILE - Made a little bit more
+        modular.
+        VMS.C - When deleing a file, append ;0 to its name.
+1.6.10 - 29/3/90 - RECV_FILE.C - RECV_FILE did not used alternate routes... This
+        has been corrected.
+1.6.11 - 1/4/90 - Move the code that parses the operator's command from VMS.C
+        and UNIX.C into IO.C
+        4/4/90 - UNIX_TCP.C - Change the TTR pointer to a real structure and
+        copy the data into it, in order to prevent odd address refference.
+        UCP.C - Can now be called with the command line as arguments.
+1.6.12 - 4/4/90 - VMS.C - The command mailbox is not longer created permanent.
+        If the emulator crashed, the permanent mailbox stayed and mailer got
+        hung after a few writes. Now we create a temporary one and place its
+        name in the system's name table (the same thing that a permanent
+        one does). However, when the emulator crash the mailbox is deleted,
+        thus no hangup of mailer.
+1.7.0 - 8/4/90 - CLUSTER_SERVER.C was added to the emulator. The client
+        (CLUSTER_CLIENT.C) has not been tested thoroughly yet.
+1.7.1 - 17.4.90 - Correct a bug in VMS_IO.C; When the line is Retsarted to
+        INACTIVE state, the line was not closed. Added a call to close_line.
+1.7.2 - 2/5/90 - MAIN.C - Replace memchr() with memcpy(). It was a mistake and
+        God knows how it worked...
+1.7.3 - 6/5/90 - IO.C - When parsing an address to send a message (not command) to
+        does not contain a @, append the local nodename to it, so it'll be sent
+        to a local user.
+        NMR.C - Strip .EARN, .BITNET, etc. from the NMR addresses.
+        UNIX_MAIL.C - Add a return value from SMTP_write().
+1.7.4 - 31/5/90 - IO.C: Parse_operator_command() add the cases of ADD_GONE_UCP
+        and DEL_GONE_UCP; here they are treated the same. However, VMS.C
+        accepts ADD_GONE_USER and DEL_GONE_USER from anyone, while accepting
+        ADD_GONE_USER_UCP and DEL_GONE_USER_UCP only from INFORM users. This
+        allows us to leave UCP world-executable without leting every user
+        play with it. In UCP.C chnage the above keywords.
+1.7.5 - 9/6/90 - Send_Njh-Dsh: Some information (addresses, file name, etc)
+        was saved in a static area between the preparation of NJH header and
+        DSH header in order to save processing time. However, if more than
+        one link were sending NJH and DSH fields at the same time, addresses
+        could "swap" between the two files. This is fixed now by re-computing
+        these fields.
+1.7.6 - 11/6/90 - Send-njh-dsh (PROTOCOL.C): Upcase the NJE fields (addresses
+        and filenames) as IBM do not like lower case.
+1.7.7 - 31/7/90 - A node that sends more than two NJH fragments has been found;
+        the files couldn;t be passed when they ar S&F as the NJH is corrupted.
+        A room for 5 more (MAX_NJH_HEADERS in MAILER.H) such headers has been
+        allocated. However, since this happens very rarely, only a pointer is
+        saved in LINES structure, and the memory is allocated dynamically.
+        MAILER.H was added the fields SavedJobHeadersMore, and RECV_FILE was
+        corrected accordingly.
+1.8.0 - 7/10/90 - Adding multi-stream capability on receive: PROTOCOL.C:
+        1. When logging error print the hostname instead of line #.
+        2. After closing a line due to shutdown force it to be in SIGNOFF state
+           as Close_line() tends to place VMnet links in RETRY.
+        3. OPen_recv_file() is passed also the stream number.
+           UNIX, VMS.C: Open_recv_file(), rename_file(), delete_file(),
+           Close_file() - Accept also the stream number.
+        CONSTS.H - Added MaxStreams for eahc line.
+1.8.1 - 7/2/91 - NMR.C - Change File_line_index() to be recursive, thus we
+        can chain alternate routes and nodes routed via some inactive link
+        will be rerouted correctly.
+1.8.3 - 10/2/91 - FILE_QUEUE.C - Do not look any more for files by their
+        linkname. Instead look for all ASC_* and EBC_* files.
+1.8.3a -19/2/91 - RECV_FILE.C - Ignore DSH which comes in the middle of a
+        file.
+1.9   - 7/3/91 - Add DSV-32 support.
+2.0   - 27/3/91 - Multi stream support on sending.
+        UNIX_BRDCST - If the symbol USER_PROCESS is defined assume we are
+        running on an RS-6000 machine and check some extra things. The handling
+        of UTMP file on AIX is a little bit different than other systems.
+        UNIX_TCP - various bug fixes.
+2.1.2 - 26/12/91 - VMS.C - Clear FileParams.flags in Open_Recv_file().
+        RECV_FILE.C - Do NOT clear FileParams.flags since it is cleared or
+        get some value in VMS/UNIX.C
+        UNIX_BRDCST.C - Modify the tty name when working under RS/6000.
+        11/2/92 - MX_TO_NJE.C and NJE_TO_MX.COM - program and command
+        procedures to support the MX mailer instead of HUJI-NJE.
+2.1.3 - 29/7/92 - PROTOCOL.C - Modify the timing of clearing all streams
+        to INACTIVE during signon. Move them to earlier time.
+2.1.4 - 2/8/92 - HEADERS.H, HEADERS.H, CONSTS.H, PROTOCOL.C, UTIL.C - allow the
+        usage of the TAG record. If INCLUDE_TAG is defined during compilation
+        then the tag field will be used and the Dataset header will be sent
+        fragmented (since it is longer than 252 chars).
+        Note: This is currently implemented as a temporary fix and can be used
+        only when all your links are of VMnet type.

@@ -1,0 +1,3200 @@
+% If you don't have a new-Century font please remove the comments before
+% the lines that define the cmr10 font (and comment-out the New-Century ones).
+%
+\tolerance 10000
+\hsize = 6.5 in
+\parskip 0.1 in
+
+\font\ncr = NewCenturySchlbk-Roman
+\font\ncrBold = NewCenturySchlbk-Bold
+\font\ncrMed = NewCenturySchlbk-Bold scaled \magstep 2
+\font\ncrBig = NewCenturySchlbk-Bold scaled \magstep 4
+
+% \font\ncr = cmr10
+% \font\ncrBold = cmb10
+% \font\ncrMed = cmb10 scaled \magstep 2
+% \font\ncrBig = cmb10 scaled \magstep 4
+
+
+\centerline{\ncrBig The Hebrew University of Jerusalem}
+
+\vskip 0.2 in
+\centerline{\ncrBig Computation Center}
+
+
+\vskip 0.2 in
+\centerline{\ncrMed Installing HUJI-NJE version 2.1}
+
+\vskip 0.2 in
+\centerline{\ncrMed on VAX/VMS and Unix systems}
+
+\vskip 0.2 in
+\centerline{\ncrBold Revision 16}
+
+\vskip 0.2 in
+\centerline{\ncrBold 9-August-1992}
+
+\vskip 0.2 in
+This  guide describes how to install and operate the HUJI-NJE package
+on a VAX/VMS and Unix systems. However, it  does  not  describe  how  to
+install  and operate the HUyMail package which is needed in order to run
+this NJE emulator on VMS systems.
+Only the changes  needed  to  HUyMail  are  described here.
+
+This shoftware is given free of charge without any comitment from the
+{\sl Hebrew
+University} for support. The {\sl Hebrew university of Jerusalem} is not
+responsible
+for any damage that the use or misuse of this package can cause. This software
+cannot be distributed without a prior permission of the {\sl Hebrew University}.
+
+Note:  Everything written regarding DMF links holds for DMB links unless
+stated otherwise.
+
+\vskip 0.1 in
+{\ncrMed Acknowledgements}
+
+Special thanks to Matti Aarnio from Finland, who helped  me  adapting
+the package to the various Unix systems.
+
+\vskip 1 in
+New in this version: TAG support.
+
+\vskip 1 in
+{\ncrBold Comments and corrections to this guide should be sent to
+INFO@VMS.HUJI.AC.IL}
+
+\vfill\eject
+
+\centerline{\ncrBig Table of contents}
+
+{\obeyspaces\obeylines\parskip 0 pt \parindent 0 pt \narrower
+
+Introduction \dotfill   3
+Installation (VMS) \dotfill 4
+Installation (Unix)  \dotfill   6
+
+\vskip 0.1 in
+SEND command usage \dotfill   8
+UCP command usage \dotfill  9
+Link states  \dotfill 10
+YGONE command usage  \dotfill  11
+NJE\_BUILD program   \dotfill 12
+SHUT\_DAEMONS program \dotfill  13
+LOAD\_DMF program  \dotfill  13
+
+\vskip 0.1 in
+Parameters file \dotfill  14
+Logging levels \dotfill  15
+Link types  \dotfill  16
+SITE\_CONSTS file  \dotfill 19
+
+\vskip 0.1 in
+Routing table  \dotfill  20
+Alternate routing \dotfill  21
+Security considerations \dotfill 21
+
+\vskip 0.1 in
+Files in queue \dotfill  22
+Command mailbox \dotfill  22
+HUyMail changes \dotfill  23
+System dependencies (VMS)  \dotfill  24
+Broadcast to users (VMS) \dotfill 24
+Logfiles \dotfill  25
+
+\vskip 0.1 in
+MX mailer support \dotfill 26
+
+\vskip 0.1 in
+Supported file types \dotfill  27
+Binary files (Unix)  \dotfill 27
+Required files \dotfill  27
+Cluster support (VMS) \dotfill  28
+Known problems \dotfill  30
+
+\vskip 0.1 in
+Unix comments  \dotfill  30
+
+\vskip 0.1 in
+TAG support \dotfill 31
+
+\vskip 0.1 in
+Common error messages \dotfill 32
+
+\vskip 0.1 in
+Technical description \dotfill  37
+}
+\vfill\eject
+
+
+\leftline{\ncrMed General description}
+
+The  {\sl NJE emulator} is a program used to emulate the IBM's NJE protocol
+over {\sl BSC, DECnet} and {\sl TcpIp} lines (Unix version is capable of
+TcpIp links
+only).  The  BSC  link  type  is  used  to  connect to IBM in the normal
+fashion, where the TcpIp links are used to connect to  IBM  running  the
+VMnet software. The NJE causes the VAX to look like an IBM system to the
+other side. The DECnet links are used to give the same functionality  to
+nodes that cannot connect directly to an IBM system, but has DECnet link
+to a VAX that is connected to an IBM or compatible.
+
+The file types supported are:  {\sl Punch,  Print} (with  ASA  or  Machine
+carriage  control  which  is  translated  to  ASA carriage control), and
+{\sl NetData}. Files can be sent to printer using the mailer.
+
+The NJE  emulator  does  only  the  NJE  work.  All  the  local  mail
+distribution  is  done  via  the  HUyMail  package, which should also be
+installed.
+
+The NJE emulator should be transparent when placed between two  other
+NJE nodes; {\sl This currently holds true only for VMS systems}.
+
+The  user's  interface to this package is done by the HUyMail package
+and is described there. The user can also send interactive messages  and
+commands,  and their usage is described in the BITnet user's guide. Here
+only a brief description is given:
+To send mail the user can either use the {\ncrBold VMS/MAIL} and send mail to
+address {\sl BITNET\%"Email-address"} or call the
+{\ncrBold BMAIL} command which is more
+flexible. To send files the user use the {\ncrBold SENDFILE} command.
+All  received
+mail and files are sent to the user via the standard {\ncrBold VMS/MAIL}
+unless the user requested to receive it via {\ncrBold BMAIL}.
+
+In  order  to  send  commands  or messages, the user uses the command
+{\ncrBold SEND/COMMAND} and {\ncrBold SEND/MESSAGE}.
+These two commands are defined in the DCL
+table by the same file that defines BMAIL and SENDFILE.
+
+\vfill\eject
+
+\leftline{\ncrMed Installation on VMS systems}
+
+The  NJE  emulator  should  be  installed  after the HUyMail has been
+installed.
+
+The error checking in the installation procedure is quite minimal  in
+order  to  keep  it  simple;  hence, be very carefull when answering the
+questions.
+
+The installation procedure uses  the  following  defaults:  only  one
+communication  line is defined, MultiNet support is compiled and 2 users
+can be inserted in the INFORM clause.
+
+\vskip 0.1 in
+\leftline{\ncrMed Installation pre-requisits}
+
+No special  privileges  are  needed  in  order  to  install  the  NJE
+emulator,  except from read and write access to the BITNET\_ROOT tree. In
+order to run it you need  DETACH,  WORLD,  OPER  privileges;  SYSPRV  is
+needed in order to access queue files correctly. CMKRNL is needed if you
+are using DMF. SYSNAM is needed in order to define its  command  mailbox
+in the system's table.
+
+The  space  needed  is about 1000-1500 blocks. The installation takes
+about 30 minutes on a VAX-11/780 or equivalent.
+A VAX/C compiler is needed in order to compile the package.
+
+\vskip 0.1 in
+\leftline{\ncrMed Unloading the tape}
+
+The software arrives either on a  tape,  diskette  or  via  EMAIL  in
+VMS-SHARE format.
+
+{\ncrBold Installation  from  tape}:  Create  a temporary empty directory,
+set your
+default directory to it, and unload the tape into it  (Assume  that  the
+tape drive is MUA0:):
+
+{\obeyspaces\obeylines\tt\parskip 0 pt
+~~~~~~~~\$ MOUNT/FOREIGN  MUA0:
+~~~~~~~~\$ BACKUP/VERIFY  MUA0:NJE.BCK  *.*
+~~~~~~~~\$ DISMOUNT  MUA0:
+}
+
+If  you  have problems reading the saveset, try skipping one file on the
+tape and retry the operation. Each saveset is  written  twice  to  allow
+recovery from tape deffects.
+\hfill\break
+After reading the tape proceed with {\sl installing NJE paragraph}.
+
+{\ncrBold Installation  from  VMS-SHARE  file}: Create a temporary empty
+directory,
+copy the VMS-SHAREd file to it, set your default to this directory,  and
+execute  the  file  as  a procedure; this will unpack all files into the
+directory.
+\hfill\break
+Proceed to {\sl installing NJE paragraph}.
+
+{\ncrBold Installation from diskette}: Create a temporary empty directory,
+and  use
+KERMIT or FTP in text/record mode to copy the files from the diskette to
+this directory. The NJE's files  are  on  the  diskette  under  the  NJE
+directory.
+\hfill\break
+After reading the files proceed to {\sl installing NJE paragraph}.
+
+\vskip 0.1 in
+\leftline{\ncrMed Installing NJE}
+
+After unloading the files, set your default directory to:
+BITNET\_ROOT:[ETC]
+and  execute  the  INSTALL procedure. It'll create SYS\$SPECIFIC:[SYSMGR]
+HUJI\_NJE.DAT    which    holds    your    local    configuration,    and
+[ETC]NJE\_ROUTE.HDR which will be used to create NJE.ROUTE indexed file.
+
+{\tt \bf Your BITnet name:}
+
+Enter  here  your BITnet name. It should be up to 8 characters long, and
+only characters and numbers.
+
+The queue used is the mailer's queue, while the logfiles and tables  are
+maintained by default in the BITNET\_ROOT:[ETC] directory.
+
+{\tt \bf Local node IP address:}
+
+You  should  give  your  IP  address  even  if you are not using the TCP
+package. If you are not running any TcpIp software enter here a dummy IP
+number.
+
+{\tt\bf Username to control the emulator:}
+
+This  username (on the local machine) will be placed in the INFORM list.
+A user that is registered in the INFORM list will receive  notifications
+about  line  state  transition,  and  will  be  able to issue privileged
+commands to the emulator. Username SYSTEM is always premitted  to  issue
+such commands.
+
+Now  you have to enter the parameters of the line which will link you to
+the BITnet network. The two important parameters you must have  are  the
+BITnet  name  of the machine at the other side and the link type you are
+using.
+
+{\tt \bf Your NJE neighbour name:}
+
+Here you enter the name of the machine at the other side  of  the  line.
+This  machine  will  be set also as your default router for commands and
+messages sent to the network.
+
+{\tt\bf Link type:}
+
+Here you have the following options:
+\hfill\break
+{\ncrBold DMF} - Used on DMF lines or DMB which runs in GENBYTE mode.
+On  DMF  this
+is  the  only  mode  available; for DMB it is recommended to use the DMB
+keyword. This mode requires CMKRNL privilege and a loading of a  framing
+routine into the non-paged memory.
+\hfill\break
+{\ncrBold DMB}  -  Runs  the  DMB  in  its  BiSync  mode. This
+runs the DMB in more
+efficient mode than running it in DMF  mode,  and  requires  no  special
+privileges.
+\hfill\break
+{\ncrBold DSV}  -  Runs  the  DSV in  its  BiSync  mode.
+\hfill\break
+{\ncrBold MULTINET}  -  Using TCP/NJE (VMnet-II protocol) to connect 
+to other nodes
+supporting this protocol. If the InterNet name of  the  remote  node  is
+different  than  its BITnet name, you can supply later its InterNet name
+or its IP address. Note that the NJE package is not using name server to
+resolve the names, but looks directly in HOSTS.TXT file.
+\hfill\break
+{\ncrBold DECNET} -  Uses DECnet link to connect to another HUJI-NJE emulator
+(not
+compatible with JNET's one). You'll have to supply also the DECnet  name
+of the other node.
+
+Now  all  the  relevant  files  will be compiled and linked. The routing
+table will be built into its indexed format.
+
+\vskip 0.1 in
+\leftline{\ncrMed Post installation tasks}
+
+After the installation is finished and before running  the  emulator,
+check for the following issues:
+
+{\ncrBold Startup  and  shutdown  procedures}:  Include [ETC]NJE\$STARTUP.COM
+in the
+system's startup command procedure  SYSTARTUP\_V5.COM.  Modify  SYSHUTDWN
+procedure  to  run  SHUTDOWN\_DAEMONS  instead of SHUT\_MAILER (the former
+will shut both the mailer and NJE).
+
+{\ncrBold Verify tables}: Inspect SYS\$MANAGER:HUJI\_NJE.DAT
+and NJE\$STARTUP  to  see
+that they look reasonable. Also inspect [ETC]NJE\_ROUTE.HDR
+
+{\ncrBold Run the NJE emulator:} Execute the NJE\$STARTUP procedure to start it.
+
+{\ncrBold Modify  SYLOGIN.COM:}
+If you want your users to have access to the YGONE
+facility, include the following line in your SYLOGIN:
+\hfill\break
+{\tt\bf \$ YGONE/DISABLE}
+\hfill\break
+This command will remove the user from the YGONE list  and  display  him
+the messages received so far.
+
+\vfill\eject
+
+\leftline{\ncrMed Installation (Unix)}
+
+The installation on unix is done currently manually. The files arrive
+either on a tape in TAR format, or via Email; in the later  case  it  is
+Tar'd, then compressed and finally UUencoded.
+
+You should extract all the files from the Tar'd saveset into an empty
+directory. The SITE\_CONSTS is configured for  a  default  configuration.
+You may modify it according to the comments inside.
+
+
+\vskip 0.1 in
+\leftline{\ncrMed Compilation}
+
+In order to compile all modules hit the command:
+
+{\tt\bf \% make all}
+
+which will compile:
+\hfill\break
+{\ncrBold main} - the emulator image.
+\hfill\break
+{\ncrBold ucp} - The control program.
+\hfill\break
+{\ncrBold bmail} - interface for Sendmail for outgoing mail.
+See notes later about its functionality.
+\hfill\break
+{\ncrBold send} - The user's interface to send commands and messages to the
+network.
+\hfill\break
+{\ncrBold unix\_build} - Builds an indexed file from the routing table.
+
+After  compiling  you have to build the routing table and the parameters
+file, according to the description of their contents in  later  chapter.
+Now  we'll describe a minimal default configuration which will route all
+your commands and messages to your neighbouring node who will  serve  as
+your router, untill you'll build a full table (if you need it at all).
+
+\vskip 0.2 in
+\leftline{\ncrMed Routing table}
+
+The routing table will include only one line:
+
+{\tt\bf Local-BITnet-name   LOCAL   ASCII}
+
+All  the  traffic  to  nodes whose name is different than the local name
+will be routed to the default route defined later.
+
+After creating this one line file use the command nje\_build to  build
+its indexed version.
+
+\vskip 0.2 in
+\leftline{\ncrMed Parameters file}
+
+Place  the  followig  file  in
+{\ncrBold /usr/lib/huji\_nje.dat} This file will
+serve as a starting point:
+
+\vskip 0.1 in
+{\obeylines\obeyspaces\parskip 0 pt \parindent 0 pt \tt
+{\bf NAME}  Your-bitnet-name
+{\bf IPADDRESS}  Your ip address in dotted format
+{\bf QUEUE}  /usr/spool/BITqueue  (and you have to create this directory)
+{\bf LOG}  /usr/adm/nje.log
+{\bf TABLE}  /usr/lib/nje.route  (or the path of the indexed table built
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~in the previous step).
+{\bf INFORM}  Your-username@Local-BITnet-name
+{\bf DEFAULT-ROUTE}  your direct neighbour BITnet name
+*
+{\bf LINE}  0  Your direct neighbour BITnet name
+{\bf TCPNAME}  Your direct neighbour InterNet name
+{\bf TYPE}  UNIX-TCP
+{\bf BUFSIZE}  1024
+{\bf TCP-SIZE}  8192
+{\bf IPPORT} 175
+{\bf TIMEOUT}  1}
+
+Now, run the emulator by issuing the command
+
+{\tt ~~~~~~~~\% main}
+
+which will create a detached task to run the emulator code.
+\vfill\eject
+
+\leftline{\ncrMed SEND command usage}
+
+The SEND command is used to send commands and messages to the network
+(including the local node). It's usage on VMS is:
+
+{\parskip 0 pt\vskip 0.1 in
+{\tt \$  SEND/COMMAND  nodename  command}
+
+{\tt \$  SEND/MESSAGE  User@Node  Message}}
+
+and on Unix its usage is:
+
+{\parskip 0 pt\vskip 0.1 in
+{\tt \$  send  -c  nodename  command}
+
+{\tt \$  send  -m  User@Node  message}}
+
+The  replies  are broadcasted to the user. If no command or message text
+is given, the user is prompt for the text, line  after  line  untill  an
+empty line is encountered.
+
+Before  sending  the messages, all characters whose ASCII is below 32
+are converted to space. This is done in order to prevent from the sender
+using screen control characters to play with the receipient screen.
+\vfill\eject
+
+\leftline{\ncrMed UCP command}
+
+The  UCP  program  is  used to control the emulator and to query some
+functions not available via the SEND/COMMAND mode. To use it, simply run
+it. The available commands are:
+\hfill\break
+{\ncrBold HELP} - To show the commands it accepts.
+EXIT - To exit the control program.
+\hfill\break
+{\ncrBold SHOW  LINE}  -  Show  the  line's status. This is the same as
+sending the
+command Q SYS via the net or with SEND/COMMAND.
+\hfill\break
+{\ncrBold SHOW QUEUE} - To see the names of files queued for each line.
+\hfill\break
+{\ncrBold START LINE n} - To start a line that is in INACTIVE or SIGNOFF state.
+\hfill\break
+{\ncrBold START STREAM nn LINE m} -
+To start a stream that is in a REFUSED state.
+\hfill\break
+{\ncrBold SHUT} -
+To shut the NJE task after all links are closed.  every  link  is
+placed  in  SIGNOFF state when the current file ends. When all links are
+in this state, the daemon will shut.
+\hfill\break
+{\ncrBold SHUT ABORT} - Shutdown immediately.
+\hfill\break
+{\ncrBold STOP LINE n} -
+Stop the requested line after the current file  completes.
+The  line  changes  to  the  SIGNOFF  state  in  order to not re-connect
+automatically. A manual START LINE command must be given to return  this
+line to a working state.
+\hfill\break
+{\ncrBold FORCE LINE n} - Abort the line immediately.
+\hfill\break
+{\ncrBold FORCE STREAM nn LINE n} - Abort this stream immediately.
+\hfill\break
+{\ncrBold QUEUE File-name [SIZE nn]} - Queue a file to the emulator.
+Optionally the
+file size (in blocks) can be given. The file must be in the format  that
+the NJE emulator accepts. If not, no warranty is given...
+\hfill\break
+{\ncrBold DEBUG  RESCAN}
+-  Causes  the emulator to rescan the queue directory and
+requeue files. Usefull after renaming files to cause them to exit via  a
+different  link, or when a link is down and has alternate route. In this
+case, only issue the rescan command and the files will be queued to  the
+alternate route.
+\hfill\break
+{\ncrBold DEBUG DUMP} - Dumps all buffer contents to log file.
+\hfill\break
+{\ncrBold LOGLEVEL n}
+ - Sets the loglevel to n. This also closes the logfile, so it
+is used also as checkpoint for it.
+\hfill\break
+{\ncrBold ROUTE old-name TO new-name}
+- Changes the routing  tables.  The  emulator
+updates the permanent database. New routes can also be added this way.
+GONE  Username  LoginDirectory  - Used to issue a gone for another user.
+Make sure you type his login directory correctly, and that  there  is  a
+trailing  slash  in Unix systems, or a trailing colon if it is a logical
+name.
+\hfill\break
+{\ncrBold UNGONE Username} - Remove a user from the database.
+
+\vfill\eject
+
+\leftline{\ncrMed Link states}
+
+The initialiation of the program takes a few seconds. Use the command
+{\ncrBold SEND/COMMAND local-name Q SYS}
+ to see how it proceeds. The following line
+states are defined:
+{\parindent 0 pt \hfill\break
+{\ncrBold INACTIVE} - 
+The line could not initialize, or had a severe  error  during
+its  operation.  Check  the  log,  correct  the  problem and use the UCP
+command START LINE to re-start it.}
+\hfill\break
+{\ncrBold LISTEN} - 
+This line is a TCP or DECnet passive  end.  It  waits  for  the
+other side to call.
+\hfill\break
+{\ncrBold RETRY} - 
+This is a TCP or DECnet active side. The last connection trial
+to the other side has failed.  It  continues  retrying  every  5  to  10
+minutes. Check the log for suspicious problems.
+\hfill\break
+{\ncrBold TCP-Sync} -The  initial handshaking phase when a TCP or DECnet link is
+established.
+\hfill\break
+{\ncrBold DRAIN} -
+The line has been initialized and waits for the  other  side  to
+respond.
+\hfill\break
+{\ncrBold SENT-Sgn} -
+The  line  is  in  the  process  of signing-on. Should last
+shortly.
+\hfill\break
+{\ncrBold ACTIVE(CNCT)} - The link is active and connected.
+\hfill\break
+{\ncrBold SIGNOFF} -
+The link has singned off due to  local  operator  request.  IF
+the  remote  site  has  asked  to  signoff,  the link is placed in DRAIN
+state.
+
+The transition from ACTIVE to SIGNOFF state is done  by  issuing  the
+command  STOP LINE  or  FORCE LINE in the UCP program on the local node.
+The STOP command has no effect if the line is LISTEN, RETRY  or  SIGNOFF
+state.  The  transition  from SIGNOFF or INACTIVE to DRAIN state is done
+with  the  command  START  LINE.  All  other   state   transitions   are
+protocol-dependent and cannot be intiiated manually.
+
+When the link is active, you can see the transmit and receive streams
+states. Their states are:
+{\parindent 0 pt \hfill\break
+{\ncrBold INACTIVE} - Nothing to send or receive on that stream (idle stream).}
+\hfill\break
+{\ncrBold REQUEST-SENT} - Sent a request to send file.
+\hfill\break
+{\ncrBold NJH-SENT} - The Job Header has been sent.
+\hfill\break
+{\ncrBold NDH-SENT} - The Data-Set Header has been sent.
+\hfill\break
+{\ncrBold SEND-FL} - Sending the file.
+\hfill\break
+{\ncrBold NJT-SENT} - Job Trailer sent.
+\hfill\break
+{\ncrBold EOF-SENT} - End of File sent. Waiting for confirmation.
+\hfill\break
+{\ncrBold REFUSED} - The other side sent a reject as a reply to a file transfer
+request.  Usually a sign of deffective file. This state can be recovered
+only by stopping and restarting the link.
+
+Only the states INACTIVE and SEND-FL should appear for a long time.  The
+others  should  be  for  a  very  short  time. The only exception is the
+REFUSED state which cannot be recovered without restarting the link.
+
+\vfill\eject
+
+\leftline{\ncrMed YGONE command}
+
+This command is used to trap the MMR messages into a file. On VMS  it
+has two modes (on Unix only the second mode is availabe):
+The interactive mode simply captures all messages of all types sent to a
+terminal into a  file.  This  has  no  special  connection  to  the  NJE
+emulator, but is given "as a bonus"...
+
+The  second  mode  needs  the  GONE\_SERVER module. The list of users who
+requested to be in the Gone list is kept in  memory  in  a  sorted  list
+(MAX\_GONES  in  the  above  module  defines  the size of it). Whenever a
+message arrives to a  user  and  who  is  not  logged-in  this  list  is
+consulted.  If  the user found, then the message text is appended to the
+file YGONE\_MESSAGES.TXT in his login directory. The login  directory  is
+already  stored  also  in the list, in order to save time finding it. If
+the message is saved in this was an interactive message  telling  so  is
+returned. In order to use it the user logs out using the YGONE command.
+The  SYLOGIN.COM  should  issue the command YGONE/DISABLE. You should
+remove the call to MAIL\_CHECK as YGONE/DISABLE also does  its  functions
+(to reduce image activations).
+
+On  Unix,  the user should add the command ygone in his .logout file,
+and add the ygone /disable command in his .login file.
+
+\vfill\eject
+
+\leftline{\ncrMed NJE\_BUILD (VMS), UNIX\_BUILD (Unix)}
+
+The routing table is quite huge (when no default route is  used).  In
+order to provide fast switching of messages an indexed file is used. The
+file NJE\_ROUTE.HDR is the local part which lists  your  own  nodes,  the
+directly  connected  links,  and  the  nodes  which  has BITnet name but
+receive mail from you not via NJE links. The other part is the  standard
+routing  table distributed automatically once a month. In order to build
+the indexed table shut the emulator and run the build program.  It  asks
+three questions:
+\hfill\break
+{\ncrBold Local  part}
+which  is  the  name  of  the  file  holding the local part
+described above.
+\hfill\break
+{\ncrBold Routing table}
+ If you are using default route, then hit the  null  device
+name  here. Otherwise give the name of the routing table which should be
+in RSCS format (each line looks like: ROUTE  Nodename  Router-node).
+\hfill\break
+{\ncrBold Indexed} file The name of the indexed file holding the routing table.
+It is the file name used in the TABLE command in the configuration file.
+
+After  building  the  new indexed table stop the emulator and restart
+it. This way it'll read the new routing table.
+
+{\ncrBold Note:} You can change few routes by using the Ucp's ROUTE command.
+This will update the indexed file also.
+
+\vfill\eject
+
+\leftline{\ncrMed SHUTDOWN\_DAEMONS}
+
+The NJE and mailer should be shutdown orderly before system shutdown.
+On    VMS    this    is     done     by     running     the     program:
+BITNET\_ROOT:[EXE]SHUTDOWN\_DAEMONS from SYSHUTDWN.
+
+On  Unix  systems  issue  the  command
+{\ncrBold ucp shut abort} during system
+shutdown.
+
+On both systems the Shut-abort command is executed which  will  close
+immediately  all  lines, clear temporary files and exit. Normal shutdown
+waits untill files  in  transit  finish  transferring,  which  can  take
+minutes and more.
+
+\vskip 0.1 in
+\leftline{\ncrMed LOAD\_DMF (VMS specific)}
+
+When  using DMF links, a routine that does the BiSync framing must be
+loaded into the non-paged pool. It is created automatically if you asked
+DMF  line  during initial installation. For those who did not do it, but
+need it later, a description of it follows:
+
+The program consists of two modules: LOAD\_DMF\_MAIN.C which calls  the
+macro module LOAD\_DMF.MAR.
+
+To compile you have to do the following steps:
+
+{\ncrBold If  you  need  DMF  support}:  Compile the C program
+{\ncrBold LOAD\_DMF\_MAIN.C}, the
+macro program {\ncrBold LOAD\_DMF.MAR}, and link as follows:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt
+\$ LINK LOAD\_DMF\_MAIN,LOAD\_DMF,SYS\$INPUT:/OPT,-
+~~~SYS\$SYSTEM:SYS.STB/SELECTIVE\_SEARCH
+SYS\$SHARE:VAXCRTL/SHARE
+\^~Z (Control/z)
+}
+
+This creates the program that loads the {\sl DMF  framing  routine} into the
+{\ncrBold non-paged pool},
+as is required by the DMF sync driver. It also creates a
+file, whose name appears in the {\ncrBold DMF-FILE}
+ line in the configuration file,
+which contains the {\sl memory address} of the routine.
+
+The  framing  routine is needed due to DMF requirements. When the DMF
+(or DMB) works in {\sl character oriented mode} (BSC  is  character  orineted
+protocol)  it does not know where a tranmission block ends. This framing
+routine examines the received data and tells the driver when the read is
+complete  and the data should be passed to the \$QIO caller. This routine
+must be loaded in to non-paged memory pool since it is called inside the
+driver,  and  no  paging  can  be done. The loading routine needs CMKRNL
+priviledge in order to allocate non-paged memory and copy the routine to
+there.  {\sl The  DMB  can  work also in BiSync mode in which it doesn't need
+this framing routine}.
+The routine is loaded once and  is  not  unloaded  when  the  program
+exits. This is because the program is still under development, and crash
+from time to time. Thus, loading it once and keeping the address  inside
+a file keeps us from loading multiple copies of the routine into memory.
+This has one drawback: we must verify  that  the  file  that  holds  the
+address  of  this routine was created after the last boot of the system.
+This is done by the DCL procedure that is supplied to run the program.
+
+\vfill\eject
+
+\leftline{\ncrMed Parameter's file}
+
+The   parameters   file   is   named
+{\ncrBold SYS\$MANAGER:HUJI\_NJE.DAT} or {\ncrBold /usr/lib/huji\_nje.dat}
+and is read by the program each time it runs. Its
+format is (the bolded keywords are needed, the others optional):
+
+{\obeylines\obeyspaces\parskip 0 pt \parindent 0 pt
+{\tt\bf NAME        }Your BITnet name
+{\tt\bf IPADDRESS   }Your IP address. If you don't run TcpIp just put here
+{\tt ~~~~~~~~~~~}something.
+{\tt\bf QUEUE       }The directory that holds the queued files (should be the
+{\tt ~~~~~~~~~~~}same as the mailer's queue).
+{\tt\bf LOG         }The logfile name, including the full path.
+{\tt\bf TABLE       }The routing table filename, including the full path.
+{\tt LLEVEL n    }Set log-level to n. Default is 1.
+{\tt INFORM address }- Sends messages to this BITnet address when a line
+{\tt ~~~~~~~~~~~~~~}changes state. May be repeated more than once. These users
+{\tt ~~~~~~~~~~~~~~}are also authorized to issue commands to the emulator.
+{\tt DMF-FILE name } - The name of a the file holding the DMF framing routine
+{\tt ~~~~~~~~~~~~~~}address. This name must be equal to the name of the file
+{\tt ~~~~~~~~~~~~~~}checked before the program is run. This file is mandatory
+{\tt ~~~~~~~~~~~~~~}if you use DMF or DMB in GENBYTE mode.
+{\tt DEFAULT-ROUTE nodename }- The name of a node to be used as default route.
+{\tt ~~~~~~~~~~~~~~}{\ncrBold Must  be  one  of your direct links}.
+{\tt ~~~~~~~~~~~~~~}When a message/file is
+{\tt ~~~~~~~~~~~~~~}destined to a nodename which does not appear in table,  this
+{\tt ~~~~~~~~~~~~~~}link is used.
+{\tt GONE UserName LoginDirectory} - This emulates a GONE command given by the
+{\tt ~~~~~~~~~~~~~~}user, so he'll  be  always  in  the  GONE  list.  The  login
+{\tt ~~~~~~~~~~~~~~}directory  should  be  in  a  format that a filename can be
+{\tt ~~~~~~~~~~~~~~}simply conctanated to it.
+}
+
+Each line is defined by the keyword LINE.  The  commands  after  it  are
+related  to  the last LINE command. Not all are necessary; see each line
+type description:
+
+{\obeylines\obeyspaces\parskip 0 pt \parindent 0 pt
+{\tt LINE \# Name} The keyword LINE, followed by the line number (from 0 up to
+{\tt ~~~~~~~~~~~}MAX-LINES-1). Name is the BITnet name of the other side.
+{\tt TYPE xxx   }The line's type. Can be DMF, EXOS-TCP, ASYNC, DECNET,
+{\tt ~~~~~~~~~~~}DEC-TCP, UNIX-TCP or MULTINET. DMF can be used  for  DMB  to
+{\tt ~~~~~~~~~~~}run  in  GENBYTE  mode.  Use  DMB keyword to work in BiSync
+{\tt ~~~~~~~~~~~}mode.
+{\tt MAX-STREAMS n }- Defines the maximum number of streams that can be active
+{\tt ~~~~~~~~~~~}cocurrently on that line. This parameter must be coordinated
+{\tt ~~~~~~~~~~~}with the other side. n can be from 1 to 7. If  this  command
+{\tt ~~~~~~~~~~~}is not specified the default is 1 stream.
+{\tt BUFSIZE nn }The buffer size. Should be 1024 for DECnet and VMnet.
+{\tt TIMEOUT nn }Timeout for that link. For synchronous links this must be
+{\tt ~~~~~~~~~~~}3 seconds for BiSync, 1 for DECnet and VMnet links.
+{\tt DEVICE xx  }Name of device. XGxn: for DMF, TTxn: for Async, not needed
+{\tt ~~~~~~~~~~~}for other types.
+{\tt IPPORT n   }IP port number for TCP lines. 175 is the VMnet default.
+{\tt ACK NULLS  }Null buffers should be sent instead of ACKS. Should not be
+{\tt ~~~~~~~~~~~}used for DECnet and TcpIp lines.
+{\tt DECNETNAME xx }The DECnet name of other side.
+{\tt TCPNAME    }The TcpIp name of the other side, if it is different than
+{\tt ~~~~~~~~~~~}the HostName. These names are looked in the nameserver.
+{\tt TCP-SIZE n }Sets VMnet buffer size. Should be not more than 8192 for
+{\tt ~~~~~~~~~~~}EXOS (this parameter defined the maximum transmit block
+{\tt ~~~~~~~~~~~}size. The receive block size is limited by MAX-BUF-SIZE.
+{\tt DUPLEX  HALF }-  For  DMF  and DMB lines. Set the line operation to half
+{\tt ~~~~~~~~~~~}duplex. Under some revisions of VMS-5, running DMF  in  half
+{\tt ~~~~~~~~~~~}duplex mode causes the system to crash once in a few hours.
+{\tt AUTO-RESTART }-  Automatically  restarts  a DMF or DMB line after it has
+{\tt ~~~~~~~~~~~}entered INACTIVE state due to send  or  receive  error.  The
+{\tt ~~~~~~~~~~~}restart is every 5 minutes.
+}
+
+\vskip 0.1 in
+\leftline{\ncrMed Logging levels}
+
+The  command  LOGLEVEL  defines the current loglevel of the emulator.
+Higher loglevel will produce more output in  the  logfile.  The  initial
+loglevel is 1. The levels are:
+\hfill\break
+{\ncrBold 1} - Only the important information and bugs reports are reported.
+\hfill\break
+{\ncrBold 2} - Important messages, bug reports, and little more informational
+messages which might describe the reason to actions logged in  level  1.
+This  level  is  recommended  to be used during initial installation and
+when there are problems.
+\hfill\break
+{\ncrBold 3} - Log files transactions (i.e. file sent to/from and parameters
+of the file).
+\hfill\break
+{\ncrBold 4} - More details for items logged in level 3.
+\hfill\break
+{\ncrBold 5} - Trace and dumps of all buffers sent/received. Use this level with
+caution as it might cause links to timeout and  introduce  problems  not
+related to the investigated one...
+
+The  logfile  is kept open when the loglevel is higher than 1, and no
+{\ncrBold fflush()} is called in order to achive fast dumps.
+In order to flush  the
+data  to  logfile you have to reduce the loglevel to 1, which will close it.
+
+{\ncrBold If the program fails to run} (the process disappear immediately),  try
+running   it   interacetively.   Usually   these  are  problems  in  the
+initialization file. Since the program don't know whether the  log  file
+is  correct  or not, each error in the configuration file is reported to
+the standard output and the program then aborts.
+
+\vfill\eject
+
+\leftline{\ncrMed Link types examples}
+
+The following is an example for the first part of the parameters file
+(these lines appear always, whatever line type you are using). We assume
+that the local node is called HUJIVMS, its IP  address  is  128.139.4.3,
+the   queue   directory  is  USER\$DISK:[BITNET\_QUEUE],  the  logfile  is
+SYS\$MANAGER:NJE.LOG, the table is also in SYS\$MANAGER (and we do not use
+default  route), and it should inform to XXX@HUJIVMS when a link chnages
+state. Since we run DMF also, we must point  to  a  file  to  store  the
+memory address of the framing routine:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+NAME  HUJIVMS
+IPADDRESS  128.139.4.3
+QUEUE  USER\$DISK:[BITNET\_QUEUE]
+LOG  SYS\$MANAGER:NJE.LOG
+TABLE  SYS\$MANAGER:NJE.ROUTE
+INFORM  XXX@HUJIVMS
+DMF-FILE SYS\$MANAGER:ADDRESS.DAT
+}
+
+\vskip 0.2 in
+\leftline{\ncrMed DMF and DMF synchronous lines}
+
+The  DMF  synchronous  lines are used to connect the VAX to an IBM or
+some other system that supports the {\sl BiSync} (BSC)  protocol.  You  should
+check that the clock rate does not goes higher than 19200 baud which the
+maximal rate the DMF can tolerate.
+
+When there is some problem with  the  synchronous  link  (like  modem
+being  turned  off), the system usually crashes after 2-3 read trials on
+the line. Thus, when there is some error on  DMF  line,  doesn't  matter
+which  error,  the line is immediately deactivated to prevent the system
+from crashing. This problem was probably rectified under VMS-5, but this
+behaviour of the emulator is retained to prevent possible problems.
+
+The  keyword  DMF  can  be  used for both DMB and DMF. However, it is
+recommended to use the DMB keyword when you have a DMB, since it'll  run
+the  DMB  in  BiSync mode which is more efficient than GENBYTE mode (DMF
+can be used only in GENBYTE mode).
+
+The essential parameters for  the  DMF/DMB  lines  are:  {\sl LINE,  TYPE,
+BUFSIZE}  (greater than 400, maximum size is limited by SYSGEN parameters
+and process quotas), {\sl TIMEOUT} (must be 3 seconds) and
+{\sl DEVICE. ACK NULLS}  may
+be  used  when  the  other  side is running RSCS-2 (instead of ACKS null
+blocks are sent). {\sl AUTO-RESTART} may be also  used  to  restart  the  line
+every  5  minutes  if it is deactivated due to modem problems. The other
+parameters has no meanning here. For example, line \#0 is a DMF  link  in
+the  first  DMF  on the system, and it is connected on the other side to
+HBUNOS:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+LINE  0  HBUNOS
+TYPE  DMF
+DEVICE  XGA0:
+BUFSIZE  800
+TIMEOUT 3
+}
+
+The device name for DMF is XGcu: and for DMB is SIcu:
+
+\vskip 0.2 in
+\leftline{\ncrMed Asynchronous lines}
+
+The asynchronous lines are a little bit problematic, since  they  are
+not  using  DMA,  thus  needing  a lot of CPU during input. This makes a
+problem on slow and loaded systems, where parts of the incoming data  is
+lost. Thus, you should run the program with high priority, and check the
+log regularly. If you see too much losses  on  this  line,  then  it  is
+recommended to switch to some other type of line (DECnet for example).
+This  line  type  is  not  supported  at all, and is not guaranted to
+work.
+
+\vskip 0.2 in
+\leftline{\ncrMed TCP lines}
+
+Currently the TCP lines can use only the {\sl UCX} (DEC's TcpIp)  and
+{\sl MultiNet}  packages. Since {\sl Multinet} and {\sl Wollogong} are currently
+binary-compatible, it is expected to run on Wollogong also. However,  we
+cannot  assure  that,  neither can we support Wollogong sites in case of
+TcpIp problems. A TCP line is both primary {\sl (active side)}  and  secondary
+{\sl (passive  side)}.  When  a  TCP  link is defined, a passive end is always
+created (socket 175). The line tries to create an active connect once in
+5  minutes,  but  accepts  passive connections always. You can watch for
+these connections and passive ends with NETSTAT -A command under EXOS or
+MULTINET SHOW/CONNECTION on MultiNet.
+The  MultiNet and UCX are quite close in programming behaviour. Thus,
+in the code, most of the routines that are called *MNET*  are  used  for
+UCX also.
+{\sl In  order  to get good response for interactive messages and commands
+on TcpIp links, the timeout value for a TCP link should be one second.}
+
+{\sl The TcpIp lines use big buffers (about 8Kb). When a block arrives, it
+is  big  and  the processing time is much longer than on the other links
+which usually use  smaller  buffers.  Hence,  on  small  machines  (like
+VAX-11/750)  do  not try to use TcpIp and BSC links on the same machine.
+The BSC link will timeout when a buffer is received from the TcpIp link.
+Faster   machines   will   probably   be  able  to  support  such  mixed
+configuration.}
+TcpIp links needs also the following parameters to be defined: {\sl IPPORT}
+{\ncrBold (must  be  175  at  present)}, {\sl TCP-SIZE}
+(recommended size is 8192. EXOS
+cannot use larger value). The recommended value  for  BUFSIZE  is  1024.
+{\ncrBold ACK NULLS  option  must  not  be used}.
+if TCPNAME is used, the parameter
+given is used to locate the IP address of  the  other  side;  thus,  the
+IPADDRESS  can have the InterNet of the other side, or simply its dotted
+address.
+The development machine for this product is running now MultiNet  and
+UCX. Thus, problems specific to EXOS might be remained unsolved.
+{\ncrBold The  name to IP translation is done by looking in HOSTS.LOCAL; In the
+future it'll be enhanced to use {\sl gethostbyname} function.}
+
+As an example, assume that node HUJIVM1 is connected via such a link,
+on link \#1, and is using the  software:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+LINE  1  HUJIVM1
+TYPE TCP or MNET or others
+TCPNAME VM1.HUJI.AC.IL
+BUFSIZE  1024
+TIMEOUT  1
+IPPORT  175
+TCP-SIZE  8192
+}
+
+\vskip 0.2 in
+\leftline{\ncrMed DECnet lines}
+
+DECnet  links  are quite like the TcpIp links. When there is at least
+one DECnet line, NETACP will be informed to create an object with number
+{\ncrBold 202} for which
+incoming requests should be sent to the NJE task. During
+an active open, a connection is made to object number 202 on the  remote
+system.
+
+The  protocol  used  by DECnet links is the same as VMnet, but CRC is
+added to each transmission.
+
+{\sl In order to get good performance, the timeout value for DECnet  links
+should be set to 1 second.}
+
+{\sl The  buffer  size  in  this  type  of  link  should be not too large,
+especially when there are also BSC links on this machine (see the  TcpIp
+section for explanation). A buffer size of 1024 is recommended.}
+
+The essential parameters are the same as for TcpIp links, except from
+{\sl IPPORT} which is not needed, and {\sl DECNETNAME} which is needed.
+{\ncrBold ACK NULLS should not be used on DECnet links.}
+
+As  an  example,  we  assume that node HUJIAGRI, whose DECnet name is
+HUAGRI is connected with DECnet link. We dedicate link \#2 for him:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+LINE  2  HUJIAGRI
+TYPE  DECNET
+BUFSIZE  1024
+TIMEOUT  1
+DECNETNAME  HUAGRI
+}
+
+\vfill\eject
+
+\leftline{\ncrMed SITE\_CONSTS file}
+
+The  SITE\_CONSTS.H  file  is  used  for  preserving  site   dependent
+information  which  is  changed  very  rarely.  In general, the comments
+inside the file are enough, but most of the parameters will be described
+here:
+
+{\parskip 0 pt \parindent 0 pt
+{\ncrBold MAX-LINES}  - The maximum number of lines you have to operate at
+the same time.
+
+{\ncrBold MAX-STREAMS} - Must be 1 currently.
+
+{\ncrBold MAX\_BUF\_SIZE} - Should be at least 20 more than the maximum size of
+buffer  you are going to use on any line. This number should be at least
+400. For VMnet support you need a much larger buffer size.
+
+{\ncrBold VMS} - So the program will compile normally on VMS systems.
+Remove this
+definition when compiling on a Unix host.
+
+{\ncrBold GMT\_OFFSET} -  The GMT offset string to send in response to
+CPQuery TIME command.
+}
+
+If you have some TcpIp package you have to define also:
+
+{\parskip 0 pt \parindent 0 pt
+{\ncrBold EXOS} - in order to use the EXOS package.
+
+{\ncrBold MULTINET} - in order to include the MultiNet code.
+In these two cases you need also the include files EXOS.H or  MULTINET.H
+which  are  supplied  only  if  you  have  the  licence for one of these
+packages.
+
+{\ncrBold DEC\_TCP} - To compile the code used for DEC's TcpIp package (UCX).
+This is mutually exclusive with the MULTINET, since they use almost the same
+routines in the code.
+}
+
+On various Unix systems there are slight  changes  of  some  commonly
+used   structures.  edit  SITE\_CONSTS.H  to  tailor  to  your  own  Unix
+environment.
+
+\vfill\eject
+
+\leftline{\ncrMed Creating the routing table}
+
+The routing table  is  an  indexed  file  created  by  the {\ncrBold NJE\_BUILD}
+({\ncrBold unix\_build} under Unix) program. Two input files are used to
+build the
+table: the local header and the standard BITnet routing table. The local
+header  describes  the  local  site and all the directly connected sites
+which appear as a comment in the standard table you receive each month.
+
+{\ncrBold The table entries should be all in upper case. Lines that start  with
+an asterisk are comments.}
+
+Each  line  is  composed  of  three fields. The first one is the {\sl site
+name}; The {\sl site name} should be up to 8 characters long. However, pad it
+with  blanks  to  be at least 9 characters long. The second field is the
+{\sl link name} to send files on for that node, and  the  last  field  is  the
+{\sl character set} to use on that link.
+
+The link name for the local node is the special name {\ncrBold LOCAL}. This link
+name is used also for all sites that their mail is received by the local
+site,  but it is sent to them not via NJE links. The format can be 
+{\ncrBold ASCII}
+or {\ncrBold EBCDIC} for all nodes that share the LOCAL link. The  format
+for  all
+other nodes must be {\ncrBold EBCDIC}. If it is ASCII, you will damage files in
+transit.
+
+For local nodes you can specify either ASCII or EBCDIC format. In the
+first one, the files are translated to ASCII while they are received. At
+the second format they are left in EBCDIC and the mailer translated them
+to  ASCII  if needed. Currently only BMAIL supports EBCDIC files, so you
+should use EBCDIC  format  only  if  your  users  are  using  the  BMAIL
+interface.
+
+{\it Each direct neighbouring node {\ncrBold must} appear in the routing
+table (i.e. in the local header part) even if it doesn't have an alternate
+route.} This is especially important when you have a default route defined,
+oetherwise you might end with a loop when one of the links is down.
+
+after this local header has been created, run the {\ncrBold NJE\_BUILD}
+ program.
+It reads the above two files and creates the index  file  which  is  the
+table.
+
+{\ncrBold Note:}
+ The routing table is kept opened by the NJE program as long as it
+runs. If you update the table during the run, stop the mailer after  the
+update and re-run it, or use UCP's ROUTE command to do it.
+
+As  an  example for the local header file, assume that the local node
+is named HUJIVMS and is connected via BSC link to node HBUNOS.  It  also
+receives  mails  for  HUJIAGRI, which is not connected by NJE link (thus
+its mails are processed by the local mailer). Node TAUNIVM is  connected
+to  HBUNOS,  but  is  not  listed  in  the  routing  table  that  we get
+periodically (thus we have to define it in our local header  file).  The
+header file should look like:
+{\hfill\break\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+HUJIVMS     LOCAL     ASCII
+HUJIAGRI    LOCAL     ASCII
+HBUNOS      HBUNOS    EBCDIC
+TAUNIVM     HBUNOS    EBCDIC
+}
+
+The  programs  are  written  to  handle the periodic routing table in
+VM/RSCS format. The lines in this file has the following format:
+
+{\tt{\bf ~~~~~~~~~ROUTE   Node-name   Via-node}   {\ncr Some other data.}}
+
+where {\sl Node-name} is the node name for which this line is, and
+{\sl Via-node}
+is the next hope to that node. For example, all mails outgoing to BITnet
+from HUJIVMS are sent via HBUNOS, thus, TECHNION line should look like:
+
+{\tt{\bf ~~~~~~~~~~ROUTE   TECHNION   HBUNOS}   \ncr Some other data.}
+
+\vfill\eject
+
+\leftline{\ncrMed Alternate Routing and default route}
+
+A direct link might have an entry in the routing table which point it
+to a different link. This serves as an alternate route.
+
+When  a file is queued (or interactive message is sent), the nodename
+is first searched in the active links table. If found, and the  link  is
+in  ACTIVE  state, this route will be used. If not found, or the link is
+inactive, the routing table will be consulted. If there is  a  different
+route  there,  and  that  link  is  up,  it'll  be  used.  Otherwise the
+message/file will be rejected. There is one exception: if  the  nodename
+was  neither  found  in  the active links, nor in the routing table, and
+DEFAULT-ROUTE command was given, this default route will be used.
+
+You can create a few levels of indirection of routing.  The  emulator
+will  follow these indirections untill an active link is found or a link
+is inactive and no alternate route for it. {\ncrBold Beware from loops!!!}
+
+The  active  routing  can  be  checked   by   issuing   the   command
+{\tt Query Nodename} to the emulator via SEND/COMMAND.
+
+When  the  NJE  emulator  is  started, all lines are placed in ACTIVE
+state and the queue is scanned. Thus, no alternate routes are  consulted
+when  the  emulator  is  started.  In  order  to  use  them,  issue  the
+DEBUG RESCAN command after all the active lines are active.
+
+\vskip 0.1 in
+\leftline{\ncrMed Commands accepted from the network}
+
+The program supports commands accepted from the network. It  supports
+a syntax that is similar to the IBM's RSCS one. Send the command HELP to
+see which commands are currently supported.
+
+\vskip 0.1 in
+\leftline{\ncrMed Security considerations}
+
+Since the emulator receives commands from the network (like {\tt CPQ N}) it
+might be a security breach for tightly secured systems. It is adviseable
+to send the HELP command after each upgrade to check  for  the  commands
+available  from the network. In order to disable a command, it is enough
+to edit NMR.C and remove  the  section  that  parse  it  and  calls  the
+relevant routine.
+
+\vfill\eject
+
+\leftline{\ncrMed Queuing files to send}
+
+When the dameon starts, it scans the queue for all files destined via
+the known NJE links; Alternate routes are ignored in this initial  step,
+as  the  links were not intialized yet. The extension of the file is the
+name of the link to queue the file on. These files names  are  saved  in
+the  internal-memory  list  to  speed up queue processing. This internal
+queue is ordered by increasing size of the files. During  its  run,  the
+mailer  connects  to  the NJE's mailbox to inform it about more files to
+send. However, sometimes files are dropped away, so you have to use  the
+UCP's  QUEUE  or  DEBUG RESCAN  command  to queue the file again. In any
+case, the next time the emulator will run it'll collect this file.
+
+When a link goes down, its alternate route is  used.  However,  files
+which  are already queued are not transferred to the alternate route. In
+order to move them, simply issue the DEBUG RESCAN command.
+
+{\ncrBold Note}: If the To field is too long, it is replaced by the address
+INFO@Local-node-name,  to  route  the  message  to the local postmaster.
+However, new versions of the mailer truncate the username  and  nodename
+to 8 characters.
+
+\vskip 0.1 in
+\leftline{\ncrMed Files names in the queue}
+
+The names of files in the queue has the following format:
+
+\vskip 0.1 in \leftline{\tt ~~~~~~Fmt-NodeName-Number.Link}
+
+Where  {\sl Fmt} is {\ncrBold ASC} for ASCII files, {\ncrBold EBC}
+ for EBCDIC files. The {\sl NodeName} is
+the node to which the file is destined (doesn't appear allways). {\sl Link} is
+the name of the link on which this file is to be sent.
+
+There  are some special link names: {\ncrBold HOLD} and
+{\ncrBold HOLD\$ABORT}. These are of
+files rejected during receive or transmit, and placed under this name to
+keep them from resending.
+
+When  a  file is being {\sl received}, it is named
+{\ncrBold NJE\_RECV\_TMP\_n.TMP;} n is
+the line number. it is renamed to the correct  name  when  the  file  is
+received completely.
+
+\vskip 0.1 in
+\leftline{\ncrMed Command mailbox (VMS specific)}
+
+The command mailbox name is {\ncrBold HUJI\_NJE\_CMD} and is placed in the
+system's logical names table, so every process  can  access  it.  It  is
+opened  for  world  access,  so  SENDCMDMSG  need  not be installed with
+privileges. In order to protect  it,  all  commands  (except  Query  and
+CPQuery)  are  allowed  only  for  the  users  listed  in INFORM and for
+username SYSTEM.
+
+\vskip 0.1 in
+\leftline{\ncrMed Command mailbox (Unix specific)}
+
+The commands receivbed from ucp and send programs  are  received  via
+UDP  (currently port 175). The port number is defined in CONSTS.H; Since
+there is no way to check for the sender's identity, the {\ncrBold ucp} program
+itself must be protected from users.
+\vfill\eject
+
+\leftline{\ncrMed HUyMail Changes (VMS specific)}
+
+You  must  have  the latest version of HUyMail (version 4J and up) in
+order to use the NJE package. This version of HUyMail has the  following
+additions for the NJE support: It calls the NJE via its mailbox to queue
+files, the SENDFILE command has more switches, and  BMAIL  and  SENDFILE
+return a message ID to the sender.
+
+The  destination  used in the mailer's table are the same as used for
+the CDC (CDC for normal files and mails, BSMTP for sites  with  mailers,
+BSMTP\_M  for  BSMTP only sites). The parameter of each address makes the
+difference between the CDC's daemon and the NJE emulator. The  following
+parameter   should  be  used:  In  the  CDC  destination  is  should  be
+ASC\_XXXXXX.Linkname (You should write here the desired  link  name).  If
+the destination is either one of the BSMTPs, the parameter should be:
+Gateway-address,ASC\_XXXXXX.LinkName.  There  should  be no space between
+the two parts.
+
+{\sl Note that with the new alternate route algorithm the LinkName can  be
+the destination node and the NJE finds the best link to it.}
+
+The  program  BUILD  has been enhanced to create the files with these
+extensions. When you build the tables or process the domains and Xmailer
+files  the  nodename  is  put  at  the LinkName field which lets the NJE
+emualtor to find the route.
+
+The periodic routing table (the one you get once in a month) includes
+the  routing  information:  each  line tells what is the next hop to the
+destination. If you have more than one NJE link, the BUILD program  uses
+this  information to construct the file name in the table ({\sl the extension
+of it defines the link name}). However, XMAILER NAMES and DOMAIN NAMES do
+not  have  this information. The BUILD program which process these files
+creates an intermediate files with the format of the routing  table.  If
+you  have  more  than  one  link,  you'll  have  to  edit  both of these
+intermediate files and change the extension of the files  names  in  the
+routes that are going not via the main link.
+
+{\ncrBold Important}: When using the HUJI-NJE package, you are advised
+to not use
+the {\sl default route} mechanism in the mailer's table.  The  mailer's  table
+should  also be built from the XMAILER NAMES and DOMAIN NAMES files (use
+the appropriate BUILD command options). It is  recommended  to  use  the
+{\sl indexed file} option of the mailer to have fast response and to conserve
+CPU. If you must use default route, route all unknowns destinations to a
+near mailer, enclosed in BSMTP envelope.
+
+\vfill\eject
+
+\leftline{\ncrMed System dependencies (VMS specific)}
+
+{\sl The  emulator hevealy depends on the software used in the system}. The
+DMF synchronous port and the farming routine are VMS dependent, and  the
+TcpIp  part  is  TcpIp software dependent.
+{\ncrBold Before upgrading VMS} read the
+release notes describing the VMS synchronous port and verify that module
+VMS\_IO is correct.
+
+{\ncrBold Before upgrading your TcpIp software}, please compare the old include
+files with the new ones. If they differ, please consult  the  author  of
+the  program.  {\sl Since EXOS is no longer used here, support of it might be
+dropped in future releases of EXOS}.  However,  ths  NJE  emulator  uses
+definitions  that are not likely to change in next releases of the TcpIp
+software packages.
+
+\vskip 0.1 in
+\leftline{\ncrMed UCX problem}
+
+While working with UCX-1.3 the  emulator  must  be  run  without  the
+/NORESOURCE\_WAIT  switch. Otherwise errors about insufficient I/O channels
+are produced.
+
+\vskip 0.1 in
+\leftline{\ncrMed Broadcasts to users (VMS specific)}
+
+The broadcasts sent to the users is done using  the  \$BRKTHRU  system
+service;  the  messages  are sent to class USER1, thus can be blocked by
+the users.
+
+In order to reduce the load on  the  net,  the  default  action  when
+sending  mail  or  file is to use the QUIET option (setting form code in
+NDHGFORM to QUIET).  If  the  user  wish  to  get  all  messages  for  a
+particular  item,  he  should  call  BMAIL or SENDFILE with the /NOQUIET
+qualifier.
+
+{\sl See also notes in YGONE section.}
+
+\vfill\eject
+
+\centerline{\ncrBig MX package support}
+
+\leftline{\ncrMed Outgoing mail}
+
+{\ncrBold MX} is a mailer for VAX/VMS systems written by the {\sl Engineering
+Computing services} of the {\sl Rensselaer Polytechnic Institute}. The {\sl MX
+mailer} is available publicly at no charge via anonymous FTP from the above
+institute (on machine {\ncrBold vms.ecs.rpi.edu}).
+
+The interface between {\sl HUJI-NJE} and {\sl MX mailer } is done using the
+external SITE support that exists in the MX package. This means that the
+interface works, but not all MX mailer functions are supported, nor it is
+very efficient.
+
+The outgoing mail is passed from MX to the NJE emulator by running a process
+that executes the command procedure named {\tt \bf MX\_EXE:SITE\_DELIVER.COM}.
+This command procedure should include the following lines:
+
+\leftline{\tt \$! SITE\_DELIVER.COM}
+\leftline{\tt \$ MX\_TO\_NJE :== \$BITNET\_ROOT:[EXE]MX\_TO\_NJE}
+\leftline{\tt \$ MX\_TO\_NJE 'P2' 'P3' "''P4'" "@KINERET.HUJI.AC.IL" "@KINERET"}
+\leftline{\tt \$ EXIT 1}
+
+And you should replace @KINERET.HUJI.AC.IL with your {\sl InterNet} name
+and KINERET with your {\sl BITnet name}. If you don't have an InterNet
+name simply remove the last two parameters. When they are specified, the
+receipient address is transformed from BITnet format to InterNet format so
+MX will accept it correctly. {\sl It is probably possible to do the same
+thing with MX's REWRITE-RULE command}.
+
+The program {\ncrBold MX\_TO\_NJE} is supplied with the NJE sources and compiled
+by the NJE installation procedure. If you have NJE already installed and this
+program is not there, compile it and place the executable file in
+BITNET\_ROOT:[EXE].
+
+The files placed in the BITnet queue directory are named with a linkname of
+{\ncrBold DEFAULT}. You'll have either to define this route or use a default
+route.
+
+In order to route mail from MX to the NJE package you have to add a path in
+MCP. One simple way is to route all addresses that end with {\sl .BITNET} to
+the NJE package. This is done with the following command:
+
+\leftline{\tt MCP> DEFINE PATH *.BITNET SITE}
+
+It is possible also to take the entire routing table and generate one path
+command for each BITnet node. For example:
+
+\leftline{\tt MCP> DEFINE PATH HUJIVMS SITE}
+
+\vskip 0.2 in
+\leftline{\ncrMed Outgoing mail}
+
+Incoming mail is a different story. In order to make it simple, a command
+procedure is used. This command procedure ({\ncrBold NJE\_TO\_MX.COM}) should
+be submitted in batch. Once a minutes it will look for files coming from the
+NJE emulator. If found, it'll feed them to the MX mailer.
+
+This command procedure changes its process name to be NJE->MX.
+
+Please edit this command procedure and insert your BITnet and InterNet names
+at the marked positions.
+
+\vfill\eject
+
+\leftline{\ncrMed Log files and DEBUG mode}
+
+The program writes its error messages into the log  file  defined  in
+the parameters file. Since the program is in development, even non-fatal
+errors are logged in order to improve the program. The log messages  are
+written  using  the  {\sl logger}  routine. Each log message has an associated
+logging level, and the program has its own log level. If  the  message's
+log  level  is  less  than or equal to the program's log level, it'll be
+logged. Otherwise it'll be ignored. The default log  level  is  1,  thus
+only  logger  calls  with level of 1 will be logged. If you increase the
+log level (by
+{\ncrBold LLEVEL} command in  parameters  file)  you'll  get  a  more
+detailed log. However, note that this slows the program and might create
+artificial error messages on  small  machines  (the  link  will  timeout
+during the logging operation). In order to improve program's efficiency,
+almost all log calls with level higher than 1 are sorounded by:
+
+{\tt ~~~~~~~~~~~\#ifdef DEBUG}
+
+In order to have these logged, you must insert:
+
+{\tt ~~~~~~~~~~~\#define DEBUG}
+
+in your {\ncrBold SITE\_CONSTS.H} file and re-compile the appropriate modules.
+
+Most error messages include VMS error  code.  In  order  to  see  the
+message associated with this error code, use the DCL command:
+
+{\tt ~~~~~~~~~~\$ EXIT nnn}
+
+where {\tt nnn} is the error code. If the error code is preceeded by X\^, then
+it is a hexadecimal number. Sometimes you'll  find  the  clause {\sl errno=},
+which  lists  not  VMS error number, but Unix error number. This is used
+only in the TcpIp error messages, since  these  packages  use  the  Unix
+error codes.
+
+When  the  error  is  associated with \$QIO operation, both the status
+returned by the \$QIO and the IOSB are listed.
+
+Most of the error codes of level 1 are described in the appendix. {\sl You
+are  urged  to  examine  this file from time to time and delete it}; this
+will allow you to locate easily new problems, and to prevent  this  file
+from growing up.
+
+\vskip 0.1 in
+\leftline{\ncrMed Program's performance}
+
+The  program was originally developed on a VAX-11/750 which was quite
+loaded. {\sl It used one BSC link}. In order to allow  it  to  keep  with  the
+input from the other side the program is running at {\sl enhanced priority (8
+on the 750}). It seems that the program can keep with the  incoming  data.
+In  severe  loads,  it  looses  incoming  buffers (the DMF driver looses
+characters), so after a few errors the line is put in the DRAINED  mode,
+sign-on  again  after  a  few  seconds  and  usually  continues  to work
+correctly. The same VAX also could carry one additioanl DECnet link with
+buffer  size  of  1024. I think this is the maximum configuration that a
+750 can successfully hold.
+
+Currently, the software runs on a VAX-6330 with 2 BiSync lines and 8
+TcpIp/DECnet links without any problems and in normal interactive priority.
+
+\vfill\eject
+
+\leftline{\ncrMed Supported files types}
+
+The following file types are supported and handled as described:
+\hfill\break
+{\ncrBold PUNCH} -
+Accepted  correctly (trailing spaces removed by the mailer). A
+file can be forced to be sent  in  PUNCH  format  by  using  the  /PUNCH
+qualifier  of  SENDFILE.  Lines longer than 80 characters are wrapped by
+the mailer before sending them.
+\hfill\break
+{\ncrBold PRINT}
+- Accepted with either no cariage control  or  with  ASA  carriage
+control (which is Fortran carriage control). Since the files are sent to
+the user as with VMS/MAIL, The carriage control character is treated  as
+a  normal characater, and the file doesn't have the VMS Fortran carriage
+control attribute after EXTRACT from mail. The supplied FCONVERT program
+takes such a file, copy it to a new version which is exactly the same as
+the original, but the file has the above VMS attribute.  Incoming  files
+with  Machine  carriage control are converted during the receive process
+to ASA carriage control. Since there is no  one  to  one  correspondence
+between these two types, the converion is aproximate.
+When  a user sends file, he can use the /PRINT qualifier of SENDFILE.
+SENDFILE assumes that the first character of each line is  ASA  carriage
+control.  This  holds  even  if  the  file  has  no VMS fortran carriage
+control.
+\hfill\break
+{\ncrBold NETDATA}
+- These files  are  received  correctly,  except  that  splitted
+records   are  converted  to  separate  records.  This  behaviour  seems
+reasonable on VMS, since the editor does not  accept  files  with  lines
+longer  than 255 characters. ASA carriage control in these files is also
+treated correctly (plus minus bugs), similar to PRINT files.
+The default mode when sending files is NetData. Records  longer  than
+253  characters are splitted by the mailer to separate records. Changing
+this behaviour is hard, and will be done only if there  will  be  demand
+for  it.  Only when the filetype is binary the mailer creates records of
+512 characters and the NJE emulator creates a segmented record.
+
+{\ncrBold Important:}
+Binary files are sent as NetData  files,  class  N.  However,
+there  is  no  comaptibility  with  {\sl Jnet's}  VMSDUMP  files, since Joiner
+refuses to give the description of these files.
+The ASCII to EBCDIC conversion is done using the tables that are used
+on most BITnet sites that has to do such conversions.
+
+\vskip 0.1 in
+\leftline{\ncrMed Binary files on Unix}
+
+Since  we  can't  deliver  binary  files  using  the standard mailing
+system, binary files are left in the queue. You should change  UNIX\_MAIL
+module  in  order  to handle them automatically. See the technical notes
+for more details.
+
+\vskip 0.1 in
+\leftline{\ncrMed File class}
+
+All files and mails sent has an NJE class associated with  them.  The
+mailer  assigns  default  classes according to the message type, but the
+user can override it with the /CLASS qualifier of SENDFILE. The class is
+one  character in the range A-Z. A is associated with files, M with mail
+files, N usually used for binary files. The incoming  message  class  is
+checked  only  for class N (and then no code conversion is done). In all
+other cases it is only reported to the user (in the  VMS/MAIL  To  line.
+See mailer's guide for details).
+
+\vskip 0.1 in
+\leftline{\ncrMed Required files}
+
+The  following  files  are needed in order to build the tables of the
+NJE emulator and the mailer or Sendmail:
+
+{\obeylines\obeyspaces\parskip 0 pt \parindent 0 pt
+{\ncrBold BITEARN NODES} - The monthly routing table.
+{\ncrBold DOMAIN NAMES} - The list of all domains with their gateways.
+{\ncrBold XMAILER NAMES} - List of all sites that run the XMAILER software.
+}
+
+All these  files  are  obtainable  from  the  national  NETSERV.  It  is
+recommended  to  subscribe to the automatic distribution of these files.
+This way you'll receive the updated versions of these  files  when  they
+are updated.
+
+\vskip 0.2 in
+\leftline{\ncrMed Mailer's table (VMS specific)}
+
+(described in more details in the mailer's notes)
+
+The mailer's table is built from the local header and the above three
+files. In order to build the mailer's table you have to do the following
+steps:
+
+{\ncrBold 1. Process  the  DOMAIN NAMES file}. This is done with
+the BUILD program.
+The resultant file should be appended to the end of the local  header
+(replacing the part created from the previous version of this file).
+The resultant file is in the format of the header file.
+
+{\ncrBold 2. Process the XMAILER NAMES file into a temporary one}.
+This should also
+be done with the BUILD program. If you have more than one NJE  links,
+edit  the temporary file and change the file name (the linkname part)
+to the non-default routing host if there is some  host  that  is  not
+routed via the default link.
+
+{\ncrBold 3. Process the monthly table with the BUILD comman}d, option 1.
+The input
+to this program are the monthly table (sort it before  by  the  nodes
+name),  the  Xmailer  processed  file  (sort  it  also) and the local
+header. The output is a complete table.
+
+It is recommended to use an {\sl indexed file} for  the  routing  table  (use
+BUILD  option  2  to  convert  the  above resultant file into an indexed
+format) since the table is very large (more than 3000 lines).
+
+\vskip 0.1 in
+\leftline{\ncrMed NJE tables}
+
+The NJE table is an indexed file, and is created from two files:  The
+monthly  table  and the local header (which consists of all BITnet sites
+we know but don't appear  in  the  monthly  table  since  they  are  our
+neighbours). {\sl This  local  header is different than the Mailer's one}. In
+order to build the table run the program NJE\_BUILD.
+
+{\ncrBold Note:}
+ Both the mailer and the NJE program keep the routing table opened.
+After  updating  one of the tables, stop the relevant process and re-run
+it. The NJE daemon is the only one capable doing on-line changes in  its
+table, by using the UCP's command ROUTE.
+
+\vskip 0.1 in
+\leftline{\ncrMed Cluster support (VMS specific)}
+
+Clustered  machines  can be supported as separate machines or look to
+the outside world as one machine. The later aproach have a few variants.
+When  handling the clustered machines as different BITnet nodes, each
+machine runs its own mailer, and can run also its own NJE emulator.  The
+mailer and/or NJE emulators communicate among themselves using DECnet or
+TCP.
+
+When calling all clustered machines with  the  same  name,  only  one
+machine   can   run  the  NJE  emulator.  The  other  machines  run  the
+CLUSTER\_CLIENT program which listens on the same command mailbox as  the
+NJE  emulator  (thus  SEND/COMMAND and SEND/MESSAGE are used without any
+change on the other machines) and pass via DECnet the  commands  to  the
+emulator.  The  emulator broadcasts using Cluster flag, thus the replies
+will be received on any node  of  the  cluster.  The  CLUSTER\_CLIENT  is
+needed as mailboxes are recognised only on the local machine.
+In  order  to  activate it, create SYS\$MANAGER:HUJI\_NJE.DAT just like
+on the "central" machine, but add the configuration line:
+
+{\tt ~~~~~~~~~~~~~CLUSTER ~~~DECnet-name-of-the-central-machine}
+
+and then run CLUSTER\_CLIENT instead of running the NJE\_TASK process.
+
+For mail and files the situation is a little bit  different.  If  the
+queue's disk is shared by all cluster members, then only one mailer will
+run (on the machine that runs the NJE emulator) and  the  CLUSTER\_CLIENT
+will pass BMAIL and SENDFILE commands to the mailer as well.
+
+If  there  is  no  common  disk, then each node must run its own mailer.
+Since all mailers has the same nodename, each one must keep  a  list  of
+its  local  users and pass all other mail to the {\sl central} mailer which is
+the mailer that runs on the machine the NJE runs on.  This  mailer  will
+have  an  {\sl opposite} table,  which  lists  for each user on which node he
+should receive his mail. This can be releived if the mechanism  to  send
+mail  to local users is DECMAIL in which case VMS/MAIL will take care of
+it.  {\ncrBold When  using  the  aproach  of  several  mailers,  you  should
+edit CLUSTER\_CLIENT.C  and disable it from listenning on the mailer's command
+mailbox.}
+
+\vskip 0.1 in
+\leftline{\ncrMed Support}
+
+The program is supplied as-is, without any commitment to support  it.
+However, support will be given on a good-will basis, as our time allows.
+In order to ease the support, please send with each problem  report  the
+following items:
+
+- Your SITE\_CONSTS.H and parameters file.
+
+- The extraction from the logfile that shows the problem.
+
+- The C and VMS version you are using.
+
+Please send the messages to INFO@HUJIVMS (on BITnet).
+
+\vfill\eject
+
+\leftline{\ncrMed Known problems}
+
+- There  is one deviation from VMnet sepcifications which does not cause
+any problems: We do  not  send  FAST  OPEN  (optional  by  the  protocol
+definition).
+
+- Ultrix  has  problems  with include files. See note bellow at the Unix
+section.
+
+\vskip 0.1 in
+\leftline{\ncrMed Unix comments}
+
+The following are general comments for the unix version.
+
+{\ncrBold o}
+ The Unix version uses currently only TcpIp links  since  there  is  no
+standard  for  the  synchronous  device  drivers  on Unix (and even some
+companies do not have drivers for the hardware they sell...). The  TcpIp
+driver  is  using  the  synchronous system calls for transmit, since the
+author does not know Unix so well to use them in asynchronous  mode.  On
+receive,  the  select  call  is  used.  When  the  transmit side is made
+asynchronous also it is expected to enhance the performance  when  using
+more than one link.
+
+{\ncrBold o}
+The interface to SENDMAIL is currently minimal. For outgoing mail, the
+program BMAIL is called by sendmail to place the files in the NJE queue;
+no  Sendmail  configuration files are supplied. For incoming mail, it is
+sent using SMTP connection to the  local  machine.  If  the  transaction
+fails, the program tries to send a failed-delivery notices to the sender
+and to POSTMASTER on the local machine (again, using SMTP connection  to
+the  local  machine). If this fails, the error return message is left in
+the queue with filename that starts with ERR. Mail which is destined  to
+BSTMP  or  SMTP  or  MAILER  on  the local machine is searched for BSMTP
+envelope. If one is found, it is parsed and its information is used.
+
+{\ncrBold bmail.c}
+- called by SendMail and simply puts the file in the  queue  and
+informs  the  emulator  about  the  existence of a new file. It receives
+three parameters: The From, To addresses and the link name to queue  the
+message to; (the message text, which must include the RFC-822 header, is
+read from the standard input). If the message is to be enclosed in BSMTP
+envelope, then 2 more parameters should be specified: -b followed by the
+gateway.
+
+{\ncrBold unix\_build.c, main}
+ image uses the standard DBM package, thus have to  be
+linked with {\ncrBold -ldbm} switch. The building of the table is similar to the
+VMS version. However, {\sl the emulator should not be running while  building
+the table}, and the .pag and .dir files must be nullified before building
+a new table.
+
+\vskip 0.1 in
+\leftline{\ncrMed Database notes}
+
+The program was originally written  to  use  the  Unix  standard  DBM
+package.  With  the help of Matti Aarnio a Gnu-DBM support was added. In
+order to use GDBM, compile the package with GDBM defined and  link  with
+its library.
+
+\vskip 0.1 in
+\leftline{\ncrMed UNIX\_MAIL.C}
+
+This  file  has one problem: The include file {\ncrBold in.h} is needed for most
+Unix systems, but not on Ultrix. On Ultrix it  aborts  the  compilation.
+Thus, when compiling on an Ultrix system, comment this include line.
+
+\vskip 0.1 in
+\leftline{\ncrMed File format (from mailer's guide)}
+
+The  files  stored in the queue are logicaly (not physically) divided
+into two parts: the  envelope  and  the  message's  body.  The  envelope
+contains  the  data  supplied by the sender's mailer (if this message is
+local, then it is supplied by  BMAIL  or  SENDFILE).  The  message  body
+itself is all the user's data, including the message's header (From, To,
+Received). Put attention to the difference between envelope and  header:
+The  header is considered as part of the user's data! The mailer usually
+don't change anything in the message's  body,  except  from  adding  the
+Received  line  in  the  beginning  of  it  (if it is of type MAIL). The
+envelope has fields with fixed format: 3 characters defining  the  field
+followed by :, then 1 or more spaces, and the content of that field. The
+fields are:
+
+The fields headers are (each one appears only once except from TOA):
+\hfill\break
+{\ncrBold FRM:} the machine readable part of the sender's address. For example:
+\hfill\break
+{\tt ~~~~~~~~FRM: YEHAVI@HUJIVMS}
+\hfill\break
+{\ncrBold TOA:} lists the machine readable part of the address to send the 
+message
+to. This is the only field which can be replicated.
+\hfill\break
+{\ncrBold TYP:}  The  message's type. It can be MAIL, FILE, PRINT, PUNCH or
+FPRINT.
+See the description of supported file types for more details  about  it.
+The default is to use MAIL for messages generated by BMAIL and MAIL, and
+FILE (which is NETDATA) for SENDFILE.
+\hfill\break
+{\ncrBold FNM:} The file name (8 characters). When using SENDFILE this is the
+first
+part  of  the  filename,  or  the one supplied with the /NAME qualifier.
+BMAIL sets here the username.
+\hfill\break
+{\ncrBold EXT}: The extension of the file being sent.  Can  be  overiden  with 
+the
+/NAME qualifier of SENDFILE. BMAIL put here MAIL.
+\hfill\break
+{\ncrBold FMT:}  The character set in which the message is. Can be ASCII,
+EBCDIC or
+BINARY.
+\hfill\break
+{\ncrBold CLS:} The NJE class to use (A to Z only). The default is M for 
+mails,  A
+for files, N for binary files.
+\hfill\break
+{\ncrBold FID:} The fileID assigned by BMAIL and SENDFILE, so the user can
+identify
+the NMRs sent back to him when the file travels the NJE network.
+\hfill\break
+{\ncrBold ACT:} Generated by SENDFILE and used by the mailer only.  Preserved 
+only
+when  the  message does all its way with the DECNET destination. When it
+is sent to printer using the PRINT destination, this field  is  used  as
+the VMS account number to charge.
+
+\vskip 0.1 in
+\leftline{\ncrMed Ultrix notes}
+
+While trying to compile the package  on  Ultrix  version  2.2  a  few
+problems has been found. They are listed here:
+
+{\ncrBold o}
+Unix.c  module should be editied. In the call to select() replace the
+first argument with the constant 32.  This  is  because  gettabsize()
+function returns 64 on Ultrix and select() fails with it.
+
+{\ncrBold o}
+Remove the include file fcntl.h wherever it appears.
+
+{\ncrBold o}
+Unix\_tcp.c  should  be edited and some of the include files should be
+removed untill it compiles smoothly...
+
+\vskip 0.1 in
+\leftline{\ncrMed IBM-RS6000 notes}
+
+AIX is a Unix which doesn't know he is a Unix... Hence:
+
+{\ncrBold o} Add \#define unix  at the beginning of SITE\_CONSTS.H
+
+{\ncrBold o} Remove \#include fcntl.h  much like on Ultrix.
+
+{\ncrBold o}
+Edit SITE\_CONSTS.H and change the directory mechanism to use DIRENT.
+
+\vskip 0.1 in
+\leftline{\ncrMed Silicon-Graphics systems}
+
+These systems are {\it Unix-V} and hence they do not include the DBM package.
+You will have to install {\it GNU-DBM} and compile {\ncrBold unix\_build.c}
+and {\ncrBold unix\_route.c} with GDBM defined. Next, edit
+{\ncrBold unix\_brdcst.c} and look for {\it \#ifdef~USER\_PROCESS}. Search for
+the second occurence of it and delete it.
+
+\vskip 0.5 in
+\leftline{\ncrMed TAG support}
+
+Some nodes need support for TAG field; it is used mainly when batch jobs are
+submitted to an IBM host.
+
+TAG field is not supported yet by HUyMail, but is supported at the NJE level
+for transmitted files. It can be added to HUJI-NJE upon request.
+
+In order to enable this option compile the package with the variable
+INCLUDE\_TAG defined. Then, for each file you want to have the TAG field add
+a header field:
+
+\leftline{TAG: {\it The tag field} (up to 132 characters)}
+
+{\ncrBold Important:} This option is currently poorly implemented, thus can
+be used only when all of your lines are of DECnet or TcpIp type only.
+
+\vfill\eject
+
+\leftline{\ncrMed Common error messages}
+
+This appendix describes the most common error messages (of level  1).
+It does not describe all of them.
+
+In general, the first word of the error message describes the name of
+the source module in which the log call is.
+The syntax of the error messages here is close to, but not the  exact
+error message you'll see in the log.
+
+The status and other numbers are usually decimal, unless preceeded by
+X\^ which means HexaDecimal. The only exception  is  the  trace  function
+which prints always HexDecimal values.
+
+\hfill\break
+{\ncrBold BCB\_CRC,  unterminated  block  received}
+-  The  received  block  is not
+complete. This usually happens on  loaded  systems,  in  which  the  DMF
+driver  cannot  keep with the rate of incoming data, thus it passes only
+the start of the block to the program. If this message persists,  it  is
+sometimes  a sign that the other side is sending buffers bigger than our
+buffer size.
+\hfill\break
+{\ncrBold BCB\_Received CRC error -}
+A block with incorrect CRC  was  received.
+The  computed  and  received  CRC  counters  are printed. If the problem
+persists, and the counts are the same, it might show  a  deffective  CRC
+calculation algorithm in one of the programs.
+
+\hfill\break
+{\ncrBold FILE\_QUEUE, Illegal filename to queue.}
+\hfill\break
+{\ncrBold FILE\_QUEUE,  Can't  find  line  for  for file }
+- The name of the file you
+queue either does not have a non-empty extension, or  the  extension  is
+not  a  name  of  a  valid  link  name.  Probably  the mailer's table is
+incorrect (file names are incorrect in it, or the link name  given  when
+building it is different than the link name used by the NJE).
+
+\hfill\break
+{\ncrBold GONE\_SERVER,  Can't  get  parameters  -  }
+UCP  or YGONE commands pass the
+arguments of the user requesting Gone in a text line. This message  says
+that sscanf() couldn't read the two parameters from it.
+\hfill\break
+{\ncrBold GONE\_SERVER,  Can't open user's file 'name' }
+- The program can't open the
+named file in order  to  append  messages  to  it.  Probably  the  login
+directory was given incorrectly (by UCP's GONE command).
+
+\hfill\break
+{\ncrBold IO,  No  protocol  for  line  }
+-  Internal  program  bug.  A  new  device
+handling routine has been added,  but  few  functions  of  it  has  been
+forgotten to be included. Submit a bug report.
+\hfill\break
+{\ncrBold IO,  line  does  not support queueing }
+- TCPIP and DECnet links must have
+the XMIT-QUEUE keyword defined. If  not  -  you  might  get  this  error
+message.
+\hfill\break
+{\ncrBold IO,  No  place  to  queue xmit }
+- Should not happen. Send a bug report if
+happens.
+\hfill\break
+{\ncrBold IO, Illegal line state during Queue-Receive -}
+Internal  bug.  When  the
+line  is  in INACTIVE, LISTEN or RETRYING state, we do not queue receive
+\$QIO for it. This message is written if such queuing is being tried.
+
+\hfill\break
+{\ncrBold MAIN, can't open DMF address file }
+- You have defined DMF links, but  the
+file  that  contains  the  DMF framing routine address is not found. The
+program exits to prevent system's crash. Check the filename  defined  in
+LOAD\_DMF\_MAIN.C and in MAIN.C
+\hfill\break
+{\ncrBold MAIN, DMF routine address is }
+- Informational message to tell what is the
+virtual memory address of the DMF framing routine. Should equal  to  the
+address printed by the LAOD\_DMF\_MAIN program.
+\hfill\break
+{\ncrBold MAIN, Trace size was truncated to 100 characters }
+- In order to not waste
+too much time when printing dumps of  buffers,  dumps  longer  than  100
+characters are truncated.
+
+\hfill\break
+{\ncrBold NMR, Can't find line for message}
+\hfill\break
+{\ncrBold NMR, Illegal address to send message to }
+- Usually caused by SEND/COMMAND
+or SEND/MESSAGE with incorrect address. The level of this  message  will
+be raised in the future.
+\hfill\break
+{\ncrBold NMR,  Can't  open  file for CPQ LOG command }
+- When receiving the CPQ LOG
+command, the program tries to send the "welcome message"  text.  If  you
+haven't  defined  SYS\$WELCOME properly you might get this message. It is
+not fatal and can be ignored.
+
+\hfill\break
+{\ncrBold PROTOCOL, Too much errors. Restarting }
+- If there is an error on a  link,
+we  try to recover from it. After 3 successive errors, we drain the line
+to recover from it by the hard way.
+\hfill\break
+{\ncrBold PROTOCOL, too much NAKs, restarting }
+- The other side sent  us  too  much
+NAKs  without  any  positive  ACK  in  between.  The  line is drained to
+recover.
+\hfill\break
+{\ncrBold PROTOCOL, Illegal ACK, state=xxx }
+- The other side sent us ACK when  such
+ACK  is illegal. This mainly happens when we try to signon and the other
+side is dead; only the communication controller is alive. In this  case,
+the  other  side  does  not  respond  with  SIGNON  record;  howver, the
+communication controller sends us ACK since the CRC is correct.
+\hfill\break
+{\ncrBold PROTOCOL, Restarting line }
+- The line has expirienced too much errors, or
+got  a reply from the other side that it is illegal in this context. The
+line change its state to DRAIN and retries connection.
+\hfill\break
+{\ncrBold PROTOCOL, Illegal block format }
+- A block which is  not  defined  by  the
+protocol  has  been received. Happens some times when the system is very
+loaded and a partial block is received.
+\hfill\break
+{\ncrBold PROTOCOL, Line signedoff due to operator request }
+- The  line  placed  in
+SIGNOFF state either due to STOP LINE command or orderly SHUT command.
+\hfill\break
+{\ncrBold PROTOCOL, BCB sequence error}
+\hfill\break
+{\ncrBold PROTOCOL,  Illegal  BCB.  Reseting  line }
+- An incorrect block-count was
+received. The line is put in the DRAIN  mode  to  restart  communication
+again and to recover from the error.
+\hfill\break
+{\ncrBold PROTOCOL,  Duplicate  block  discarded }
+- The other side sent us the same
+block twice. The second occourence of it discarded.
+\hfill\break
+{\ncrBold PROTOCOL, Wait-a-bit received}
+- The other side sent  us  Wait-a-Bit.  If
+this  situtation  persists,  it  is  a  sign of overloaded communication
+controller at the other side.
+\hfill\break
+{\ncrBold PROTOCOL, Signon received when in state n }
+-  The  other  side  sent  us
+sognon  record  when  this  record  is invalid. The state number to name
+translation appears in the CONSTS.H file. You can also look in IO.H  for
+such translation.
+\hfill\break
+{\ncrBold PROTOCOL,  Host  xxx,  Signing  on  with buffer size nnn }
+- Informational
+message - Successfull connection to the other side.
+\hfill\break
+{\ncrBold PROTOCOL, Host xxx tries to connect to us }
+- A host with a name different
+than  the  host  defined  for  that  line  tries to signon on that line.
+Probably an incorrect host name in parameters file.
+\hfill\break
+{\ncrBold PROTOCOL, Singoff received }
+- Other side sent Sign-Off to us. The line is
+placed in DRAIN mode.
+\hfill\break
+{\ncrBold PROTOCOL,  Null  RCB  received  when  size  > 5 }
+- Internal error. Please
+submit the log.
+\hfill\break
+{\ncrBold PROTOCOL, Received RECV-CANC for block }
+- We received a  reject  for  the
+file  we  try  to  send. Either a sign of deffective block or a protocol
+error.
+\hfill\break
+{\ncrBold PROTOCOL, Ready to receive stream; ignored }
+- Should not  happen.  Submit
+bug report.
+\hfill\break
+{\ncrBold PROTOCOL,  Diasbaling  line  because UNCOMPRESS error}
+- The routine that
+uncompress records has entered an inconsistent state.  Please  submit  a
+bug report.
+\hfill\break
+{\ncrBold PROTOOCOL,  Unrecognised  RCB }
+-  The  record  control block received is
+unrecognised. Sometimes this happens when characters are lost in  buffer
+received.  If  the  problem  persists,  send  an  bug  report  with  the
+definition of the line on the other side; this is because the other side
+might have defined the line in a manner which is not appropriate to this
+NJE emulator.
+\hfill\break
+{\ncrBold PROTOCOL, Rejecting request for stream n}
+- The other side  requested  to
+start  stream  n  and  we reject it. Usually happens when the other side
+thinks that we can handle more than one  stream  simultanously  (and  we
+currently cannot). This is probably a configuration problem of the other
+side. Another possibility is that this stream  is  already  active  (the
+stream  must  be  in  IDLE  state to receive request for new file). This
+signals some protocol error, and should be reported.
+
+\hfill\break
+{\ncrBold READ\_CONFIG, Our name=xxx, IP address=nn.nn.nn.nn}
+\hfill\break
+{\ncrBold READ\_CONFIG, BITnet queue is xxx}
+\hfill\break
+{\ncrBold READ\_CONFIG, Routing table is xxx}
+- Informational messages  listing  the
+values  read  from the parameters file. In case of problems, verify that
+these values are correct.
+
+\hfill\break
+{\ncrBold RECV\_FILE, Illegal state=n while receiving record }
+- A file's record  was
+received  when  we  are not ready for it (we need control record in this
+state). Please submit a bug report.
+\hfill\break
+{\ncrBold RECV\_FILE, EOF received when in state x }
+- End of  file  received  before
+all  file parts has been received. x is the number of the state (defined
+in CONSTS.H). Usually a program's internal bug.
+\hfill\break
+{\ncrBold RECV\_FILE, Illegal SRCB }
+- The Sub-control record code  is  unrecognised.
+Probably  the  NJE  emulator cannot handle such files. Please send a bug
+report, and try checking (from the sender's side) what is the exact type
+of the file which causes the problem.
+\hfill\break
+{\ncrBold RECV\_FILE,  Job  header  received while in state n }
+- Job header received
+when it should not. N lists the stream state (look in CONSTS.H  for  the
+name of this state). Submit a bug report.
+\hfill\break
+{\ncrBold RECV\_FILE, Illegal NetData record length }
+- Illegal netdata record length
+was found when parsing NetData files. If this situation persists, please
+send a bug report.
+\hfill\break
+{\ncrBold RECV\_FILE,  NetData  file  organization  nnn  not  supported }
+- We do not
+support all NetData file organizations. However, we  receive  them,  and
+they  are  usually  suitable  to  VMS  work. Usually these special files
+organizations has IBM specific attributes which cannot be translated  to
+VMS ones.
+\hfill\break
+{\ncrBold RECV\_FILE,  Record length=nnn too long }
+- The records length specified in
+NetData's header is longer than 255. The records  are  splitted  and  we
+treat  each  segment  as  a  record.  This is usefull on VMS (the editor
+cannot handle longer records), and we regard this error message as  more
+informational then error.
+\hfill\break
+{\ncrBold RECV\_FILE,  no  room  for  fragmented job header }
+- Since the program can
+support (at prsent) only SYSOUT files, it needs to to receive the  whole
+job  header  and  the first part of the data set header in order to find
+the destination address. Only after the destination  address  is  found,
+the  program  can  decide  in  which format it should be kept (ASCII for
+local files, EBCDIC for files in transit). In case of EBCDIC files,  the
+whole  job  ahd  dataset  headers  need  to  be written in the file. The
+program can store up to 2 job header fragments. It was found  that  this
+is  enough.  If  you  get this error message, it means that the file has
+more than 2 fragments. Please  send  a  bug  report,  and  describe  the
+machines that are connected directly to your system.
+\hfill\break
+{\ncrBold RECV\_FILE,  Illegal  ND control record }
+- During NetData files reception,
+the program lost synchronization with the file. Should not happen  under
+normal consitions.
+
+\hfill\break
+{\ncrBold SEND\_FILE,  all  error  messages }
+- All messages in SEND\_FILE module are
+signs of internal bugs. Please submit a  bug  report,  and  enclose  the
+version of the SEND\_FILE module (the first line of the file).
+
+\hfill\break
+{\ncrBold UTIL,  Illegal  job  class  in  CLS }
+- The user hase specified an illegal
+parameter  to  the  /CLASS  qualifier  of  SENDFILE.  The  valid   class
+characters are a single character in the range A-Z.
+UTIL,  Illegal  header  line  - Each file queued to send has an envelope
+with a format that the mailer and the NJE understand.  If  the  file  is
+changed  manually,  you  might  destroy  the envelope and get this error
+message.
+\hfill\break
+{\ncrBold UTIL, From=xxx, To=xxx; Changing from to Mailer@Local-Site }
+-  The  From
+field  in  the  envelope points to a site that is routed via the link on
+which the file is to be sent. This is caused usually when a user has  an
+automatice  forwarding  for incoming mails. (I.e. A user on HUJIVMS sets
+his forward to  XXX@TAUNIVM.  if  he  gets  mail  from  YYY@TAUNIVM  the
+forwarded  message  will  go  out from us with from tag of YYY@TAUNIVM).
+This causes problems in some implementations that check the from tag. To
+prevent it, we change the from tag in this case to MAILER@our-host.
+UTIL,  No EOR SCB in convert - The routine that uncompress input records
+has consumed all input, but haven't found end  of  record  SCB  (SCB  is
+String  Control  Block).  Usually a sign of deffective implementation of
+the other side, or bug in the local one.
+\hfill\break
+{\ncrBold UTIL, Output line in convert too long }
+-  The  routine  that  compresses
+records  to  be  sent  in  an  NJE file has no room to the record in the
+output buffer. This is an internal bug of the program.
+
+\hfill\break
+{\ncrBold VMS, Opcom message }
+- Some messages are  sent  to  OPCOM,  under  network
+class. They are also logged in the log file.
+\hfill\break
+{\ncrBold VMS,  Can't  broadcast message to user }
+- The \$BRKTHRU system service has
+failed. If this message is rare, it is probably a sign of a user leaving
+his terminal in NO-SCROLL mode. If the message is logged too often, then
+it is probably because the emulator has been run without OPER  privilige
+which is needed for this system service.
+\hfill\break
+{\ncrBold VMS, Can't create mailbox}
+\hfill\break
+{\ncrBold VMS, Can't delete mailbox}
+\hfill\break
+{\ncrBold VMS, Can't read mailbox}
+\hfill\break
+{\ncrBold VMS,  Can't  queue  read for mailbox }
+- The program declares a permamnent
+mailbox (permanent so every process can access it) with a  logical  name
+HUJI\$NJE-MBX associated with it. This command mailbox is used to receive
+commands  from UCP program and input from SEND/COMMAND and SEND/MESSAGE.
+These  error  messages  should not appear under normal system operation,
+except from error openning the mailbox which might happen due to lack of
+PRMMBX and SYSNAM privilegs.
+\hfill\break
+{\ncrBold VMS,  Normal  shutdown  requested }
+- The operator has requested gracefull
+shutdown of the emulator. It'll shutdown after all  lines  has  finished
+transferring  the  files  which  were  in  process when this command was
+issued.
+\hfill\break
+{\ncrBold VMS, Illegal command}
+\hfill\break
+{\ncrBold VMS, Illegal SEND-MESSAGE line }
+-  Version  incompatibility  between  the
+SENDCMDMSG  and  the  NJE  task programs. Might be also a sign of a user
+writing  something  to  the  command  mailbox  not  via  the  SENDCMSMSG
+program.
+\hfill\break
+{\ncrBold VMS,  Can't  queue timer; timer queue dump }
+- The program could not queue
+an entry to its internal timer queue. Might happen  if  too  much  START
+LINE   commands   are   given   in  a  small  interval.  Try  increasing
+MAX\_QUEUE\_ENTRIES in VMS.C if  this  happens  consistently  without  the
+usage of START LINE command.
+VMS,  Unexisted  timer queue - Programs internal bug. Pleasde submit bug
+report.
+\hfill\break
+{\ncrBold VMS, Name=xxx, \$OPEN/\$CREATE/\$PUT status=n }
+-  Problem  while  openning,
+creating,  reading  or  writing  a file using RMS. Check what the status
+means. Send a bug  report  if  problem  unsolved  or  the  situation  is
+unreasonable.
+
+\hfill\break
+{\ncrBold VMS\_DECNET,  Can't  queue  receive  }
+-  The  program couldn't queue \$QIO.
+probably a problem of too low quotas (AST limit, buffered-IO limit).
+\hfill\break
+{\ncrBold VMS\_DECNET, Can't assign channel }
+- Probably DECnet is down, or the  link
+to the other side is down.
+\hfill\break
+{\ncrBold VMS\_DECNET, Can't write to DECnet}
+\hfill\break
+{\ncrBold VMS\_DECNET, Can't read from DECnet}
+- Problem while ussuing READ or WRITE
+\$QIO to a DECnet link. Usually caused by link  that  went  down  or  NJE
+emulator that went down abnormally on the other side.
+\hfill\break
+{\ncrBold VMS\_DECNET,  Can't  declare  NETACP  object}
+-  If there is at least one
+DECnet, the local NJE task has  to  define  object  number  202  in  the
+DECnet's  volatile  database.  This  request  has  been failed. The most
+usuall causes are either lack of SYSNAM  privilege,  or  object  202  is
+already occupied. Try issueing the command NCP SHOW KNOWN OBJECTS to see
+the status of object 202.
+\hfill\break
+{\ncrBold VMS\_DECNET, Too small open control block received}
+\hfill\break
+{\ncrBold VMS\_DECNET,  Illegal  control  record }
+-  After   the   initial   DECnet
+connection, a control block (same as used by VMnet) is exchanged between
+the two NJE emulators to identify each other. The received control block
+is illegal. Usually a sign of protocol mismatch betwen the two emulators
+or a bug in the implementation of one of them.
+\hfill\break
+{\ncrBold VMS\_DECNET, Host aaa incorrectly connected to us  (bbb)}
+-  A  link  was
+created by the other side to us. The other side thinks we are called aaa
+but we are bbb... Probably a parameters file error.
+\hfill\break
+{\ncrBold VMS\_DECNET, Can't find line for host aaa}
+- The other side  connected  to
+us,  and tells us his name is aaa. However, no such host is found in our
+parameters file. Probably a parameters file error.
+\hfill\break
+{\ncrBold VMS\_DECNET, Rejecting connection request}
+- The  connection  request  was
+rejected  by  us.  Should  be  preceeded by one of the above messages to
+define the exact cause for the rejection.
+
+\hfill\break
+{\ncrBold VMS\_IO, Can't assign channel to DMF }
+- The program cannot  open  the  DMF
+synchronous  port.  Either  it  is  allocated  by another process (maybe
+DECnet) or the device name given in incorrect. Check what the error code
+says.
+\hfill\break
+{\ncrBold VMS\_IO,  Can't  startup DMF }
+- The IO function call which sets up the DMF
+and start the synchronous port has failed. Maybe you gave a device  name
+that is not DMF sync port (XGxn:)???
+\hfill\break
+{\ncrBold VMS\_IO,  Can't  write  to  DMF }
+- The WRITE \$QIO call failed. The line is
+immediately disabled, since previous versions of  VMS  tended  to  crash
+after  a few such errors. If this happens, wait a few minutes and try to
+START LINE, or use the AUTO-RESTART keyword to do it once in 10 minutes.
+This  error  can  occour  when  the clock signals are lost (the modem is
+turned off or the line is disconnected).
+\hfill\break
+{\ncrBold VMS\_IO, Can't queue READ to DMF }
+- The READ \$QIO has failed. The line  is
+disabled to prevent further problems.
+\hfill\break
+{\ncrBold VMS\_IO,  Can't shut DMF }
+- Before deassigning the DMF channel the program
+tried to call the SHUT \$QIO call. This call has failed.
+\hfill\break
+{\ncrBold VMS\_IO, Trying to send on line n when it is already active }
+- A trial  to
+write  to DMF has been done before the previous \$QIO write has finished.
+This happens usually when the modem is stucked. The line  is  placed  in
+INACTIVE state.
+
+\hfill\break
+{\ncrBold VMS\_SEARCH\_ROUTE,  Using  indexed  routing  table file xxx }
+- The indexed
+routing table file xxx has been opened successfully.
+
+\hfill\break
+{\ncrBold VMS\_TCP, can't assign channel }
+- The NJE task could not assign channel to
+the  TcpIp  pseudo  device.  Probably  the  TcpIp  package  has not been
+initialized, or you are trying to use the incorrect package.
+\hfill\break
+{\ncrBold VMS\_TCP, Requesting local socket error }
+- The emulator could not  request
+a  local  communication end point under EXOS. A usual cuase is that this
+is a passive end (port 175) and SYSNAM privilege is needed for it. Check
+whether the program is running with that privilege.
+\hfill\break
+{\ncrBold VMS\_TCP,  Can't bind }
+- Same as the previous error message, but this time
+it is generated by MultiNet or UCX.
+\hfill\break
+{\ncrBold VMS\_TCP, Too small open control block received}
+\hfill\break
+{\ncrBold VMS\_TCP, Illegal control record }
+- After the initial TcpIp connection,  a
+control  block  (defined  by  VMnet)  is  exchanged  between the two NJE
+emulators to identify each other. The received control block is illegal.
+Usually a sign of protocol mismatch betwen the two emulators or a bug in
+the implementation of one of them.
+\hfill\break
+{\ncrBold VMS\_TCP, Host aaa incorrectly  connected  to  us  (bbb)}
+-  A  link  was
+created by the other side to us. The other side thinks we are called aaa
+but we are bbb... Probably a parameters file error.
+\hfill\break
+{\ncrBold VMS\_TCP, Can't find line for host aaa}
+-  The  other  side  connected  to
+us,  and tells us his name is aaa. However, no such host is found in our
+parameters file. Probably a parameters file error.
+\hfill\break
+{\ncrBold VMS\_TCP, Rejecting connection  request}
+-  The  connection  request  was
+rejected  by  us.  Should  be  preceeded by one of the above messages to
+define the exact cause for the rejection.
+\hfill\break
+{\ncrBold VMS\_TCP, Deactivating line n }
+- The line disabled due to an error. It  is
+usually  placed  in  the  RETRY  or  LISTEN mode, so it can be retsarted
+automatically after a few minutes.
+\hfill\break
+{\ncrBold VMS\_TCP, Requesting accept socket}
+\hfill\break
+{\ncrBold VMS\_TCP, Requesting remote socket}
+\hfill\break
+{\ncrBold VMS\_TCP, Accept error}
+\hfill\break
+{\ncrBold VMS\_TCP, Can't select}
+\hfill\break
+{\ncrBold VMS\_TCP, Can't queue read}
+\hfill\break
+{\ncrBold VMS\_TCP, Error reading from EXOS/MNET }
+- All  are  errors  when  issueing
+\$QIO  system calls to execute the socket functions. They are accompanied
+by the errno value. This value should be checked in the books or in  the
+include files.
+\hfill\break
+{\ncrBold VMS\_TCP,   Zero   characters  read,  disabling  line  }
+-  In  some  TcpIp
+implementations a broen link is signaled by a successfull read  of  zero
+characters.  Hence,  each time the read returns sucessfull but with zero
+bytes read, we close  the  line  and  change  its  state  to  LISTEN  or
+RETRYING.  Fololows  these  error  messages if they appear too much, and
+verify that they indeed mean a broken pipe.
+
+\vfill\eject
+
+\leftline{\ncrMed Technical description}
+
+This is a short description of the program's flow. It is intended for
+those who want to dig inside the source code and maybe modify it.
+The  VMS  version  is  AST  driven,  which  means that some procedure
+"start" running by themselves. This is triggered by input  available  or
+write  finished.  The  Unix  version  is not asynchronous, and the above
+"self running" routines are initiated by a loop that calls  to  {\sl select()}
+and  then  calls  these  routines;  more  on this later. The VMS version
+depends heavily on the fact that a single process can execute  only  one
+AST  at  a  time  (even  on  MP  machines),  thus no database locking is
+needed.
+
+\vskip 0.1 in
+\leftline{\ncrMed Initialization}
+
+{\ncrBold Note:} This chapter was not prepared (yet) in Tex, thus no bolding
+and other bice things...
+
+The  {\ncrBold MAIN.C/main()} routine is  the  entry point; it calls
+{\ncrBold init\_line\_database()}
+ to clear all entries in the communication database,
+then it  reads  the  configuration  file  by  calling
+{\ncrBold READ\_CONFIG/read\_configuration() }
+which  enters  the  data into the lines' database. Note
+that if there are problems  up  to  this  stage  they  are  reported  to
+standard  output  and the program exits. If there are problems from this
+stage and on, they are reported to the logfile. Next the  routing  table
+file  is opened (xxx-ROUTE/open-route-table()), a CRC table is generated
+for DECnet links (VMS-DECNET/init-crc-table()),  the  header  structures
+are  filled with data; these are the NJE level headers and packets whose
+contents are not changed. The static structure is filled and queued  for
+transmission  in order to save data copies. We rely on the fact that the
+send-data() function copies them into a separate buffer before  sending.
+The init is done by HEADERS/init-headers().
+
+Next,  the variables that cannot be initialized by simple equation field
+during declaration are intialized by init-variables(),  after  which  we
+can   initialize   our  command  mailbox  by  calling  VMS/init-command-
+mailbox(). On VMS this creates a permanent mailbox whose logical name is
+HUJI-NJE-CMD;  The  mailbox  is  permanent  because  permanent mailboxes
+logical  names  are  placed  in  LNM\$SYSTEM-TABLE,  thus  accessible  to
+everyone  (and  that's the only reason). On Unix we use a UDP port whose
+number is defined in CONSTS.H. After all this is done we are  left  with
+two  things  to  finish intialization: init our timer (VMS/init-timer())
+and read  out  file  queue  (FILE-QUEUE/init-files-queue()).  The  timer
+routine  is  called by \$SETIMER on VMS (or a simple loop with sleep() on
+unix) which once a second scan our internal timers queue  and  decrement
+one  second  from  the  entries; each entry that zeros during this stage
+will cause the relevant routine to be called (by VMS/timer-ast()).
+The files' queueing routine scans the lines database; for each line name
+it  scans  the queue directory for files whose extension is the linkname
+and queues them to that link. Note that during this stage all lines  are
+initialized  (by  init-lines-database())  to  be  in ACTIVE state, so no
+alternate route is consulted yet.
+
+Up to here everything was synchronous, nice and simple. Now we  start
+with  the  mess: IO/init-communication-lines() is launched. This routine
+opens the communication lines, queues a receive or accept on them;  this
+starts  the  asynchronous  mode  on  VMS, and the flow of program is now
+random. After finishing intializing the lines, a timer entry  is  queued
+to  tick  once  in  5 minutes to restart failed lines, and this ends the
+main thread. On VMS it simply sleep (\$HIBER); on Unix  it  does  a  loop
+which  sleeps one second, calls UNIX/timer-ast() routine (which does the
+select() call, and so on, forever.
+
+\vskip 0.1 in
+\leftline{\ncrMed Unix main thread}
+
+The routines that are fired on VMS via AST are fired on Unix via  the
+select()  call.  The  routine UNIX/poll-sockets() is called in a loop in
+the main() function. The select() function is called with a timeout of 1
+second.  This  allows  us  to  both  sleep  one  second between calls to
+timer-ast() function, and to wakeup immediately when data arrives on one
+of  the sockets. The poll-sockets() routine calls select for all TCP and
+UDP channels it has opened  (this  includes  the  command  mailbox,  the
+accept  channel  and  all  active links). For each channel that there is
+input on it it calls the appropriate routine to handle it. In this case,
+the  select()  function  is called again without the one second pause in
+order to process fast incoming data. After we are done with  all  input,
+all  lines  are scanned for the F-CALL-ACK flag; for each line that this
+flag is set we call the PROTOCOL/handle-ack() routine. The logic  behind
+this  is that on TCP channel, after we sent a data packet we assume that
+we got an ACK for it (as we have a  reliable  data  channel).  Thus,  if
+send-data()  would  have called handle-ack() directly, we would have the
+following sequence: We send a data buffer; the  sending  routine,  after
+sending  the  buffer,  call the handle-ack routine which sends more data
+which causes it to be called again, and so on. This will cause the stack
+to  grow,  and  imagine  its  size when sending large file... Hence, the
+sending routine sets this flag and returns; the almost-main thread  (the
+poll-sockets()  routine)  will  call  the handle-ack() routine, thus not
+making the stack too deep.
+
+\vskip 0.1 in
+\leftline{\ncrMed Lines buffers}
+
+All routines pass the index number of the line they  are  working  on
+now to the routines they call. The index starts with zero, and it is the
+line number shown in Query SYStem command. All the lines buffers, states
+and  other  line  specific  data is saved in a global array of structure
+called IoLines; Index is the index into that array. Thus,  giving  Index
+defines all the data needed for that line.
+
+\vskip 0.1 in
+\leftline{\ncrMed Sending data}
+
+Data  sending  is  initiated by calling IO/send-data() routine. It is
+called with the address of buffer to send, its size, the line's index on
+which  to send, and a flag which tells whether to add an envelope to the
+transmission or not. The envelope refered here  contains  the  following
+data:  DLE+STX (start of text), BCB (block count), two FCS bytes. At the
+end we append DLE+ETX and two CRC  bytes;  this  trailer  is  added  for
+BiSync  lines  only. The VMnet headers and trailers are added always for
+VMnet links.
+
+Before handling the buffer, send-data() checks wheter  the  line  has
+finished  the  previous  xmission.  If it is still transmitting, and the
+line supports queueing (F-RELIABLE  bit  was  set  for  it;  it  is  set
+automatically  for  TCP  and  DECnet  lines),  memory  is allocated, the
+contents of the buffer is copied to it, and the new buffer is queued for
+later  delivery. On VMnet link this defered buffer will contain only one
+record, but this has little effect on performance.
+
+If the line is not transmitting now, the data to be  sent  is  copied
+into the line's buffer (XmitBuffer in the line's space on IoLines) while
+adding the needed envelope. If the line is  of  type  Reliable  (TCP  or
+DECnet) a place is left in the beginning for the TTB to be filled later.
+Why? because the next step checks for these links whether there is place
+for  another  record in the buffer, and whether the caller has more data
+to send (F-XMIT-CAN-WAIT flag is on). If so, the data is not  sent,  and
+the flag F-XMIT-MORE is set, so the caller can send more data. If one of
+the above is not true, F-XMIT-MORE is not set (i.e. the caller must wait
+for  an  ACK  before  sending  more data), and the buffer is ready to be
+sent. Now we know exactly how much data is in, so we can write the first
+TTB in case of reliable lines. After all this is done, the routines that
+are specific to link type are called. their whole role is to  queue  the
+buffer for transmission and ask for an AST to be delivered when the send
+is done.
+
+The AST routine, when called, checks the write status; if  there  was
+an error it aborts the line. If success it does one of the following:
+If  there are queued buffer it sends the first one and again requests an
+AST to be delivered when done. If none queued, it simulates  an  ACK  on
+reliable links. On BiSync links it does nothing.
+
+\vskip 0.1 in
+\leftline{\ncrMed Data received}
+
+When a data is received, an AST is called. On BiSync lines, it simply
+passes the buffer to PROTOCOL/input-arrived(). In case of TCP  lines  it
+has  to  check  whether  a  full buffer has been received (TCP is stream
+oriented and not record oriented, thus we may need a few read  calls  in
+order to read one full buffer, or get more than one buffer in one read).
+After we verified a complete buffer has been received we  check  whether
+it   is  a  control  block  or  data  block;  if  data  block,  we  call
+input-arrived(). DECnet handling has the same logic except that  CRC  is
+added  to  each  transmission.  This  is  done  because  DECnet does not
+guarantee reliable delivery.
+
+PROTOCOL/input-arrived() does a few preliminary checks  on  the  data
+block  it  has  received. First it checks the device-dependent status it
+received from its caller. If it is an error code (even number), it calls
+error-retry()  to try recovery or restart-channel() to stop all activity
+on the line and try to initialize it again. The exact actions depend  on
+the line type.
+
+If  the  status code is ok, it checks the data type. If it is NAK, it
+calls the handle-nak() routine to try recovery. If it is ACK,  it  calls
+the  handle-ack()  routine  to  continue  operation on that line. If the
+block is a text block (begins with DLE+STX) it computes the CRC code for
+it.  If  passes  ok  it  calls  handle-text-block()  to  handle it; this
+routine, when done, will call handle-ack() as a correct  text  block  is
+also an implicit ACK.
+
+The  main engine of the protocol handling are the handle-text-block()
+and handle-ack() routines. Handle-text-block()  receives  the  following
+types  of  blocks:  Signon records which are exchanged when creating the
+link to  our  neighbour,  NMR  records  (the  interactive  commands  and
+messages),  request to start files (request to start stream), permission
+to send, file transmission complete and data files records.
+The signon records will cause send-signon() routine to send the relevant
+signon record.
+
+The  NMR records will call NMR/handle-NMR(). This routine will check the
+destination of the NMR record. If it is a remote system, it'll  pass  it
+as-is;  if not, it'll decode it, and send it to the local user (or parse
+it if it is command and send replies back). If  the  message  cannot  be
+delivered to the local user, a message is returned only if the sender is
+not in the list of DONT-SEND-TO-ME (defined  in  SITE-CONSTS),  and  the
+original  message's  text  was  not preceeded by asterisk. For all other
+types of delivery failures of messages (not commands) no notification is
+sent to prevent loops.
+
+The  request  to  send  records will cause some basic consistency checks
+(the stream must be in INACTIVE state), and a temporary file is  opened;
+if it succeeds, a permission to send it given.
+The permit to send record will initiate sending of the file; If it is an
+ASCII file we call send-njh-dsh() to send the initial headers, and  then
+handle-ack()  will  call  SEND-FILE/send-next-file-buffer()  to send the
+data records, send-njt() to send the trailer, and then we send  the  EOF
+block  and wait for receipt confirmation. In case of EBCDIC files (files
+on transit) we call only  send-next-data-buffer()  as  the  stored  file
+contains all the headers.
+
+Incoming  data  records (for SYSOUT-0 stream only at present) will cause
+calling to RECV-FILE/receive-file() to handle them.
+
+The handle-ack() routine is called  when  an  ACK  is  received  (either
+explicitly  or  implicitly  by  receiving  a  good text block). First it
+checks whether the link is busy (WAIT-A-BIT received) and thus  no  more
+data  is  to  be sent now. If the link is not busy, it proceeds to check
+whether there are NMRs queues to it. If so, they are sent. If  not,  the
+stream  state  is  checked.  If  it is idle and no file is waiting to be
+transmitted, an ACK is sent; if the ACK is implicit (which means that we
+receive data) the ACK is sent immediately to cause more data to be sent;
+if not, the link is idle on both sides and an ACK  is  sent  one  second
+later.
+
+If there is a file to send, we request a permission to send. If there is
+a file already being sent we call the  SEND-FILE/send-next-file-buffer()
+to  send  it,  as was described before. Note here the modifications done
+for TCP and DECnet links (those with F-RELIABLE bit on). In these cases,
+when  we  know  we  have  more data to send after this block, we set the
+F-XMIT-CAN-WAIT flag and call IO/send-data(). If there is place  in  the
+buffer  for  more  data  send-data()  set the flag F-XMIT-MORE and we'll
+prepare more buffers; if not, we finish processing and wait for an  ACK,
+just  like  in  a  normal  BiSync  line.  Note  that  on reliable link a
+successfull send command is considered just like as we got an ACK for it
+(no explicit ACKs are sent on reliable link), thus we simulate an ACK in
+this case.
+
+\vskip 0.1 in
+\leftline{\ncrMed Sending and receiving files}
+
+Sending and receiving files is described here together as there is  a
+lot of common logic in them.
+
+There  are  three types of files: ASCII, EBCDIC and Binary. The ASCII
+files are files originated at the local machine or destined to the local
+machine.  EBCDIC files are files on transit which are saved as they are.
+Binary files are like ASCII files but need no code conversion. All  code
+conversion  is  done  during transmit/receive as this is the only common
+place this can be done. This creates code conversion problems later, but
+simplifies the mailer much more.
+
+Incoming  files  are  saved in ASCII or Binary if the routing records
+has the LOCAL keyword in the link name.  Otherwise  they  are  files  on
+transit.   ASCII   and  binary  files  contains  the  mailer's  envelope
+concatanated by the file's text. In case of binary files all segments of
+a record are saved as separate records (and the MAILIST user's interface
+corrects it). File is treated as binary if it is of class N.
+
+For files on transit we save also the job headers and trailers.  Each
+record  we  save  in the file is preceeded with a byte which is the SRCB
+code.
+
+\vskip 0.1 in
+\leftline{\ncrMed Files queueing}
+
+Files are queued  to  lines  via  the  FILE-QUEUE/queue-file().  This
+reoutines  gets the filename and its size. Using the file's extension it
+looks for the line to queue it for. The routine NMR/find-line-index() it
+finds  the  line  to  queue the file to. If the link named by the file's
+extension is down, an alternate link is returned and the file is  queued
+there. If no alternate link is active, find-line-index() does not return
+the line's index, so a simple search for it must be done again.
+
+When the emulator runs, files  are  queued  to  it  via  the  command
+mailbox.  On  unix,  everyone can issue this command; on VMS, only those
+who are listed in INFORM clause (and username SYSTEM) can queue files.
+When the emulator starts and the files in the queue are scanned,  all
+links  are in ACTIVE state (before a connection was tried), so each file
+is placed on the link it is intended to, and  no  alternate  routes  are
+consulted.  However,  if  the  DEBUG RESCAN  command  is issued during a
+normal run, the files will now be  requeued,  consulting  the  alternate
+route.
+
+\vskip 0.1 in
+\leftline{\ncrMed Alternative routing}
+
+Alternative  routing  is  used for NMR messages and files in order to
+select a different channel when the original link is  down.  Files  that
+are  already  queued to the inactive link are not rerouted automatically
+to the alternate link. You must issue the UCP's command DEBUG REORDER.
+
+When you want an alternate route, specify the alternate link name  in
+the  routing  table.  You  can  create "chains" of alternate routes. For
+example, we are connected to TAUNIVM directly, but we are also connected
+to  TECHUNIX  which  is  also  connected to TAUNIVM. We preffer to route
+TECHNION via TECHUNIX  but  want  an  alternate  route  via  TAUNIVM  if
+Techunix  fails  or  the link to it fails. Thus, we have alternate route
+for Techunix via TAUNIVM, while TECHNION is routed via TECHUNIX and have
+alternative route via TAUNIVM when the above link is down.
+
+The routing table looks as follows:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+TECHUNIX    TAUNIVM     EBCDIC
+TECHNION    TECHNUNIX   EBCDIC
+}
+
+Thus, while TECHUNIX link is us we'll find it without  consulting the
+table. If it is down we'll find its alternate route via the table.
+
+And if we do not want alternate route, we'll place the  following  lines
+in the routing table:
+
+{\obeylines\obeyspaces\tt\parskip 0 pt \parindent 0 pt
+TECHUNIX   TECHUNIX    EBCDIC
+TECHNION   TECHUNIX    EBCDIC
+}
+
+In  general,  the list of active links has precedence over the table.
+Only when the link is inactive (or not found) the entry in  the  routing
+table is consulted.
+
+The  main  engine  of the routing algorithm is NMR/find-line-index().
+This routine returns either the name of the active link to  use  (be  it
+the  original  link or an alternate one), or a status saying that either
+no link is available, or links are inactive, etc.
+When a nodename is given to that routine, it first searches it in the
+known lines list. If not found (the nodename is not an adjacent node) or
+found in INACTIVE state, its entry is retrieved from the  routing  table
+and  the  same  search is done again, this time for the linkname defined
+for this node in the table. The process is recursive  untill  an  active
+link is found or an inactive link with no alternate route.
+
+\vskip 0.1 in
+\leftline{\ncrMed TCP initialization}
+
+The  connection  creation in TCP modes is not so straight forward due
+to TCP's software behaviour and the protocol. Furthermore, in  order  to
+support  both  MultiNet, EXOS and DEC's UCX the module VMS\_TCP.C is very
+hard to read and understand, although the program's flow is simpler.
+
+When we need a TCP connection, we  create  both  passive  and  active
+ends. For each line we try to connect() to it. If this succeeds, we send
+the OPEN control block and wait for the reply. If not, the line will  be
+retried  once  in  5 minutes. Currently, in the VMS version, we look for
+the IP address in the relevant software's hosts files and do not use any
+resolver routines.
+
+For  the  passive  end we init a listenning port. When we accept some
+connection we have to wait for the VMnet's OPEN control block  in  order
+to  find  the line name to use. During that period we cannot accept more
+connections, as we have only one passive end that we have  to  find  its
+line.
+
+\vskip 0.1 in
+\leftline{\ncrMed Binary files}
+
+Binary  files  are files whose class is N (that's the only way we can
+distinguish them from others). The difference between binary  and  other
+files is that we do not do code translation on them. In Unix, we have to
+use a different way to write them to files.
+
+The name of the received binary file is EBCxxx.LOCAL; it contains the
+header  of the routing layer (FRM:, TO:, etc, ends with END:), and after
+that the file itself. Each record of the file consists of  4  bytes  (or
+the size of int on the local machine) of length, followed by that length
+of data bytes. Currently each record read/write is done with two fread()
+or  fwrites()  -  one  for the length and the other for the data. In the
+future this will be improved, but it'll not affect the file's format.
+Since we can't send binary files to Sendmail, when  UNIX-MAIL/inform-
+mailer() finds a binary file, it just leaves it in the queue. You should
+change UNIX-MAIL module to suit your own needs if you need binary  files
+support.
+
+\vskip 0.1 in
+\leftline{\ncrMed YGONE}
+
+Sometimes,  you  want to capture the interactive messages arriving to
+you while you are not logged-in (like the GONE command on IBM which  was
+written  by Hank Nussbacher). The problem is that on VMS (and Unix) when
+a user process is not associated with a terminal it cannot  receive  any
+broadcasts. Hence, the NJE emulator itself must handle this.
+
+The  list  of  all  users  who  want to be registered in Gone is kept
+inside memory for fast access in the GONE-SERVER module. Note that  this
+list  is  cleared  each  time the emulator is started, except from those
+appearing in the GONE command in the configuration  file.  The  list  is
+sorted  and  a binary search is used. The size of the list is defined in
+GONE-SERVER module.
+
+When send-user() routine see that the user is not logged-in it  calls
+send-gone()  to  search  the  database.  If the user has been found, the
+message is appended to his  file  and  the  function  returns  -1.  This
+signals the routine which called send-user() that the message was saved.
+Note that if a user is registered in the Gone list and is  also  logged-
+in, he'll get the message to his terminal. Only when he is not logged-in
+the message will be recorded.
+
+\vfill\eject
+
+\leftline{\ncrMed CONSTS.H file description}
+
+After we know all the above (hi...) we can look in CONSTS.H and maybe
+understand  parts of it. If contains global definitions of variables and
+constants. It also contains the global  structure  which  describes  all
+lines and holds their buffers.
+
+In  general,  all  global  variables  are  defined  in MAIN.C and are
+refferenced as extern on the other modeules. On VMS we use the globaldef
+and globalref instead.
+
+In  its  beginning we define the command mailbox name (or port number
+for Unix) and the configuration file. It is not desirable to change them
+as  you receive new CONSTS.H file with new distributions, but you may do
+it. Next it includes site-conts.h whose format is described in  previous
+chapters.  Then  the global variables are defined (like our BITnet name,
+log file, etc), a few macros and then the constants  definitions.  We'll
+scan  most  of  them  here,  although  they  are for internal use of the
+program. Whenever there is some  keyword  corresponding  to  it  in  the
+configuration file it is placed in italics inside brackets.
+
+\leftline{\ncrMed Line type}
+
+The  line  type  is  used  mainly  in  two  areas:  while reading the
+configuration and setting special flags for few  line  types,  and  when
+dispatching to the device-dependent I/O routines.
+The  valid  line types are: DMF (DMF) which is DMF on unibus machines
+or DMB in GenByte mode (not recommended). DMB requires the WAN driver in
+all modes.
+
+DMB (DMB) is used for DMB's and other devices (that are supported by the
+WAN driver, but not tested) which have a support for BiSync mode.
+
+EXOS-TCP (EXOS), MNET-TCP (MULTINET), DEC--TCP  (DEC-TCP)  and  UNIX-TCP
+(TCP) are for TCP channels using the VMnet version II protocol.
+
+DECNET  (DECNET) is simply DECnet channels using much of VMnet protocol,
+but with added CRC checks for  each  frame,  as  DEC  does  not  promise
+rliable delivery over DECnet.
+
+X-25  is  defined  for  future support of X.25 which probably will never
+happen. Maybe OSI support will come instead.
+
+\leftline{\ncrMed Line states}
+
+These are the line states as the software sees  them,  including  all
+necessary substates:
+
+INACTIVE  -  The  line  is  in INACTIVE state, and no connection will be
+accepted or tried on it. Only if the line has the  AUTO-RESTART  flag  a
+connection  will be tried every 5 minutes. This state is usually entered
+due to a fatal error during transmit or receive on BiSync lines.
+
+SIGNEDOFF - The line has been signedoff due to a local operator  request
+(signoff  received  from remote node will drain the line). This state is
+like the INACTIVE state, but no autorestart will be done. This  is  used
+to allow the operator to deactivate a line for a long period. Only UCP's
+command START LINE will start it. VMnet links are an exception  and  are
+placed in RETRY mode.
+
+RETRY  - Used for TCP and DECnet links. It is like INACTIVE, but we know
+that the line will be tried once in 5 minutes.
+
+LISTEN - INACTIVE state for TCP and  DECnet  lines  for  which  an  auto
+restart  will  not  be  attempted  (usually because we can't find its IP
+address, so no use for auto retries).
+
+TCP-SYNC - The line is exchanging the VMnet control records. Should last
+for short periods.
+
+DRAIN  -  This  is  the  ACTIVE  mode  on  RSCS  - a connection has been
+established but the signon records has not been exchanged  yet.  On  TCP
+and  DECnet this state should last only a few seconds (but might take up
+to about 30 seconds). On BiSync lines this state might last long if  the
+other  side  is  not  responding (and it'll not move into INACTIVE state
+like RSCS does, unless there is a modem problem).
+
+I-SIGNON-SENT - We got an ACK for our enquiry and we sent the  I  signon
+record. We are waiting now for the J (final) signon record.
+
+F-SINGON-SENT  -  We  sent  the  final (J type) signon record and we are
+waiting for the ACK on it. This ACK will signal the line being connected
+successfully.
+
+ACTIVE - This is the RSCS's CONNECT state: The line is connected and can
+exchange data. In this state  SHOW  LINE  command  will  show  also  the
+streams states.
+
+\leftline{\ncrMed Streams state}
+
+Each file sent or received on a line is called a stream. The software
+currently supports only one stream in each direction, which  means  that
+only one file can be sent concurrently in each direction. The states are
+described aproximately in the  order  they  appear  during  normal  file
+transmission. The stream states are:
+
+S-INACTIVE - The stream is idle and has nothing to send or receive. This
+is the normal state during idle time.
+
+S-REFUSED - The other side sent us receiver  cancel  for  a  file  being
+sent. In order to prevent possible problems we hold the file (chnage its
+extension to HOLD\$ABORT) and put  the  stream  in  REFUSED  state  which
+disable  us  from  sending more files on it. The only way to restart the
+stream is to force that line and start it.
+
+S-REQUEST-SENT - We sent a request to initiate a stream and waiting  for
+the  confirmation. On receive it means that we got this request and sent
+a confirmation to start a file transfer.
+
+S-NJH-SENT - The Network job header has been sent/received.
+
+S-NDH-SENT - The Network dataset Header has been sent/received.
+
+S-SENDING-FILE - We are now sending/receiving the data file records.
+
+S-NJT-SENT - All data files records were sent, and after them we sent or
+received the Network job trailer.
+
+S-EOF-SENT  -  We  sent  an  End  of  file  and  are waiting now for the
+confirmation of file reception (stream complete). This  will  place  the
+stream in idle state as we are done with the file.
+
+S-EOF-FOUND - A temporary state. We wanted to place an EOF at the end of
+the block but there was not enough space; this state signals us to  send
+it at the next block.
+
+When  sending  EBCDIC files (those on transit) the states S-NJH-SENT,
+S-NDH-SENT and S-NJT-SENT do not appear, as these records are stored  as
+part of the file and are sent during the S-SENDING-FILE state.
+
+\leftline{\ncrMed Line flags (bit mask)}
+
+Each  line  has  flags  associated  with  it. Some of them are set or
+cleared permanently, and some of  them  change  state  dynamically.  The
+flags are:
+
+F-RESET-BCB  -  Used  during the signon process. If set it means that we
+have to send a reset BCB field instead of a normal block  count  number.
+This  flag is reset immediately after sending this reset BCB so the next
+block numbers will be normal. It is set during line's initialization  as
+we want the first block to be sent with this option.
+
+F-WAIT-A-BIT  -  The  other  side  set  the  wait  a  bit  flag  in  his
+transmission which means that he can't receive more data temporarily. We
+can only send him ACK records.
+
+F-WAIT-V-A-BIT  -  Has the same function as the previous one, but is set
+locally. It is used in VMnet links to control transmission.  It  is  set
+when  we start queueing messages to the line (i.e. send-data() is called
+while the line is still transmitting) and cleared by  the  line's  write
+AST routine when no more buffers are queued to it.
+
+F-SUSPEND-ALLOWED - Not used currently.
+
+F-IN-SUSPEND - Not used currently.
+
+F-ACK-NULLS  -  The  original  RSCS  version  used the DLE+ACK0 block to
+confirm reception of a block. Since this block does  not  contain  block
+numbers  there  are  problems during recovery from errors. Hence, an ACK
+can also be formed by sending an empty block, which have  a  count  this
+time  (empty  block  we  mean a block with no RSCS data, but has all the
+headers and trailers). This flag  tells  us  what  method  to  use  when
+sending  ACK  (and  it  is  independent  on the method the other side is
+using). It is set by the keyword ACK NULLS in the configuration file.
+
+F-SHUT-PENDING - Set by SHUT or STOP LINE commands of UCP. If  the  line
+is  idle  it is signedoff immediately. If not, it'll be done so when the
+line ends its current activity (ends sending or  receiving  the  current
+file).
+
+F-FAST-OPEN - Used on VMnet lines to signal that the other side has sent
+us a block with FAST OPEN flag set, thus we do not need to send  back  a
+confirmation to start a transmission.
+
+F-SENDING  -  Set  when  a  line start transmitting (by send-data()) and
+cleared when it have finished; it is used to prevent concurrent  sending
+on the same line. If the line is reliable, further transmissions will be
+queued, and the WAIT-V-A-BIT will be set.
+
+F-DONT-ACK - Obsolete.
+
+F-XMIT-QUEUE - Obsolete. Replaced by F-RELIABLE flag.
+
+F-XMIT-CAN-WAIT - When we filled a block, but we know we have more  data
+to  transmit (like in the middle of sending a file) we set this flag. It
+tells send-data() that if the line  type  premits  (F-RELIABLE  is  set)
+blocking  of  different  block  types,  and  if  it have enough space in
+buffer, then it should not send it, but tell us  to  supply  send-data()
+with more data.
+
+F-XMIT-MORE  -  If  F-XMIT-CAN-WAIT  was  set  by  caller, the line type
+permits it, and we have more buffer space, set this bit so  caller  will
+send more data. Set by send-data().
+
+F-CALL-ACK  - Used by Unix systems on reliable links in order to prevent
+stack overflow. See previous chapters for more details.
+
+F-HALF-DUPLEX - Set by the configuration file command DUPLEX HALF.  Used
+on DMF and DMB links only; the default is full duplex.
+
+F-AUTO-RESTART  -  Set  automatically  for  DECnet  and  TCP  lines. Set
+manually for  other  line  types  by  the  command  AUTORESTART  in  the
+configuration file.
+
+F-RELIABLE  - The link is of reliable type. Set up automatically for TCP
+and  DECnet  lines.  It  is  used  when  deciding   whether   to   block
+transmissions, not send ACK when in ACTIVE mode, etc.
+
+F-IN-HEADER  - This is not a line flag, but a stream flag. It is used in
+Unix systems to differentiate between our internal header  (FRM:,  TOA:,
+etc)  and  the  file  itself.  It  is used in binary and EBCDIC files to
+change the read/write method.
+
+\leftline{\ncrMed Timer codes}
+
+When enquing a timeout entry we pass a code for  it.  The  timer  AST
+routine will act according to that entry. The codes are:
+
+T-DMF-CLEAN - This is the timeout routine for DMF. When we launch a read
+request we queue this  entry.  When  it  expires  it  issues  \$QIO  with
+IO\$-CLEAN  code,  so the read will fail and the program will handle this
+timeout as an unsucessfull read with the relevant error code.
+
+T-ASYNC-TIMEOUT - Issue \$CANCEL system service for the async driver when
+the timeout elapse.
+
+T-TCP-TIMEOUT
+
+T-DECNET-TIMEOUT  -  These  call  the routine to handle timeouts in TCP.
+Since TCP is reliable, no timeout is  needed;  however,  these  routines
+call  handle-ack() to simulate BiSync line behaviour without the need to
+change the upper layers.
+
+T-CANCEL - Obsolete.
+
+T-SEND-ACK - When a link is idle we want to send the ack in a  delay  of
+one second. This entry is used for it.
+
+T-AUTO-RESTART  - Will tick once every 5 minutes. Causes a loop over all
+lines to find candidates for restart.
+
+T-POLL - Used in Unix. Ticks once a second and  calls  select()  to  see
+whether we have input.
+
+T-STATS  -  Used  only when DEBUG is defined to write statistics once an
+hour. Will be changed in the near future.
+
+T-DMF-RESTART - Obsolete.
+
+\leftline{\ncrMed Command mailbox codes}
+
+The command mailbox  (or  command  UDP  port)  receives  messages  to
+control  the  emulator.  Each  message starts with a byte whose contents
+describes the message type. The rest  of  the  message  depends  on  the
+command code.
+
+CMD-SHUTDOWN-ABRT  -  Shutdown  abort  - shut immediatrely the emulator.
+Used mainly during system shutdown. The parameter is  the  username  who
+requested it.
+
+CMD-SHUTDOWN  -  Orderly shutdown of the emulator. The lines are stopped
+when the current activity ends, and  when  all  lines  are  stopped  the
+emulator  shuts  down.  The  parameter is the username who requested the
+shutdown.
+
+CMD-SHOW-LINES - Show the lines and streams status  (called  from  UCP).
+The parameter is the username who issued the command.
+
+CMD-SHOW-QUEUE  -  Given  from  UCP,  will  list all files queued to the
+various lines. Use with caution when queue is large.
+
+CMD-QUEUE-FILE - Queue a file to the emulator. The next  two  bytes  are
+the size of the file in blocks, followed by the filename.
+
+CMD-SEND-MESSAGE  -  received  from SEND/MESSAGE command. The parameters
+are the sender's username, the receipient full address and the  text  of
+the message.
+
+CMD-SEND-COMMAND  -  Received from SEND/COMMAND. Parameters are the same
+as for SEND/MESSAGE.
+
+CMD-START-LINE - Received from UCP. The parameter is one byte  which  is
+the line number to start.
+
+CMD-STOP-LINE  -  Similar  to  the  previous one. Will shutdown the line
+immediately only if all streams are inactive. If not, will set the  flag
+
+F-MUST-SHUT.
+
+CMD-START-STREAM - Not implemented yet.
+
+CMD-FORCE-LINE  -  Aborts the link's activity immediately. Sends singoff
+on the link and deactivates it.
+
+CMD-START-STREAM - Not implemented yet.
+
+CMD-FORCE-STREAM - Not implemented yet.
+
+CMD-DEBUG-DUMP - Causes a dump of all buffers into the logfile. Use with
+caution as it may take a lot of time and create a huge logfile.
+
+CMD-DEBUG-RESCAN  -  Clear all queues of files and scan the files' queue
+again.
+
+CMD-LOGLEVEL - Change the loglevel. The parameter is one byte of the new
+loglevel.
+
+CMD-CHANGE-ROUTE  -  Change routing of a node in the permanent database.
+The parameters are the node name and the new route.
+
+\leftline{\ncrMed File parameters}
+
+For each file being sent or received there is a structure FILE-PARAMS
+which holds its relevant parameters. The actual parameters for the files
+sent are in the IoLines strucure called InFileParams for incoming files,
+OutFileParams  for  outgoing  files. Please note that the FABs, RABs and
+Fds have an oposite names: InFileParams is for incoming files,  but  its
+Fd is OutFd since this is an output file of the program. Don't confuse.
+The  fields  inside are: format (long) which holds the format code of
+the file (ASCII for local files, EBCDIC for files on transit or BINARY).
+type (long) holds the code of the file's type (MAIL, FILE, PUNCH, PRINT,
+FPRINT which is NetData with carriage control). This field is written in
+the TYP: field of our envelope.
+
+NetData is simply a flag whether we receive/transmit NetData file or not
+(only for files originated or destined to the local system).
+
+FileId (long) is the job number associated with this job. This field  is
+written to the FID: field in the envelope.
+
+flags (long) currently used only for Unix's flag F-IN-HEADER.
+RecordsCount (long) counts the records during transmission so we can put
+the number in the job trailer.
+
+FileSize (long) is the aproximate file size in bytes, which is placed in
+the headers.
+
+OrigFileName  (string)  the  VMS  or  Unix  filename  currently  sent or
+received.
+
+FileName (string) The filename used in the  NJE  header.  Limited  to  8
+characters;  On  files  originated  from  our  system we use the first 8
+characters of the filename part (not including extension). This  is  the
+FNM: field in the file's envelope.
+
+FileExt  (string)  is the NJE header file type, limited to 8 characters.
+We use the first 8 characters of the filename's extension. This  is  the
+EXT: field in the file's envelope.
+
+From (string) holds the sender's BITnet address (User@Node). This is the
+FRM: field in the file's envelope.
+To (string) holds the destination address. This is the TOA: field in the
+file's envelope.
+
+line  (string)  holds the linkname on which this file is queued, or will
+be queued after finishing receive. This will be used when composing  the
+name of the received file.
+
+JobName  (string)  holds  the  jobname  from the NJE header. On outgoing
+files it is composed from  the  string  YHVI  concatanated  by  the  job
+number.
+
+JobClass  (single character) this is the job's NJE class. The default is
+A for files, M for mails, and N for binary files. This is the CLS: field
+in the file's envelope.
+
+Filler  (one  character)  used  to  make  this  structure even number of
+bytes.
+
+\leftline{\ncrMed LINE structure (IoLine)}
+
+This is the structure holding all the information on  the  lines.  It
+contains a lot of fields... and here they are:
+
+type (short) - the code of the line's type (TCP, DMB, etc). This is TYPE
+keyword in the configuration file.
+
+device (string) - the device name for DMB/DMF, optional DECnet name  for
+DECnet nodes, optional IP name for TCP links. If no name is defined here
+the hostname will be used instead. This is the DECNETNAME,  TCPNAME  and
+DEVICE in the configuration file.
+
+HostName (string) - BITnet name of the other host. This is the parameter
+of the LINE command in the configuration file.
+
+TimerIndex (int) holds the entry in the timers array for this line  when
+a  receive  is  queued.  Used  in  order  to delete the timer entry upon
+successfull receive.
+
+TotalErrors, errors (int) - Used for statistics and to limit the  number
+of consequtive errors before draining the line.
+
+channel, iosb, Siosb, socket etc, are used to have the low-level channel
+and status for each line.
+
+IpPort (int) the IP port to use when connecting to the other side.  Must
+be 175 for VMnet. IPPORT command in the configuration file.
+
+InBCB, OutBCB (short) stores the last BCB number used in last block sent
+or received on that line.
+
+state (short) The current line's state (ACTIVE, INACTIVE, etc).
+
+CurrentStream, FreeStreams (short) not used yet.
+
+flags (long) the flags described above.
+
+QueuedFiles (long) number of files queued; used for statistics  only  in
+Query SYStem command.
+
+InStreamState,   OutStreamState   (short)   the  state  of  the  streams
+(S-INACTIVE, S-SENDING-FILE, etc).
+
+InFileParams, OutFileParams (struct  FILE-PARAMS)  holds  the  structure
+described above.
+
+TimeOut (short) holds the timeout value for this line. Must be 3 seconds
+for BiSync lines. Preferably be 1-2 seconds for TCP and DECnet lines  in
+order  to  achive  good response on idle lines. This value is taken from
+TIMEOUT command in the configuration file.
+
+PMaxXmitSize, MaxXmitSize (short) the first one  is  the  maximum  block
+size  we  can  use for that line (BUFSIZE command) and the latter is the
+one agreed with the other side. MaxXmitSize <= PMaxXmitSize, and must be
+greater than 400.
+
+QueueStart, QueueEnd (struct QUEUE) pointers to the linked list of files
+waiting to this line.
+
+MessageQstart, MessageQend (struct  MESSAGE)  points  to  list  of  NMRs
+waiting to be sent in the next block.
+
+buffer  (string) holds the incoming data, and used in TCP lines to block
+the transmissions untill a full block is received.
+
+RecvSize (int) the size of data currently in the above buffer.
+
+XmitBuffer (string) holds a copy of the sent  data.  Before  send-data()
+sends the buffer it has to, it copies it into this area and then queue a
+send from this area; thus the original buffer is free for  other  usage.
+Furthermore,  in case of NAKs, XmitBuffer will be resent again as-is. It
+is also used to block records while preparing  a  big  VMnet  buffer  to
+send.
+
+XmitSize (int) the size of the data currently stored in the above.
+TcpXmitSize (int) the size of TCP buffer we are willing to send in VMnet
+protocol. The recommended size is  8192,  and  must  be  coordinated  in
+advance with the other size (no negotiation during link initialization).
+TCP-SIZE command in configuration file.
+
+XmitQueue (pointers) points to data blocks  queued  to  transmission  on
+reliable  link. They were queued since the link is already transmitting.
+This queue is cyclic.
+
+SavedxxxHeader - saves the headers while we are receiving them. This  is
+because we do not know yet whether the file is on transit or destined to
+the local machine. In the first case we have to save them; in the  later
+one we do not need them at all.
+
+SavedNJHHeaderMore  -  There  are very rare cases when more than two NJH
+fragments are sent. This place is a pointer to a  dynamically  allocated
+memory area to hold these fragments. A permanent place is not created as
+these fragments occur very rarely.
+
+CarriageControl, NDcc - When we receive a PRINT or NetData with carriage
+control  files,  and the carriage control is machine, we have to convert
+it to FORTRAN carriage  control.  Since  the  machine  carriage  control
+defines  the  ASA  control  for  the  next  record,  we have to keep the
+information across records boundaries. These variables help us doing so.
+Look in RECV-FILE.C for more details.
+
+SavedNdLine  (string)  when we pack a file into NetData transmission, we
+fill a block and usually left with part  of  the  record  for  the  next
+transmission block. This string holds the part left for next block.
+
+XmitSavedLine  (string)  Similar to above, but used when we segment long
+records. SavedNdLine saved the part of  the  NetData  formatted  buffer.
+XmitSavedLine holds the original record that we are now segmenting. This
+duplication is caused because we do NetData processing while filling the
+punch records, and not as separate process.
+\end
