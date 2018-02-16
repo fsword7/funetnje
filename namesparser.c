@@ -5,7 +5,7 @@
 
    Feed this routine:
        FILE *namesfile;
-       char *picktags[]; (NULL means EVERYTHING)
+       char *picktags[]; (NULL means EVERYTHING, "tag." !)
        char *selector; (A ":<tag>.<value>" which identifies records to accept,
                         a NULL means ANY.)
 
@@ -19,6 +19,9 @@
 extern char *malloc();
 extern char *realloc();
 extern void  free();
+extern char *strchr();
+
+char *MEMFAIL[] = { ":failure.MALLOC FAILED",NULL };
 
 
 char **
@@ -27,10 +30,11 @@ FILE *namesfile;
 char *picktags[];
 char *selector;
 {
-	int   linesize = 256;
+	int   linesize = 256;	/* Our advanced knowledge.. */
 	char *linebuf = NULL;
 	char *s, *s1, *s2;
-	char *results[] = NULL;
+	char **results = NULL;
+	int   resultspc = 0;
 	int   resultcnt = 0;
 	int   first_char;
 	int   pick_this;
@@ -48,7 +52,7 @@ char *selector;
 	  select_len = strlen(selector);
 	  s1 = selector + 1;
 	  while (*s1 != 0 && *s1 != '.') ++s1;
-	  select_taglen = (s1 - selector) -1;
+	  select_taglen = (s1 - selector);
 	}
 
 	while (1) {
@@ -60,9 +64,18 @@ char *selector;
 
 	  /* First begin, or continuation of more ? */
 	  first_char = getc(namesfile);
+	  ungetc(first_char,namesfile);
 	  if (first_char == ':' && begin_found) {
-	    ungetc(first_char,namesfile);
-	    return results;
+	    if (selector_matched && results != NULL)
+	      return results;
+	    /* Didn't match the select, but MAY have data in the results[],
+	       scratch it.. */
+	    if (results != NULL) {
+	      while (resultcnt > 0)
+		free(results[--resultcnt]);
+	      results[0] = NULL;
+	    }
+	    resultcnt = 0;
 	  }
 	  if (first_char == ':')	/* Ok, found it */
 	    begin_found = 1;
@@ -114,7 +127,7 @@ char *selector;
 	    t = s1 + 1;
 	    while (*t != ' ' && *t != 0 && *t != '.') ++t;
 	    /*  :<tag>.  -> *s1 == ':', *t == '.' */
-	    tag_len = (t - s1) -1;
+	    tag_len = (t - s1); /* INCLUDE the terminating "." ! */
 
 	    if (selector != NULL &&
 		tag_len == select_taglen && comp_len == select_len) {
@@ -126,7 +139,7 @@ char *selector;
 	      char **picks = picktags;
 	      pick_this = 0;
 	      while (*picks != NULL) {
-		if (strcmp(s1+1,*pics)==0) {
+		if (strncmp(s1+1,*picks,tag_len)==0) {
 		  pick_this = 1;
 		  break;
 		}
@@ -135,9 +148,54 @@ char *selector;
 	    } else
 	      pick_this = 1;
 
-	  }
-
-
-
-	} /* .. While (1) */
+	    /* If we pick it, put it into  "results" */
+	    if (pick_this) {
+	      if (results == NULL) {
+		resultspc = 8;
+		results = (char**)malloc(sizeof(char*)*(resultspc+1));
+	      }
+	      if (results == NULL) return MEMFAIL;
+	      if (resultcnt >= resultspc) {
+		resultspc += 8;
+		results = (char**)realloc(results,sizeof(char*)*(resultspc+1));
+	      }
+	      if (results == NULL) return MEMFAIL;
+	      results[resultcnt] = malloc(comp_len+1);
+	      if (results[resultcnt] == NULL) return MEMFAIL;
+	      memcpy(results[resultcnt],s1,comp_len+1);
+	      ++resultcnt;
+	      results[resultcnt] = NULL;
+	    }
+	  } /* .. while on line */
+	} /* .. While (1) on record */
 }
+
+
+#ifdef	TEST
+int
+main(argc,argv)
+int argc;
+char *argv[];
+{
+	char *picklist[] =  {
+	  "node.","internet.","servers1.","servers2.",NULL
+	};
+	char **results;
+	int i;
+
+	while (!feof(stdin) && !ferror(stdin)) {
+	  results = namesparse(stdin,argc > 1 ? NULL : picklist,NULL);
+	  if (results == NULL)
+	    printf("RET=NULL\n");
+	  else {
+	    printf("%s\n",results[0]);
+	    for (i=1; results[i] != NULL; ++i)
+	      printf("\t%s\n",results[i]);
+	    for (i=0; results[i] != NULL; ++i)
+	      free(results[i]);
+	    free(results);
+	  }
+	}
+	return 0;
+}
+#endif

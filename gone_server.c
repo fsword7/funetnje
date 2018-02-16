@@ -76,11 +76,11 @@ const char	*UserName;
 	  return;		/* Not registered */
 
 /* Exists - delete him */
-	free(GoneUsers[i]);	/* Free the memory used by him */
 	for (j = i; j < GoneUsersNum; j++) {
 	  strcpy(GoneUsers[j], GoneUsers[j + 1]);
 	  GoneUsersDir[j] = GoneUsersDir[j + 1];
 	}
+	free(LoginDirectory);	/* Free the memory used by him */
 	GoneUsersNum--;
 }
 

@@ -103,7 +103,7 @@ const void	*Buffer;
 
 	/* Check that the stream number is in range */
 	if ((Stream < 0) ||
-	    (Stream >= IoLines[Index].MaxStreams)) {
+	    (Stream >= MAX_STREAMS )) {
 	  logger(1, "RECV_FILE: Found illegal RCB=x^%x (line=%s:%d, maxstreams=%d)\n",
 		 RCB, IoLines[Index].HostName, Stream,
 		 IoLines[Index].MaxStreams);

@@ -66,7 +66,7 @@
 
 - We need a transit-file trapping mechanism, not only for 1986 XMAS EXEC
   like things, but also for transit node processing in places which
-  have for example one public NJE node, and bunch of private ones..
+  have for example one public NJE node, and a bunch of private ones..
 
 
 - receive -program is of `first cut' -- compiled ok, but not tested.

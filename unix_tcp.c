@@ -351,18 +351,21 @@ read_passive_tcp_connection()
 				   why we NAK him */
 	char	HostName[10], Exchange[10];
 	struct	VMctl	ControlBlock;
+	char	*remoteaddr;
 #ifdef	NBSTREAM
 	int	on = 1;
 #endif
 
 	ReasonCode = 0;
 
+	remoteaddr = inet_ntoa(PassiveSocket.sin_addr);
+
 	/* Read input */
 	if ((size = read(PassiveReadChannel, (void *)&ControlBlock,
 			 sizeof(ControlBlock))) == -1) {
 	  /* errno==EINTR is possible, but should not happen.. */
-	  logger(1, "UNIX_TCP, Error reading VMnet block, error: %s\n",
-		 PRINT_ERRNO);
+	  logger(1, "UNIX_TCP, Error reading VMnet block from [%s], error: %s\n",
+		 remoteaddr, PRINT_ERRNO);
 	  close(PassiveReadChannel);
 	  PassiveReadChannel = -1; /* To signal it is closed */
 	  return;
@@ -376,7 +379,8 @@ read_passive_tcp_connection()
 
 	/* Check that we've received enough information */
 	if (size < VMctl_SIZE) {
-	  logger(1, "UNIX_TCP, Received too small control record\n");
+	  logger(1, "UNIX_TCP, Received too small control record from [%s]\n",
+		 remoteaddr);
 	  logger(1, "      Expecting %d, received size of %d\n",
 		 VMctl_SIZE, size);
 	  goto RetryConnection;
@@ -401,8 +405,8 @@ read_passive_tcp_connection()
 
 	/* Verify that he wants to call us */
 	if (strncmp(Exchange, LOCAL_NAME, strlen(LOCAL_NAME)) != 0) {
-	  logger(1, "UNIX_TCP, Host %s incorrectly connected to us (%s)\n",
-		 HostName, Exchange);
+	  logger(1, "UNIX_TCP, Host %s [%s] incorrectly connected to us (%s)\n",
+		 HostName, remoteaddr, Exchange);
 	  goto RetryConnection;
 	}
 
@@ -418,7 +422,7 @@ logger(2,"UNIX_TCP: Line %s/%d passive channel read\n",Line->HostName,Index);
 	      goto RetryConnection;
 	    }
 	    if (Line->state != LISTEN &&
-		 Line->state != RETRYING) {
+		Line->state != RETRYING) {
 	      /* Break its previous connection */
 	      if (Line->state == ACTIVE)
 		ReasonCode = 2; /* Link is active.. */
@@ -486,7 +490,8 @@ logger(2,"UNIX_TCP: Acking passive open on line %s/%d\n",Line->HostName,Index);
 	}
 
 	/* Line not found - log it, and dismiss the connection */
-	logger(1, "UNIX_TCP, Can't find line for host '%s'\n", HostName);
+	logger(1, "UNIX_TCP, Can't find line for host '%s' [%s]\n",
+	       HostName, remoteaddr);
 
 	/* Send a reject to other side and re-queue the read */
 RetryConnection:
@@ -494,8 +499,8 @@ RetryConnection:
 	ASCII_TO_EBCDIC("NAK     ", ControlBlock.type, 8);
 	ControlBlock.R = ReasonCode;
 	memcpy(ControlBlock.Rhost, E_BITnet_name, E_BITnet_name_length);
-	logger(2, "UNIX_TCP: writing passive-channel NAK to %s with reason code: %d\n",
-	       HostName, ReasonCode);
+	logger(2, "UNIX_TCP: writing passive-channel NAK to %s [%s] with reason code: %d\n",
+	       HostName, remoteaddr, ReasonCode);
 
 	writen(PassiveReadChannel, &ControlBlock, VMctl_SIZE);
 	close(PassiveReadChannel);

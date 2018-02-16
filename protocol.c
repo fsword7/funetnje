@@ -406,7 +406,7 @@ const short	flag;	/* Is this an implicit or explicit ACK? */
 	  case DRAIN:	/* Is is the ACK for the Enquire - initiate signon */
 	      /* Reset BCB was sent in the first packet */
 	      temp->OutBCB = 0; temp->flags &= ~F_RESET_BCB;
-	      for (i = 0; i < temp->MaxStreams; i++)
+	      for (i = 0; i < MAX_STREAMS; i++)
 		temp->InStreamState[i] =
 		  temp->OutStreamState[i] = S_INACTIVE;
 	      /* Line is starting - streams are all idle */
@@ -1233,11 +1233,12 @@ const unsigned char	*buffer;
 		temp->MaxXmitSize = temp->PMaxXmitSize;
 	      temp->OutBCB = 0;
 	      temp->flags &= ~F_RESET_BCB;	/* Reset flag = Send reset BCB */
-	      for (i = 0; i < temp->MaxStreams; i++)
+	      for (i = 0; i < MAX_STREAMS; i++)
 		temp->InStreamState[i] = temp->OutStreamState[i] = S_INACTIVE;
 	      /* Line starting - streams are all idle */
 	      send_signon(Index, FINAL_SIGNON);
-	      temp->state = F_SIGNON_SENT;
+/*	      temp->state = F_SIGNON_SENT; */
+	      temp->state = ACTIVE;
 	      logger(1, "PROTOCOL: Line %s (%d), Signing on with bufsize %d\n",
 		     Aline, Index, temp->MaxXmitSize);
 	      inform_users_about_line(Index, -1);
@@ -1316,7 +1317,7 @@ const unsigned char	*StreamNumberP;
 	/* Convert the RSCS's stream number to a decimal one */
 	DecimalStreamNumber = ((*StreamNumberP & 0xf0) >> 4) - 9;
 	if (DecimalStreamNumber < 0 ||
-	    DecimalStreamNumber >= temp->MaxStreams) {
+	    DecimalStreamNumber >= MAX_STREAMS ) {
 	  logger(1,"PROTOCOL: **BUG** Bad Stream number 0x%02X on REQUEST_RCB on line %d (%s)\n",*StreamNumberP,Index,temp->HostName);
 	  trace(StreamNumberP-4,8,1);
 
@@ -1341,12 +1342,12 @@ const unsigned char	*StreamNumberP;
 	}
 
 	/* Check that this stream is inactive */
-	if ((DecimalStreamNumber >= temp->MaxStreams) || /* Out of range */
+	if ((DecimalStreamNumber >= MAX_STREAMS ) || /* Out of range */
 	    ((temp->InStreamState)[DecimalStreamNumber] != S_INACTIVE)) {
 	  /* Stream must be in in INACTIVE state to start a new connection. */
 	  logger(2, "PROTOCOL: Rejecting request for line %s:%d\n",
 		 temp->HostName, DecimalStreamNumber);
-	  if (DecimalStreamNumber >= temp->MaxStreams)
+	  if (DecimalStreamNumber >= MAX_STREAMS )
 	    logger(2, "PROTOCOL, Stream is out of range for this line\n");
 	  else
 	    logger(2, "PROTOCOL, Stream state is %d\n",

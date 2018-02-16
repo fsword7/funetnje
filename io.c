@@ -158,7 +158,7 @@ int infoprint;
 	  if (temp->state != ACTIVE) /* Not active - don't display */
 	    continue;		/* streams status */
 
-	  for (j = 0; j < temp->MaxStreams; j++) {
+	  for (j = 0; j < MAX_STREAMS; j++) {
 	    sprintf(line, "Rcv-%d  ", j);
 	    if (temp->InStreamState[j] != S_INACTIVE) {
 	      /* Don't show inactive ones */
@@ -401,7 +401,7 @@ const int Index;
 	       temp->HostName,  Index,  temp->type);
 	
 	/* Close active file, and delete of output file. */
-	for (i = 0; i < temp->MaxStreams; i++) {
+	for (i = 0; i < MAX_STREAMS; i++) {
 	  temp->CurrentStream = i;
 	  if ((temp->OutStreamState[i] != S_INACTIVE) &&
 	      (temp->OutStreamState[i] != S_REFUSED)) { /* File active */
@@ -452,7 +452,7 @@ const int Index;
 	temp->CurrentStream = 0;
 	temp->ActiveStreams = 0;
 	temp->FreeStreams   = temp->MaxStreams;
-	for (i = 0; i < temp->MaxStreams; i++) {
+	for (i = 0; i < MAX_STREAMS; i++) {
 	  temp->InStreamState[i] = S_INACTIVE;
 	  temp->OutStreamState[i] = S_INACTIVE;
 	}

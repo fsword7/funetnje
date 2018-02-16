@@ -103,7 +103,7 @@
 # SunOS --  GNU-CC 2.4.5 on SPARC SunOS 4.1.3
 CC=gcc -Wall #-fno-builtin
 CPP=gcc -E
-CDEFS=  -O -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT -DUSE_SOCKOPT #-DNBSTREAM #-DDEBUG
+CDEFS=  -O -DDEBUG_FOPEN -DBSD_SIGCHLDS -DCOMMAND_MAILBOX_FIFO -DHAS_LSTAT -DHAS_PUTENV -DNBCONNECT -DUSE_SOCKOPT #-DNBSTREAM #-DDEBUG
 CFLAGS= -g $(CDEFS)
 # Have MAILIFY compiled by uncommenting following ones:
 #MAILIFY=mailify
@@ -170,20 +170,20 @@ SRC=	bcb_crc.c  bmail.c  file_queue.c  headers.c  io.c  main.c	\
 	unix_files.c sendfile.c bitsend.c read_config.c qrdr.c bitcat.c	\
 	ndparse.c libndparse.c libreceive.c receive.c mailify.c		\
 	mailify.sh clientutils.h sysin.sh version.sh unix_msgs.c	\
-	bintree.c
+	bintree.c __fopen.c
 HDR=	consts.h  ebcdic.h  headers.h  site_consts.h unix_msgs.h
 OBJ=	file_queue.o  headers.o  io.o  main.o				\
 	nmr.o nmr_unix.o protocol.o  read_config.o  recv_file.o  send.o	\
 	send_file.o  unix.o  unix_brdcst.o  unix_build.o gone_server.o	\
 	ucp.o  unix_mail.o  unix_route.o  unix_tcp.o  util.o		\
 	bcb_crc.o  bmail.o detach.o unix_files.o sendfile.o bitsend.o	\
-	qrdr.o logger.o uread.o bitcat.o unix_msgs.o
+	qrdr.o logger.o uread.o bitcat.o unix_msgs.o __fopen.o
 OBJmain=	main.o  headers.o  unix.o  file_queue.o	read_config.o	\
 		io.o  nmr.o  unix_tcp.o  bcb_crc.o  unix_route.o	\
 		util.o  protocol.o  send_file.o  recv_file.o logger.o	\
 		unix_brdcst.o  unix_files.o gone_server.o detach.o	\
 		libustr.o liblstr.o unix_msgs.o rscsacct.o version.o	\
-		nmr_unix.o bintree.o
+		nmr_unix.o bintree.o __fopen.o
 CLIENTLIBobj=		\
 		clientlib.a(libndparse.o)	clientlib.a(libdondata.o)  \
 		clientlib.a(libetbl.o)		clientlib.a(libsendcmd.o)  \
@@ -193,7 +193,8 @@ CLIENTLIBobj=		\
 		clientlib.a(libebc2asc.o)	clientlib.a(libpadbla.o)   \
 		clientlib.a(libhdrtbx.o)	clientlib.a(libndfuncs.o)  \
 		clientlib.a(libustr.o)		clientlib.a(liblstr.o)	   \
-		clientlib.a(logger.o)		clientlib.a(libstrsave.o)
+		clientlib.a(logger.o)		clientlib.a(libstrsave.o)  \
+		clientlib.a(__fopen.o)
 OBJbmail=	bmail.o		clientlib.a
 OBJsend=	send.o		clientlib.a
 OBJsendfile=	sendfile.o	clientlib.a
@@ -205,12 +206,13 @@ OBJygone=	ygone.o		clientlib.a
 OBJacctcat=	acctcat.o	clientlib.a
 OBJreceive=	receive.o libreceive.o clientlib.a
 OBJmailify=	mailify.o libreceive.o clientlib.a
-OBJnjeroutes=	njeroutes.o	bintree.o
+OBJnjeroutes=	njeroutes.o	bintree.o __fopen.o
+OBJnamesfilter=	namesfilter.o namesparser.o
 # Phase these out, once the `receive' works
 #OBJbitcat=	bitcat.o	clientlib.a
 #OBJnetdata=	ndparse.o	clientlib.a
 PROGRAMS=	funetnje receive bmail ${SEND} sendfile njeroutes bitsend \
-		qrdr ygone transfer acctcat ucp $(MAILIFY)
+		qrdr ygone transfer acctcat ucp $(MAILIFY) namesfilter
 ObsoletePROGRAMS= bitcat ndparse
 OTHERFILES= finfiles.cf finfiles.header unix.install file-exit.cf msg-exit.cf
 SOURCES= $(SRC) $(HDR) Makefile $(OTHERFILES) $(MAN1) $(MAN8)
@@ -242,7 +244,7 @@ dvi:	funetnje.dvi
 	$(CC) -c $(CFLAGS) $<
 	ar rc clientlib.a $%
 	$(RANLIB) clientlib.a
-	rm -f $%
+	#rm -f $%
 
 .c.s:
 	$(CC) -S $(CFLAGS) $<
@@ -251,13 +253,13 @@ dist:
 	# This is at  FTP.FUNET.FI/FINFILES.BITNET  where FUNET edition
 	# is developed..  Making a dump to the archive in easy way..
 	./version.sh
-	rm -f *~ man/*~ namesfilter/*~ smail-configs/*~
-	rm -f njesrc/man/* njesrc/namesfilter/* njesrc/smail-configs/*
+	rm -f *~ man/*~ smail-configs/*~
+	rm -f njesrc/man/* njesrc/smail-configs/*
 	cd njesrc; for x in `find . -links 1 -print`; do rm $$x; ln ../$$x . ; done
 	cd njesrc; for x in submit print punch sf bitprt; do rm -f $$x; ln -s sendfile $$x;done
 	# If you want to call 'send' with name 'tell'
 	# cd njesrc; rm -f tell; ln -s ${SEND} tell
-	ln man/* njesrc/man; ln namesfilter/* njesrc/namesfilter; ln smail-configs/* njesrc/smail-configs
+	ln man/* njesrc/man; ln smail-configs/* njesrc/smail-configs
 	date=`date +%y%m%d`; mv njesrc njesrc-$$date; gtar czf /pub/unix/networking/bitnet/funetnje-$$date.tar.gz njesrc-$$date; mv njesrc-$$date njesrc; chmod 644 /pub/unix/networking/bitnet/funetnje-$$date.tar.gz
 	# Make sure the archive directory cache notices some changes..
 	cd /pub/unix/networking/bitnet; ls-regen
@@ -396,6 +398,9 @@ qrdr:		$(OBJqrdr)
 receive:	$(OBJreceive)
 	$(CC) $(CFLAGS) -o $@ $(OBJreceive) $(LIBS)
 
+namesfilter:	$(OBJnamesfilter)
+	$(CC) $(CFLAGS) -o $@ $(OBJnamesfilter) $(LIBS)
+
 #  OBSOLETES:
 #bitcat:		$(OBJbitcat)
 #	$(CC) $(CFLAGS) -o $@ $(OBJbitcat) $(LIBS)
@@ -451,6 +456,8 @@ clientlib.a(libustr.o):	libustr.c	clientutils.h
 mailify.o:	mailify.c consts.h clientutils.h prototypes.h ndlib.h
 	$(CC) -c $(MAILIFYCFLAGS) mailify.c
 
+namesfilter.o:	namesfilter.c
+namesparser.o:	namesparser.c
 locks.o:	locks.c
 logger.o:	logger.c prototypes.h consts.h ebcdic.h
 main.o:		main.c prototypes.h headers.h consts.h site_consts.h

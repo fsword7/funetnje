@@ -38,6 +38,13 @@
 #include <pwd.h>
 #include <utmp.h>
 
+#ifdef	DEBUG_FOPEN
+#define fopen __fopen
+#define fclose __fclose
+#define fdopen __fdopen
+#define freopen __freopen
+#endif
+
 #if 0
 /*      ----- this should be at routines needing it.. */
 #ifdef	GDBM

@@ -43,7 +43,7 @@ void
 usage(str)
 char *str;
 {
-  fprintf(stderr, "Usage: bmail [-u origuser] [-v] [-tag RSCS-TAG]\n             [-nd Gateway-address | -b(smtp) Gateway-address]\n             [-v] FromUser@FromNode ToUser@ToNode [ToUser@ToNode...]\n");
+  fprintf(stderr, "Usage: bmail [-u origuser] [-v] [-tag RSCS-TAG]\n             [-nd Gateway-address | -b(smtp) Gateway-address]\n             FromUser@FromNode ToUser@ToNode [ToUser@ToNode...]\n");
   fprintf(stderr, "  File is taken from the standard input\n");
   if (str)
     fprintf(stderr,"ErrMsg: %s\n",str);

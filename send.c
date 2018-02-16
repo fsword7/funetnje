@@ -33,8 +33,8 @@
 void
 usage()
 {
-	printf("Usage: send [-u fromuser|-s] [-c{ommand}] [[@]node [command string]]\n");
-	printf("       send [-u fromuser|-s] [-m{essage}] [user@node [message text]]\n");
+	printf("Usage: send [-u fromuser|-s] [-c{ommand}] [@]node [command string]\n");
+	printf("       send [-u fromuser|-s] [-m{essage}] user@node [message text]\n");
 }
 
 

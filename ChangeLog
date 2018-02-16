@@ -1,3 +1,32 @@
+Tue Sep 27 09:39:36 1994  Matti Aarnio  (mea@nic.funet.fi)
+
+	* namesparser.c, namesfilter.c: NEW
+	    A filter utility for producing Zmailer's  routes.bitnet
+	    table -- and also  Smail's..
+
+	* funetnje.texinfo:
+	    Major editing, filled in about half of what was missing
+	    (chaptervice), added chapters about support, and history..
+	    Still some commands need documentation, and the internal
+	    stuff is not even started...
+
+	* unix_tcp.c: read_passive_tcp_connection()
+	    Report more info about WHO (host IP address) is trying
+	    to contact us.
+
+Wed Sep 21 17:53:59 1994  Gerald Hanusch (root@alijku65.edvz.uni-linz.ac.at)
+
+	* io.c, protocol.c, recv_file.c:
+	    "Be lenient on what you accept, strict on what you send"..
+	    Accept always 7 streams, but send only N (1..7) depending
+	    the system configuration.
+	    [mea: Edited them to change literal '7' to 'MAX_STREAMS']
+
+Mon Aug  8 10:02:29 1994  Gerald Hanusch (root@alijku65.edvz.uni-linz.ac.at)
+
+	* gone_server.c: del_gone_user()
+	    Fix the memory-freeup -- wrong memory block got freed..
+
 Thu Jul  7 16:08:01 1994  Matti Aarnio  (mea@nic.funet.fi)
 
 	* nmr.c: handle_nmr()

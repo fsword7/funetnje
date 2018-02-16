@@ -13,6 +13,8 @@
 @c
 @c Notes for writing the doc:
 @c
+@c  - Support
+@c  - History
 @c  - Introduction to NJE-networking, esp. BITNET
 @c  - General talk about BITNET, and BITNET-II
 @c  - Installation
@@ -35,6 +37,7 @@
 @c      - bmail
 @c      - mailify
 @c      - ucp
+@c      - namesfilter
 @c      - njeroutes
 @c      - acctcat
 @c  - Interfacing system mailer and BITNET
@@ -57,6 +60,8 @@ BITNET-II -type BITNET node-to-node connectivity on UNIX systems.
 Copyright @copyright{} 1994 Finnish University and Research Network,
 FUNET.
 
+Copyright @copyright{} 1994 IBiS Support OY
+
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
 @end ifinfo
@@ -72,6 +77,8 @@ use without prior agreenment.
 Copyright @copyright{} 1994 Finnish University and Research Network,
 FUNET.
 
+Copyright @copyright{} 1994 IBiS Support OY
+
 Permission is granted to copy and use this material for non-commercial
 use without prior agreenment.
 @end titlepage
@@ -79,10 +86,12 @@ use without prior agreenment.
 @comment Info menus
 
 @c ================================================================
-@node   Top,    Introduction,   (dir),  (dir)
+@node   Top,    Support,   (dir),  (dir)
 @comment node-name, next,       previous, up
 
 @menu
+* Support::		Source of support for FUNET-NJE
+* History::             History of the FUNET-NJE package
 * Introduction::        Introduction to NJE-networking
 * BITNET-II::           Structure of Second Generation BITNET on virtual links
 * Installation::        Installation of FUNET-NJE package
@@ -96,7 +105,81 @@ use without prior agreenment.
 
 
 @c ================================================================
-@node Introduction, BITNET-II, Top, Top
+@node Support, History, Top, Top
+@chapter Support of the FUNET-NJE package
+
+Academic version of this software is available from:
+@example
+  ftp://ftp.funet.fi/pub/unix/networking/bitnet/funetnje-@emph{datecode}.tar.gz
+@end example
+
+@emph{Academic version of this software comes AS-IS without
+        any guarantees of working for any particular purpose,
+        or that it is bug-free, or that it won't cause trouble,
+        loss of valuable data, @dots{} -- for short, you are
+        on your own.}
+
+Like all Academic software, there might come up a bugfix, or
+improvement sometimes, but such effort being non-funded, and
+without any schedules, there is no guarantee of anything.
+
+
+Developement continues under the company  @emph{IBiS Support OY}
+founded by Matti Aarnio
+@c , and Gerald Hanusch,
+for producing customized editions of this software for parties
+who want to pay for the customization service, or just for timely
+implementation/bug-fixing something.
+
+
+@c ================================================================
+@node History, Introduction, Support, Top
+@chapter History of the FUNET-NJE package
+
+@emph{``Credit where the credit is due to''}
+
+Original version of this software is known as @emph{HUJI-NJE},
+which is VAX-VMS software for implementing BITNET-II, and several
+BISYNC modes of the NJE network.
+It was made at the @emph{Hebrew University of Jerusalem} (HUJI),
+by Mr. @emph{Yehavi Bourvine} over the years 1988-1993.
+
+Sometime around 1990-1991 FUNET archive server was decided to
+connect to the EARN, and the best (= free in source form) technology
+for it turned to be HUJI-NJE.
+
+The original HUJI-NJE is monsterous monolithic program which has
+built-in processing of incoming email, and translation of files
+(in and out) in between ASCII and EBCDIC.
+
+At first Matti Aarnio <mea@@nic.funet.fi> did minor porting of the
+program to get it to work on a Sun4/630 server (nic.funet.fi),
+which did surface several problems in between VAX, and other
+architectures.
+
+Latter the HUJI-people lost their interest on the system, and when
+no radical improvements were on sight, begun the more serious porting
+of the system to Sun4 machine.
+
+Then on Summer-93 came a contact from Mr. Gerald Hanusch <K000165@@ALIJKU65>,
+who wanted to improve the then-present version of FUNET-NJE to be more
+complete in respect of its emulation of the RSCS for replacing their
+aging VM/XA CMS machine -- they had administrative systems on another
+MVS machine, and communication to it was to be preserved, although the
+VM/XA CMS machine was turned off.
+
+Over the months the system improved, and it was considered that all the
+necessary major parts of the NJE-emulator were functional on January-94.
+
+Up until then the software developement was on ``fun to do'' basis,
+and beside the actual job of the parties involved.
+
+See previous chapter about @emph{Support} for more about the supported
+version.
+
+
+@c ================================================================
+@node Introduction, BITNET-II, History, Top
 @chapter Introduction to NJE-networking
 
 Traditionally NJE-networking happens (did happen) in between two
@@ -165,10 +248,11 @@ via synchronous BISYNC interface, although these days BITNET-II technology
 has largely surplanted it.  See on next chapter.
 
 There exists even ASYNC NJE, although that is more like experimental
-kludge for hackers, than serious production tool.
+kludge for hackers, than serious production tool. (Not supported by
+the FUNET-NJE.)
 
 Names in the BITNET  are at most 8 characters long.
-This fits both the users, and also machines (nodes).
+This applies both to the users, and the machines (@emph{nodes}).
 
 Routing in the BITNET requires every machine to know every other, and
 therefore there exists fairly large bureaucracy for keeping the linkage
@@ -180,7 +264,7 @@ case of FUNET-NJE, automatically.
 
 
 There are email-gateways in between the BITNET, and the rest of the world.
-Email is transported inside the BITNET with three methods:
+Email is transported inside the BITNET with five methods:
 @table @strong
 @item defrt1
 Target system has no mailer, all email must be sent to the users directly.
@@ -190,11 +274,19 @@ Normally a mail-file is sent in PUNCH-80 format.
 Target system has a mailer, which can receive Batch-SMTP-file containing
 the email.  Format of the file is PUNCH-80.
 
+@item bsmtp3rfc
+Like @strong{bsmtp3}, but addresses in RFC-822 format instead of
+BITNET node style.
+
 @item bsmtp3nd
 Target system has a mailer, which can receive Batch-SMTP-file containing
 the email.  Format of the file can be PUNCH-80, or NETDATA.
 In case the email contains longer lines, than 80 characters, this is
 recommended method, if receiver system can accept it.
+
+@item bsmtp3ndrfc
+Like @strong{bsmtp3nd}, but addresses in RFC-822 format instead of
+BITNET node style.
 @end table
 
 To familiarize him-/herself with NJE-networking,  the reader should
@@ -224,13 +316,13 @@ over the Internet.
 The protocol, and its reference implementation are described on
 @file{BRFC0002 TEXT} available at least from  ftp.funet.fi:
 @example
- ftp.funet.fi:/pub/doc/netinfo/CREN/brfc0002.text
+  ftp://ftp.funet.fi/pub/doc/netinfo/CREN/brfc0002.text
 @end example
 via anonymous FTP.
 
-Soon after, (in 1990), Lee Varian, Peter Olenick, and Michael Getter
+Soon after, (in 1990), Lee Varian, Peter Olenick, and Michael Gettes
 (all from Princeton University) made a BITNET restructuring proposal
-on which they divided fine-grained threaded mesh of the former BITNET
+in which they divided fine-grained threaded mesh of the former BITNET
 into 9 regions.
 
 From their  @file{bit2plan.proposal}:
@@ -321,7 +413,6 @@ Revised September 21, 1990
  dynamic rerouting within a region as well.
 @end quotation
 
-
 @c ================================================================
 @node Installation, Configuration, BITNET-II, Top
 @chapter Installation of FUNET-NJE package
@@ -366,7 +457,8 @@ Directories for your BITNET transmission spool, and user spool.
 @emph{Important: those must be on same partition!}
 
 Example configurations have them as: @file{/var/spool/bitnet}
-(@emph{QUEUEDIR}), and @hfill @file{/var/spool/bitspool} (@emph{USERSPOOL}).
+(@emph{QUEUEDIR}), and @hfill @file{/var/spool/bitspool} @hfill
+(@emph{USERSPOOL}).
 
 @item
 Location of various programs, @file{Makefile} has variables:
@@ -377,23 +469,23 @@ Choosing proper defines for the compile of the software, especially
 your platform dependent pre-processor constants:
 @table @strong
 @item -D_POSIX_SOURCE
-Use on true {@tt POSIX.1} systems
+Use on true @code{POSIX.1} systems
 
 @item -DHAS_PUTENV
-If your system has SysV-like  {@tt putenv(3)} to set environment variable.
-When this is not defined, a BSD-like {@tt setenv(3)} is assumed
+If your system has SysV-like  @code{putenv(3)} to set environment variable.
+When this is not defined, a BSD-like @code{setenv(3)} is assumed
 
 @item -DHAS_LSTAT
-Use when your system has  {@tt lstat(2)} in addition to the usual {@tt stat(2)}
+Use when your system has  @code{lstat(2)} in addition to the usual @code{stat(2)}
 
 @item -DUSE_SOCKOPT
-Use when your system has a working  {@tt setsockopt(2)} for {@tt SO_RCVBUF},
-and {@tt SO_SNDBUF}.
+Use when your system has a working  @code{setsockopt(2)} for @code{SO_RCVBUF},
+and @code{SO_SNDBUF}.
 Most systems do!
 This is a performace option, which @strong{might} help on busy systems
 
 @item -DNBCONNECT
-The system can do a {@tt connect(2)} on a socket, which has been flagged
+The system can do a @code{connect(2)} on a socket, which has been flagged
 as non-blocking.  Without this connection to a system which is unreachable
 would cause system to hang for synchronous timeout...
 
@@ -406,29 +498,29 @@ Override @file{consts.h} definition of emulator process-id file name
 @item @emph{A set of IPC methods, choose one!}
 
 @item -DCOMMAND_MAILBOX_FIFO
-Uses named pipe ({@tt mkfifo(2)}) for an emulator vs. user programs
+Uses named pipe (@code{mkfifo(2)}) for an emulator vs. user programs
 IPC channel.
 Fifo path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry
 
 
 @item (-DFIFO_0_READ)
-A subitem on @strong{-DCOMMAND_MAILBOX_FIFO} -- Do a {@tt close(2)}/{@tt open(2)}
+A subitem on @strong{-DCOMMAND_MAILBOX_FIFO} -- Do a @code{close(2)}/@code{open(2)}
 pair on a FIFO, when read from it returns 0.  Was needed for Linux 0.99pl13.
 
 @item -DCOMMAND_MAILBOX_SOCKET
-Uses {@tt AF_UNIX}, {@tt SOCK_STREAM} for the IPC channel.
+Uses @code{AF_UNIX}, @code{SOCK_STREAM} for the IPC channel.
 Socket path is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX} entry
 
 @item -DCOMMAND_MAILBOX_UDP
-Uses {@tt AF_INET}, {@tt SOCK_DGRAM} for the IPC channel.
+Uses @code{AF_INET}, @code{SOCK_DGRAM} for the IPC channel.
 Socket IP address is taken from @file{/etc/funetnje.cf} @var{CMDMAILBOX}
 entry (numeric), and it naturally must be on same machine, as the emulator
 runs.  This is only choise for cluster nodes
 
 @item -DBSD_SIGCHLDS
-Uses {@tt BSD}-style {@tt SIGCLD/SIGCHLD} handling where an signal
+Uses @code{BSD}-style @code{SIGCLD/SIGCHLD} handling where an signal
 trapper program is required to process the exited child information.
-On {@tt SysV}-systems it is safe (it seems) to just ignore {@tt SIGCLD}
+On @code{SysV}-systems it is safe (it seems) to just ignore @code{SIGCLD}
 and that way to get rid of the zombied child.
 
 @item @emph{Some compiler switches:}
@@ -436,7 +528,7 @@ and that way to get rid of the zombied child.
 A GNU-CC option telling it, that builtin accelerated operations should not
 be used. (Alignment may cause problems on some cases!) However we have
 a fairly high confidence that we have eliminated every case, where inlining
-a {@tt memcpy(3)} could cause problems.  Try without it!
+a @code{memcpy(3)} could cause problems.  Try without it!
 (Possible problems manifest themselves as coredrops due to SIGBUS, as
  some memory accesses may become unaligned..)
 
@@ -555,7 +647,7 @@ LINE 3  FINFAN
 This is @emph{wide} format configuration file (like they all), and
 can be used to define what is done with various incoming files.
 
-Over-wide lines are wrapped @emph{in this document} with {@tt \}-characters
+Over-wide lines are wrapped @emph{in this document} with @code{\}-characters
 at the end of previous line, and at the begin of next line.
 Such wrapping is not allowed in the real configuration file!
 
@@ -652,7 +744,7 @@ NETINIT  FINFILES *        *        *   *   *        *        *          \
 This is @emph{wide} format configuration file (like they all), and
 can be used to define what is done with various incoming NMR's.
 
-Over-wide lines are wrapped @emph{in this document} with {@tt \}-characters
+Over-wide lines are wrapped @emph{in this document} with @code{\}-characters
 at the end of previous line, and at the begin of next line.
 Such wrapping is not allowed in the real configuration file!
 
@@ -874,7 +966,7 @@ NETSERV@@FINHUT    MEA@@FINFILES      NETSERV  NOTE     PUN A QUFINHUT 0003
 @end example
 
 Synopsis:
-{@tt   qrdr [ -u @i{user} ] [ -n ] [ -l ] [ @i{dirpaths}, @i{filepaths} ]}
+@code{  qrdr [ -u @i{user} ] [ -n ] [ -l ] [ @i{dirpaths}, @i{filepaths} ]}
 
 @emph{qrdr} gives users a tool to see what they have in their
 incoming BITNET spool queues.
@@ -923,55 +1015,153 @@ in the user's spool directory, or (relative) path to a file.
             [-u @i{username} ] [-o @i{outpath} ] @{@i{filepath}|@i{spoolid}@}
 @end example
 
+Options are as follows:
+@table @strong
+@item -n
+Don't delete the spool file, when processing completes successfully.
 
+@item -a
+Do forced translate of the file contents from EBCDIC to ASCII.
+(Despite of the spool file's class.)
+
+@item -b
+Consider the file to be binary, only receive it, don't translate.
+
+@item -d
+Debug outputs of the NJE spool file
+
+@item -asa
+Affects PRINT files which contain MCC carriage control codes
+(see bitspool(5)) by trsnlating them to FORTRAN-style carriage
+control.
+
+@item -rawpun
+Outputs the file contents (usually 80 chars per record PUNCH records)
+as is without adding anything, nor translating it.
+
+@item -bitraw
+????
+
+@item -bcat
+Output non-translated records in format:
+@example
+<char of reclen> <chars of record>
+@end example
+
+@item -u @i{username}
+Look into @i{username}'s spool directory, instead of who invokes
+the command.
+
+@item -o @i{outpath}
+Define output file, `-' denotes @var{STDOUT}.
+@end table
+
+Input files can be designated either with numeric spoolid, or
+path(s) to the file(s).
 
 @c ----------------------------------------------------------------
 @node sendfile, send, receive, User programs
 @section File sending with @file{sendfile/print/punch/submit}
 @c      - sendfile/print/punch/submit
 
+This program quintet is actually one binary with four invocation names.
+It behaves slightly differently with each name:
+@table @strong
+@item sendfile
+Generates @emph{SYSOUT} @emph{PUNCH} file containing @emph{NETDATA}
+encoded contents of the original file, and submits it to transmission
+to a remote system.
+@item print
+Generates @emph{SYSOUT} @emph{PRINT} file, and submits it to
+transmission to a remote system.
+@item punch
+Generates @emph{SYSOUT} @emph{PUNCH} file, and submits it to
+transmission to a remote system.
+@item submit
+Generates @emph{SYSIN} batch job spool file, and submits it to
+transmission to a remote batch facility for further processing.
+@end table
+
+@strong{**T.B.W.**}
+
 @c ----------------------------------------------------------------
 @node send, bitsend, sendfile, User programs
 @section Interactive messages/commands sender: @file{send}
 @c      - send
+
+@example
+@r{Synopsis:}
+   send [-u fromuser|-s] [-c(ommand)] [@@]node [command string]
+   send [-u fromuser|-s] [-m(essage)] user@@node [message text]
+@end example
+
+The first format sends commands to designated node.
+Using the option `-c' (or `-command') is unnecessary, unless the
+target node is wanted to be without the `@@'-sign on the command line.
+
+The second format sends interactive (@emph{NMR}) messages to
+the recipient  @emph{user@@node}.
+The maximum size of the NMR message is 120 characters per line.
+Unlike for the files, the network will not guarantee, that the NMR
+message will reach the destination, however it does a ``best effort''
+attempt at it.
+
+When no command string, or message text is included at the command line,
+the input is taken from the @emph{STDIN}.
+If the input comes from somewhere else than TTY, prompting is suppressed,
+like for example when some command output is piped to @file{send}.
+
+When @emph{STDIN} is used, message entering ends with the end-of-file
+condition (Often created with `ctrl-D' from the keyboard.)
 
 @c ----------------------------------------------------------------
 @node bitsend, bitreceive, send, User programs
 @section Send file in multiple parts along with `table of contents': @file{bitsend}
 @c      - bitsend
 
+@strong{**T.B.W.**}
+
 @c ----------------------------------------------------------------
 @node bitreceive, ygone, bitsend, User programs
 @section Receive `bitsent' files: @file{bitreceive}
 @c      - bitreceive
+
+@strong{**T.B.W.**}
 
 @c ----------------------------------------------------------------
 @node ygone, iucvtrap, bitreceive, User programs
 @section Register to the running Emulator to be `gone': @file{ygone}
 @c      - ygone
 
+@strong{**T.B.W.**}
+
 @c ----------------------------------------------------------------
 @node iucvtrap, transfer, ygone, User programs
 @section Trap, and pipe out incoming NMR messages from the Emulator: @file{iucvtrap}
 @c      - iucvtrap
+
+@strong{**T.B.W.**}
 
 @c ----------------------------------------------------------------
 @node transfer,   , iucvtrap, User programs
 @section Resend files from user's spool: @file{transfer}
 @c      - transfer
 
+@strong{**T.B.W.**}
 
 @c ================================================================
 @node System programs, Interfacing mailer, User programs, Top
 @chapter Documentation of system programs for NJE use
 
-@strong{**T.B.W.**}
+These programs are used by system manager, or they are utilities
+needed for system MTA integration:
 
 @menu
 * bmail::       `sendfile' with a twist to send BSMTP email
 * mailify::     For receiving incoming email files
 * ucp::         Emulator master control panel
 * njeroutes::   Route-database generator program
+* namesfilter:: Mailer route extractor from BITEARN.NODES file
 * acctcat::     Utility to dump the RSCS-accounting records
 @end menu
 
@@ -981,136 +1171,178 @@ in the user's spool directory, or (relative) path to a file.
 @section @file{bmail} -- `sendfile' with a twist to send BSMTP email
 @c      - bmail
 
+A special form of @file{sendfile} to send email-files to remote
+systems -- to a MTA at there, or (gasp), direct to the user, if
+no MTA exists at the node@dots{}
+@example
+  bmail [-u origuser] [-v] [-tag RSCS-TAG]
+        [-nd Gateway-Address | -b(smtp) Gateway-address]
+        FromUser@@FromNode ToUser@@ToNode [ToUser@@ToNode@dots{}]
+@end example
+
+Options are as follows:
+@table @strong
+@item -u origuser
+Defines the originating user, e.g. local @emph{MAILER}@dots{}
+Only @emph{super-user} can use this option.
+
+@item -v
+Request BSMTP `VERB ON' to be injected.  Sometimes usefull, when
+debugging some IBM CMS mailers.
+
+@item -tag RSCS-TAG
+Optional RSCS-TAG string to be passed to the transporter, usually
+not needed.
+
+@item -nd Gateway-address
+Send the email in NETDATA format -- implies also BSMTP.
+
+@item -b(smtp) Gateway-address
+Make the file contents to be BSMTP -- that is, Batch SMTP.
+Without NETDATA the width limit is 80 chars.
+@end table
+
+The message content (along with its RFC-822 headers) is taken
+from @emph{STDIN}.
+
+
 @c ----------------------------------------------------------------
 @node mailify, ucp, bmail, System programs
 @section @file{mailify} -- incoming mail-file processing
 @c      - mailify
 
+Normal use for @file{mailify} is to invoke it from incoming file
+processing (see @file{file-exit.cf}):
+@example
+  .../mailify /var/spool/.../NJEFILE
+@end example
+There are actually two versions of @file{mailify}, one which
+is script (@file{mailify.sh}), and newer C-program,  which
+superceeds the old script.
+
+The @file{mailify} analyzes the incoming NJE-spool-file, and
+makes the necessary parsing/transformation of it into RFC-822
+format, and feeds it to the system mailer.
+
+In the C-program there is support for @file{Zmailer}'s mail(3) -library,
+which thus can bypass more generic use of @file{/usr/lib/sendmail}
+as a feeder to the system mailer.
+
+These incoming mail processors are at their best, when they receive
+BSMTP in NETDATA file.
+
 @c ----------------------------------------------------------------
-@node ucp, njeroutes, mailify, System programs
+@node ucp, namesfilter, mailify, System programs
 @section @file{ucp} -- Emulator master control panel
 @c      - ucp
 
+@example
+@r{Synopsis:}
+  ucp cmd...
+    HELP  - Show this message
+    SHOW LINE/QUEUE - Show lines or queue status
+    START LINE n - Start a closed line
+  * START STREAM n LINE m - Start specific stream in active line
+    SHUT [ABORT] - Shutdown or abort the whole program
+    STOP LINE - Stop a line
+    FORCE LINE - Stop a line immediately
+  * STOP STREAM n LINE m - Stop a single stream in active line
+  * FORCE STREAM n LINE m - Stop immediately
+    QUEUE file-name [SIZE size] - To queue a file to send
+    RESCAN EXITS - Rescan file and message exits.
+    RESCAN QUEUE - Rescan queue and requeue files.
+    RESCAN ROUTE - Reopen route database.
+    DEBUG DUMP - Dump all lines buffers to logfile
+  % DEBUG RESCAN - Rescan queue and requeue files.
+    LOGLEVEL n - Set the loglevel to N
+    ROUTE xxx TO yyy - Change the routing table.
+         Route to  OFF  will delete the route entry.
+    GONE username LoginDirectory - Add username to gone list
+    UNGONE username - Remove a user from the Gone list.
+  * - Not yet implemented,  % - obsoleted
+@end example
+
+Program for commanding the FUNET-NJE emulator to do various things.
+Successfull usage of this utility @emph{requires} that the user has
+supplementary group, which allows communication with the FUNET-NJE.
+
+
 @c ----------------------------------------------------------------
-@node njeroutes, acctcat, ucp, System programs
+@node namesfilter, njeroutes, ucp, System programs
+@section @file{namesfilter} -- Mailer route extractor from @file{BITEARN.NODES} file
+@c      - namesfilter
+
+@example
+@r{Synopsis:}
+  namesfilter:  Filters @file{BITEARN.NODES} data to mailer databases
+     namesfilter -zmailer  < bitearn.nodes > bitnet.routes
+     namesfilter -smail    < bitearn.nodes > bitnet.routes
+     namesfilter -sendmail < bitearn.nodes > bitnet.routes
+  AT THE MOMENT, THE  -sendmail  IS NOT IMPLEMENTED!
+@end example
+
+This utility parses @file{BITEARN.NODES}-file, and from it
+all the `@emph{:type.NJE}' entries are checked up for possible
+`@emph{:servers1.}'-entry, which defines mailer.
+
+If no `@emph{:servers1.}' is defined, default `@strong{defrt1}'
+is used, othervice some smarter version is chosen.
+
+Originally this utility was written for Zmailer usage, other
+modes are ``afterthoughts''@dots{}
+
+@c ----------------------------------------------------------------
+@node njeroutes, acctcat, namesfilter, System programs
 @section @file{njeroutes} -- Route-database generator program
 @c      - njeroutes
+
+@example
+@r{Synopsis:}
+  njeroutes  header.file routes.file output.file
+@end example
+
+This program generates local @emph{BINTREE} copy of the route
+database from couple input files.  Runtime system uses the
+produced file to look up the NJE routes.
 
 @c ----------------------------------------------------------------
 @node acctcat,   , njeroutes, System programs
 @section @file{acctcat} -- Utility to dump the RSCS-accounting records
 @c      - acctcat
 
+@example
+@r{Synopsis:}
+  acctcat /path/to/rscs/acct-file
+@end example
+
+UNIX-program that is able to dump VM/CMS RSCS-accounting records into
+ASCII format. (For various reasons that format was chosen as the
+accounting format of the FUNET-NJE as well.)
 
 @c ================================================================
 @node Interfacing mailer, Nuts and Bolts, System programs, Top
-@chapter Interfacing sendmail/smail/Zmailer to BITNET
+@chapter Interfacing Zmailer/smail/sendmail with FUNET-NJE
+
+Here are some instructions on how to interface various MTA-systems
+into the @emph{FUNET-NJE} package.
 
 There is a separate program (@emph{mailify}) responsible for
 incoming email processing, these are routers, and senders of
-BITNET email.
+BITNET email (@emph{bmail}), and there is route database generator
+for generating the necessary  @emph{nodename->route}  mapping
+(@emph{namesfilter}).
 
 @menu
-* sendmail::	Interfacing BSD sendmail
+* Zmailer::     Interfacing Toronto/FUNET Zmailer
 * smail::       Interfacing smail3.0
-* Zmailer::     Interfacing Toronto Zmailer
+* sendmail::    Interfacing BSD sendmail
 @end menu
 
-@c ----------------------------------------------------------------
-@node    sendmail,    smail,   ,         Interfacing mailer
-@comment node-name,   next,  previous, up
-@section Interfacing BSD sendmail into FUNET-NJE
-
-@strong{To be written -- when somebody sendmail-user does it..}
-
-@c ----------------------------------------------------------------
-@node    smail,      Zmailer, sendmail, Interfacing mailer
-@section Interfacing Smail3.0 into FUNET-NJE
-
-In order to get SMAIL3.1.28 working with the meahan nje emulator,
-following steps are necessary:
-
-@enumerate
-@item
-Copy the BSMTP3, BSMTP3ND and DEFRT1 BASH scripts to your
-@var{SMAIL-LIBDIR}, e.g. @file{/usr/local/lib/smail/}
-
-@item
-Edit these 3 Scripts to fit your nje emulator installation,
-mainly the path to the @file{bmail} program coming with the emulator
-needs to be set properly.
-
-@item
-If you don't use a @file{routers} and @file{transports} file till now,
-because the compiled in defaults of SMAIL fit your needs,
-make a copy of these files to the @var{SMAIL-LIBDIR}.
-The source distribution of SMAIL comes with generic samples,
-which reflect the compiled-in configuration.
-
-@item
-Make an entry to @file{routers} file like below. Commonly between
-the entry which defines the @file{path} router and the @file{uucp-neighbors}
-router with the following lines
-
-@example
-bitnet: driver=pathalias,
-        method=bitmethods;
-        file=bitearn,
-        proto=bsearch,
-        -optional,
-        -required,
-        domain=bitnet,
-@end example
-
-The position of the entries within @file{routers} file is significant.
-The decision, which path is taken, depends mainly on this position.
-Please consult the SMAIL doc, resp. man 5 smail for more info on this.
-
-@item
-Make a directory @file{methods} within @var{SMAIL-LIBDIR}.
-Copy the supplied @file{bitmethods} file into there.
-
-Edit or generate a bitnet mailers routing table,
-and copy it to @var{SMAIL-LIBDIR}.
-Currently no table compiler is provided...
-The table has the common pathalias format with following entries:
-
-@example
-   destdomain	transportmethod!mailername!nodename!%s
-@end example
-
-where @emph{destdomain} is the domain within bitnet,
-@emph{transportmethod} is either bsmtp3, bsmtp3nd or defrt1,
-@emph{mailername} is the name of the remote mailer userid which
-receives email from bitnet, and
-@emph{nodename} is the bitnet node running the mailer
-
-The `@emph{%s} behind the @emph{nodename} is not needed for our purposes,
-but is necessary to pass the syntax check. The meaning of the 3 transport
-methods is described in @file{bmail(8)} utility.
-
-
-@item
-Edit the @file{transports} file in @var{SMAIL-LIBDIR} by adding
-the entries bstmp3, bsmtp3nd, and defrt1.
-A sample is provided with the nje emulator package.
-
-@item
-Add to your SMAIL - @file{config} file to the @emph{domains=}-line
-an entry for @emph{bitnet}, separated by a ":"
-
-@item
-If the packages installed properly, reload smail configuration.
-Now it should be possible to deliver mail within BITNET using nje.
-
-@end enumerate
-
-   
 
 
 @c ----------------------------------------------------------------
-@node    Zmailer,  , smail, Interfacing mailer
-@section Interfacing Toronto Zmailer into FUNET-NJE
+@node    Zmailer, smail, , Interfacing mailer
+@section Interfacing Toronto/FUNET Zmailer with FUNET-NJE
 
 Doing this interface was easy due to vast amounts of easy
 to understand configurability of the @emph{Zmailer}@footnote{
@@ -1121,10 +1353,9 @@ routing, @file{scheduler} running transport channels, like
 There are also incoming channel programs @file{smtpserver}, and
 compability interface @file{/usr/lib/sendmail}.
 
-The Zmailer is available from  ftp.cs.toronto.edu:/pub/zmailer/-directory
-by using anonymous FTP.
-
-A different copy from that is available from  ftp.funet.fi:/pub/unix/mail/zmailer/zmailer-2.2.1-mea-<datecode>.tar.gz, also via anonymous FTP.
+The Zmailer is available from
+ftp://ftp.funet.fi/pub/unix/mail/zmailer/zmailer-@emph{vers}-@emph{datecode}.tar.gz,
+via anonymous FTP.
 } system.
 
 Depending on if the system is to be a smart-mailer, or not,
@@ -1172,35 +1403,223 @@ Use @strong{defrt1}-channel, and send mail do @strong{$user@@acusd}
 Use @strong{bsmtp3nd}-channel (bsmtp3 in NETDATA instead of PUNCH),
 and send it to @strong{mailer@@searn}
 @end table
-That routing database is built from BITNET's @file{XMAILER NAMES}-file
-with a set of shell-, sed-, and awk-scripts from U. of Toronto, and
-included in the @emph{FUNETNJE}-package in subdirectory @file{namesfilter/}.
-It is a slightly edited version of original Zmailer support utility.
+
+That email routing database is built from @file{BITEARN NODES}-file
+by use of @file{namesfilter} -program:
+@example
+# ./namesfilter -zmailer < bitearn.nodes | sort > routes.bitnet
+@end example
+Unlike the original Toronto @file{namesfilter}-package, this does not
+take @file{BITEARN DOMAINS}, or @file{XMAILER NAMES}.
 
 Channels are defined in @file{$MAILSHARE/scheduler.cf}, in which
-these three are defined as:
+these five are defined as:
 @example
 @dots{}
 defrt1/*
         command="sm -c $channel defrt1"
 bsmtp3/*
         command="sm -c $channel bsmtp3"
+bsmtp3rfc/*
+        command="sm -c $channel bsmtp3rfc"
 bsmtp3nd/*
         command="sm -c $channel bsmtp3nd"
+bsmtp3ndrfc/*
+        command="sm -c $channel bsmtp3ndrfc"
 @end example
 Meaning they all are run via `sendmail-compatible transporter'.
 
 Configuration of the `sendmail-compatible transporter' at
-@file{$MAILSHARE/sm.conf} contains these three entries for the BITNET:
+@file{$MAILSHARE/sm.conf} contains these five entries for the BITNET:
 @example
 @dots{}
 #
 # bitnet stuff F=hu not set
 #
-bsmtp3   snmSX /usr/local/lib/huji/bmail  bmail -b $h -u MAILER $g $u
-bsmtp3nd snmSX /usr/local/lib/huji/bmail  bmail -nd $h -u MAILER $g $u
-defrt1   snS   /usr/local/lib/huji/bmail  bmail $g $u
+bsmtp3      snmSX /usr/local/lib/nje/bmail bmail -b $h -u MAILER $g $u
+bsmtp3rfc   snmSX /usr/local/lib/nje/bmail bmail -b $h -u MAILER $g $u
+bsmtp3nd    snmSX /usr/local/lib/nje/bmail bmail -nd $h -u MAILER $g $u
+bsmtp3ndrfc snmSX /usr/local/lib/nje/bmail bmail -nd $h -u MAILER $g $u
+defrt1      snS   /usr/local/lib/nje/bmail bmail $g $u
 @end example
+
+
+
+@c ----------------------------------------------------------------
+@node    smail, sendmail, Zmailer, Interfacing mailer
+@section Interfacing Smail3.0 with FUNET-NJE
+
+In order to get SMAIL3.1.28 working with the FUNET-NJE emulator,
+following steps are necessary:
+
+@enumerate
+@item
+Copy the BSMTP3, BSMTP3ND and DEFRT1 BASH scripts to your
+@var{SMAIL-LIBDIR}, e.g. @file{/usr/local/lib/smail/}
+
+@item
+Edit these 3 Scripts to fit your nje emulator installation,
+mainly the path to the @file{bmail} program coming with the emulator
+needs to be set properly.
+
+@item
+If you don't use a @file{routers} and @file{transports} file till now,
+because the compiled in defaults of SMAIL fit your needs,
+make a copy of these files to the @var{SMAIL-LIBDIR}.
+The source distribution of SMAIL comes with generic samples,
+which reflect the compiled-in configuration.
+
+@item
+Make an entry to @file{routers} file like below. Commonly between
+the entry which defines the @file{path} router and the @file{uucp-neighbors}
+router with the following lines
+
+@example
+bitnet: driver=pathalias,
+        method=bitmethods;
+        file=bitearn,
+        proto=bsearch,
+        -optional,
+        -required,
+        domain=bitnet,
+@end example
+
+The position of the entries within @file{routers} file is significant.
+The decision, which path is taken, depends mainly on this position.
+Please consult the SMAIL doc, resp. man 5 smail for more info on this.
+
+@item
+Make a directory @file{methods} within @var{SMAIL-LIBDIR}.
+Copy the supplied @file{bitmethods} file into there.
+
+Edit or generate a bitnet mailers routing table,
+and copy it to @var{SMAIL-LIBDIR}.
+It can be built from @file{BITEARN NODES}-file
+by use of @file{namesfilter}-program:
+@example
+# ./namesfilter -smail < bitearn.nodes | sort > routes.bitnet
+@end example
+
+
+The table has the common pathalias format with following entries:
+@example
+   destdomain   transportmethod!mailername!nodename!%s
+@end example
+
+where @emph{destdomain} is the domain within bitnet,
+@emph{transportmethod} is either bsmtp3, bsmtp3nd or defrt1,
+@emph{mailername} is the name of the remote mailer userid which
+receives email from bitnet, and
+@emph{nodename} is the bitnet node running the mailer
+
+The `@emph{%s} behind the @emph{nodename} is not needed for our purposes,
+but is necessary to pass the syntax check. The meaning of the 3 transport
+methods is described in @file{bmail(8)} utility.
+
+
+@item
+Edit the @file{transports} file in @var{SMAIL-LIBDIR} by adding
+the entries bstmp3, bsmtp3nd, and defrt1.
+A sample is provided with the nje emulator package.
+
+@item
+Add to your SMAIL - @file{config} file to the @emph{domains=}-line
+an entry for @emph{bitnet}, separated by a ":"
+
+@item
+If the packages installed properly, reload smail configuration.
+Now it should be possible to deliver mail within BITNET using nje.
+
+@end enumerate
+
+@c ----------------------------------------------------------------
+@node    sendmail,  ,  smail, Interfacing mailer
+@comment node-name,   next,  previous, up
+@section Interfacing BSD-sendmail with FUNET-NJE
+
+@emph{This presentation is by the courtesy of mr.
+Jukka Ukkonen of CSC.FI, translation to english is
+by Matti Aarnio}
+
+
+Somewhere in the begin of the @file{sendmail.cf}:
+@example
+# Bitnet route table (overriding default routes)
+Kbitnettable dbm -o /usr/local/lib/mail/bitnettable
+@end example
+
+Then in @emph{S0}-rules after error-mailer, local checkup, uucp, and
+mailertable:
+@example
+# Try a separate table for bitnet routes.
+R$*<@@$-.$+.bitnet.>$*       $:<$(bitnettable .$3$)>$1<$2.$3>$4
+R$*<@@$+.bitnet.>$*          $:<$(bitnettable $2$)>$1<$2>$3
+R<$-!$-!$+>$*<$+>$*         $#$1$@@$3$:$2          matched a 3 part route
+R<$-!$+>$*<$+>$*            $#$1$@@$2$:$3@@$4       matched a 2 part route
+@end example
+
+One completely new ruleset, though a short one, because other domains
+need not stripping:
+@example
+#
+#  Strip fake domains off in case posting directly
+#  to the receipient's native mail system.
+#
+S22
+R$*<@@$+.bitnet.>       $@@$1<@@$2>
+@end example
+
+This @emph{R=22} is only for receiver's side mailer definitions.
+(Odd tens are for the sender, even tens are for the receiver.
+Smaller ten is for envelope conversion, and bigger is for header
+conversion in case headers call for different transformation,
+than envelope, a'la S=11/31.)
+
+If sender address need to be translated into node format (from
+their propable FQDN format), there appears a need for yet another
+mapping of FQDN addresses to BITNET node names, which in practice
+means yet another dbm-database for maintance:
+@example
+  Kbitnetname dbm -o /usr/local/lib/mail/bitnetname
+@end example
+This needs another set like `22' above which tries to do the
+lookup according to the sender's machine, othervice the default
+@emph{S=11} is ok.
+
+On the other hand those, who have @emph{S=11/31}, like I have
+done it, the `31' is dangerous, because it does a lookup of
+`@emph{$(generics $1 $)}', which produces long names a'la
+@emph{Jukka.Ukkonen}, which in the usual BITNET-world is not
+quite commonly tolerated@dots{}
+
+A new @emph{S=xx} could be for example this S=12 below.
+`@strong{$N}' can be made local default name for the BITNET;
+@strong{CNfinfiles}:
+
+@example
+S12
+R$*<@@$=w.>     $:$1<@@$(bitnetname $2$)>
+R$*<@@$=w.>     $@@$1<@@$N>
+R$*<@@$+.>      $@@$1<@@$(bitnetname $2$)>
+@end example
+
+In addition to those there is also a need for all the mailer entries,
+like: `@strong{Mbsmtp3}'
+
+@emph{Non-translated email continues with an apology of being
+too tired to finish it ``tonight'', nor is `Jau' certain, that
+these make any sense/are corrent -- early September-94.}
+@example
+        Cheers,
+                // jau
+------
+  /    Jukka A. Ukkonen, M.Sc. (tech.) Centre for Scientific Computing
+ /__   Internet: ukkonen@@csc.fi            Tel:  (Home) +358-0-578628
+   /   Internet: jau@@cs.tut.fi                   (Work) +358-0-4573208
+  v    X.400:    c=fi, admd=fumail, no prmd, org=csc, pn=jukka.ukkonen
+@end example
+
+
 
 @c ================================================================
 @node Nuts and Bolts,   , Interfacing mailer, Top
@@ -1220,6 +1639,8 @@ defrt1   snS   /usr/local/lib/huji/bmail  bmail $g $u
 @node directories, cmdpipe,   , Nuts and Bolts
 @section Directory structure of the FUNET-NJE
 @c      - Directory structure
+
+
 
 @c ----------------------------------------------------------------
 @node cmdpipe, iucvpipe, directories, Nuts and Bolts
