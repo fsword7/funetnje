@@ -47,6 +47,7 @@ char *msg;
 	strncpy( user,User,sizeof(user)-1 );
 	user[8] = 0;	/* Sorry, UNIX max... */
 
+	
 	msgsize = strlen(msg);
 
 	lowerstr(user);

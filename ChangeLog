@@ -1,3 +1,11 @@
+Thu Jul  7 16:08:01 1994  Matti Aarnio  (mea@nic.funet.fi)
+
+	* nmr.c: handle_nmr()
+	    Rewrote parameter parsing for NMR forwarding.
+	    A locally linked (ROUTE NNNN TO `LOCALNAME`) host
+	    failed NMR delivery, and caused a SIGBUS error..
+	    (Wierd, isn't it..)
+
 Tue Mar 15 01:25:38 1994  "Matti E. Aarnio"  (mea@oj287.astro.utu.fi)
 
 	* unix_tcp.c, unix.c:
@@ -27,6 +35,8 @@ Fri Mar 11 19:50:40 1994  "Matti E. Aarnio"  (mea@oj287.astro.utu.fi)
 	    BSD-compat -library readdir() returns boguous data, but
 	    plain socket()'s don't have FIONBIO :-(  Sample Makefile
 	    definitions for Solaris are a result of LONG battle..
+	    (Actually that was about wrong  #include -- must be <sys/dir.h>,
+	     not <dirent.h> ...)
 
 
 Thu Mar  3 12:56:21 1994  Matti Aarnio  (mea@nic.funet.fi)

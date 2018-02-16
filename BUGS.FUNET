@@ -6,6 +6,10 @@
   Well, the code works with  "-lsocket -lnsl", but need to create a fully
   native system -- sleeker..
 
+- send.c/io.c: need more complete tests on what user (even SU) has put
+  on the 'sender address'..  A "send -u @ addr@somenode text" should not
+  produce totally void NMR..
+
 - TeXinfo manual is in the begin -- docs are not complete
   Once it is done, release 3.0 is done.
 

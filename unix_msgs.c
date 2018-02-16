@@ -602,7 +602,7 @@ msg_exit_proc(Exits,ExitCnt,ToName,ToNode,FromName,FromNode,cmdmsg,MsgTxt)
 const struct MSG_EXIT **Exits;
 const int ExitCnt;
 const char *ToName, *ToNode, *FromName, *FromNode;
-const int cmdmsg;
+const NMRCODES cmdmsg;
 char *MsgTxt;
 {
 	int i;
@@ -681,7 +681,7 @@ char *MsgTxt;
 void
 message_exit(ToName,ToNode,FromName,FromNode,cmdmsg,MsgTxt)
 const char *ToName, *ToNode, *FromName, *FromNode;
-const int cmdmsg;
+const NMRCODES cmdmsg;
 char *MsgTxt;
 {
 	char	MsgBuf[20+142];

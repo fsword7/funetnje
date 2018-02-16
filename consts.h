@@ -294,8 +294,9 @@ typedef enum {
 #define CMD_EXIT_RESCAN 24	/* Do a exit-rescan w/o sending SIGHUP	*/
 #define CMD_ROUTE_RESCAN 25	/* Do a route-rescan			*/
 
-#define	CMD_MSG		0	/* This is a message NMR		*/
-#define	CMD_CMD		1	/* This is a command NMR		*/
+typedef enum { CMD_MSG, CMD_CMD } NMRCODES;
+/* #define CMD_MSG	0 */	/* This is a message NMR		*/
+/* #define CMD_CMD	1 */	/* This is a command NMR		*/
 
 /* For send_data() routine: */
 #define	ADD_BCB_CRC	1	/* Add BCB+FCS in the beginning,
@@ -303,9 +304,10 @@ typedef enum {
 #define	SEND_AS_IS	2	/* Do not add anything			*/
 
 /* The codes that a message can be in */
-#define	ASCII		0
-#define	EBCDIC		1
-#define	BINARY		2
+typedef enum { ASCII, EBCDIC, BINARY } MSGCODES;
+/* #define	ASCII		0 */
+/* #define	EBCDIC		1 */
+/* #define	BINARY		2 */
 
 /* The file's type (Bitmask) */
 #define	F_MAIL		0x0	/* Mail message				*/

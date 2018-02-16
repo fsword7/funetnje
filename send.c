@@ -26,7 +26,7 @@
 #include "clientutils.h"
 
 #define LINESIZE 512
-#define MAXTEXTSIZE 80 /* Should be able to use at least 103 chars.. */
+#define MAXTEXTSIZE 103 /* Should be able to use at least 103 chars.. */
 #define CMD_MSG 0
 #define CMD_CMD 1
 

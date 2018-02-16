@@ -68,7 +68,7 @@ void
 del_gone_user(UserName)
 const char	*UserName;
 {
-	int	i, j;
+	int	i = 0, j = 0;
 	char	*LoginDirectory;	/* Need it to call Get_gone_user */
 
 /* Look for his entry */
@@ -76,14 +76,13 @@ const char	*UserName;
 	  return;		/* Not registered */
 
 /* Exists - delete him */
+	free(GoneUsers[i]);	/* Free the memory used by him */
 	for (j = i; j < GoneUsersNum; j++) {
 	  strcpy(GoneUsers[j], GoneUsers[j + 1]);
 	  GoneUsersDir[j] = GoneUsersDir[j + 1];
 	}
 	GoneUsersNum--;
-	free(LoginDirectory);	/* Free the memory used by him */
 }
-
 
 /*
  | Try sending the message to the gone user. If he was found and we could

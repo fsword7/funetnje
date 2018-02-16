@@ -316,7 +316,7 @@ extern void	debug_rescan_queue __(( const char *UserName, const char opt ));
 #ifdef	RSCS_VERSION /* These go together.. */
 extern void	handle_NMR __(( struct NMR_MESSAGE *NmrRecord, const int size ));
 #endif
-extern void	send_nmr __(( const char *Faddress, const char *Taddress, void *text, int size, const int format, const int Cflag ));
+extern void	send_nmr __(( const char *Faddress, const char *Taddress, void *text, int size, const MSGCODES format, const int Cflag ));
 extern int	find_line_index __(( char *NodeName, char *LinkName, char *characterSet, int *primline, int *altline ));
 extern void	handle_local_command __(( const char *OriginNode, const char *UserName, const char *MessageText ));
 
@@ -368,7 +368,7 @@ extern int	send_user __(( const char *user, char *msg ));
 
 /* unix_msgs.c */
 extern int	read_message_config __(( const char *path ));
-extern void	message_exit __(( const char *ToName, const char *ToNode, const char *FrName, const char *FrNode, const int cmdmsgflg, char *MessageText ));
+extern void	message_exit __(( const char *ToName, const char *ToNode, const char *FrName, const char *FrNode, const NMRCODES cmdmsgflg, char *MessageText ));
 extern void	msg_register __(( const void *ptr, const int size ));
 extern int	msg_helper __(( const char *FrAddr, const char *ToAddr ));
 

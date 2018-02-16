@@ -82,39 +82,10 @@ const int	size;
 	trace((void*)NmrRecord,size,5);
 #endif
 
-	if (strcasecmp(ToNode, LOCAL_NAME) != 0) {
-	  if ((NmrRecord->NMRFLAG & 0x80) == 0) /* Message */
-	    send_nmr("", ToNode, NmrRecord, size,
-		     EBCDIC, CMD_MSG);
-	  else {		/* Command */
-	    /* If we can't forward a command we send
-	       a rejection message - so create the
-	       sender's address.
-	       */
-	    sprintf(line, "%s@%s", ToName, OriginNode);
-	    send_nmr(line, ToNode, NmrRecord,
-		     size, EBCDIC, CMD_CMD);
-	  }
-	  return;
-	}
-
-	/* Test whether this is a command or message. */
-
 	*OriginName = '\0';	/* Assume no username */
 	if ((NmrRecord->NMRFLAG & 0x80) != 0) {
 	  strcpy(OriginName,ToName);
 	  *ToName = 0;
-	  logger(3, "NMR: command from '%s@%s' to node %s\n",
-		 OriginName, OriginNode, ToNode);
-	  up = NmrRecord->NMRMSG;
-	  i = (NmrRecord->NMRML & 0xff);
-	  EBCDIC_TO_ASCII(up, MessageText, i);
-	  MessageText[i] = '\0';
-	  logger(3, "Command is: '%s'\n", MessageText);
-	  message_exit(ToName, ToNode, OriginName, OriginNode,
-		       CMD_CMD, MessageText);
-	  /*handle_local_command(OriginNode, ToName, MessageText);*/
-	  return;		/* It's a message - ignore it */
 	}
 
 	up = &NmrRecord->NMRMSG[0];
@@ -137,6 +108,42 @@ const int	size;
 	    /* logger(2,"NMR msg with a timestamp! From %s(%s)\n",
 	       OriginNode,OriginName); */
 	  }
+	}
+
+	if (!(strcasecmp(ToNode, LOCAL_NAME) == 0 ||
+	      (*LOCAL_ALIAS != 0 && strcasecmp(ToNode,LOCAL_ALIAS) == 0))) {
+
+	  /* It is not a local name, nor local alias,
+	     we try forwarding it			*/
+
+	  /* If we can't forward a command we send a rejection message,
+	     so create the sender's address.			*/
+
+	  sprintf(line, "%s@%s", OriginName, OriginNode);
+
+	  if ((NmrRecord->NMRFLAG & 0x80) == 0) /* Message */
+	    send_nmr(line, ToNode, NmrRecord, size,
+		     EBCDIC, CMD_MSG);
+	  else		/* Command */
+	    send_nmr(line, ToNode, NmrRecord, size,
+		     EBCDIC, CMD_CMD);
+	  return;
+	}
+
+	/* Test whether this is a command or message. */
+
+	if ((NmrRecord->NMRFLAG & 0x80) != 0) {
+	  logger(3, "NMR: command from '%s@%s' to node %s\n",
+		 OriginName, OriginNode, ToNode);
+	  /* up = NmrRecord->NMRMSG; */
+	  i = (NmrRecord->NMRML & 0xff);
+	  EBCDIC_TO_ASCII(up, MessageText, i);
+	  MessageText[i] = '\0';
+	  logger(3, "Command is: '%s'\n", MessageText);
+	  message_exit(ToName, ToNode, OriginName, OriginNode,
+		       CMD_CMD, MessageText);
+	  /*handle_local_command(OriginNode, ToName, MessageText);*/
+	  return;		/* It's a message - ignore it */
 	}
 
 	/* Save the start of the original text in RealMessageText. See
@@ -174,8 +181,8 @@ const int	size;
  */
 void
 send_nmr(Faddress, Taddress, Text, size, format, Cflag)
-const	int	format,		/* ASCII or EBCDIC */
-		Cflag;		/* Command or Message */
+const	MSGCODES format;	/* ASCII or EBCDIC	*/
+const	int	Cflag;		/* Command or Message	*/
 	int	size;
 const	char	*Faddress, *Taddress;
 void		*Text;
@@ -201,7 +208,7 @@ void		*Text;
 	}
 
 	/* Copy the message text into the NMR buffer */
-	if (format != ASCII) {
+	if (format == EBCDIC) {
 	  if ((p = strchr(Taddress, '@')) != NULL)
 	    strcpy(NodeKey, ++p);
 	  else
@@ -232,7 +239,8 @@ void		*Text;
 
 	/* Test whether this message is for our node. If so, send it locally */
 	if (*ToNode != 0 &&
-	    strcasecmp(ToNode, LOCAL_NAME) == 0) {
+	    (strcasecmp(ToNode, LOCAL_NAME) == 0 ||
+	     (*LOCAL_ALIAS != 0 && strcasecmp(ToNode, LOCAL_ALIAS)==0))) {
 	  /* If it is a command - execute it. If not - broadcast */
 	  if (Cflag == CMD_CMD) {
 
@@ -403,7 +411,7 @@ void		*Text;
 	      if (*text != '*' && *Faddress != '@') {
 		/* It isn't a comment, and sender is not some system:
 		   Return a message to the sender */
-		sprintf(line, "Node %s can't receive commands", NodeKey);
+		sprintf(line, "Node %s can't receive commands/msgs", NodeKey);
 		sprintf(TempLine, "@%s", LOCAL_NAME);	/* Sender */
 		send_nmr(TempLine, Faddress, line, strlen(line),
 			 ASCII, CMD_MSG);
